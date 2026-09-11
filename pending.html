@@ -61,9 +61,17 @@
   import { getCurrentProfile, signOut } from "./js/auth.js";
 
   const profile = await getCurrentProfile();
-  if (!profile || !profile.email) location.href = "index.html";
-  else if (profile.status === "active") location.href = "home.html";
 
+  // ยังไม่ล็อกอิน / อนุมัติแล้ว → ย้ายหน้า แล้วหยุดทำงานส่วนที่เหลือ
+  if (!profile || !profile.email) {
+    location.href = "index.html";
+  } else if (profile.status === "active") {
+    location.href = "home.html";
+  } else {
+    startRequestPage(profile);
+  }
+
+  function startRequestPage(profile) {
   const msg = document.getElementById("msg");
   document.getElementById("who").innerHTML = `บัญชี: <b>${esc(profile.email)}</b>`;
 
@@ -110,6 +118,7 @@
     else { msg.className = "msg"; msg.textContent = "ยังไม่ได้รับอนุมัติ ลองใหม่อีกครั้งภายหลัง"; }
   });
   document.getElementById("out").addEventListener("click", signOut);
+  }  // end startRequestPage
 
   function esc(s){return String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
 </script>
