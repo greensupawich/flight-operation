@@ -3,49 +3,116 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Flight Operation · ภารกิจ</title>
+<title>Flight Operation · ปฏิทินภารกิจ</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bai+Jamjuree:wght@600;700&family=IBM+Plex+Sans+Thai:wght@400;500;600&family=IBM+Plex+Mono&display=swap">
 <link rel="stylesheet" href="css/style.css">
+<style>
+  .cal-head{display:flex;align-items:center;gap:14px;margin-bottom:14px;flex-wrap:wrap}
+  .cal-title{font-family:"Bai Jamjuree",sans-serif;font-weight:700;font-size:22px;min-width:190px}
+  .cal{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+  .dow{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.06em;text-transform:uppercase;
+       color:var(--faint);text-align:center;padding:6px 0;font-weight:500}
+  .day{position:relative;min-height:82px;background:var(--surface);border:1px solid var(--line);
+       border-radius:10px;padding:8px 9px;cursor:pointer;text-align:start;font:inherit;color:inherit;
+       display:flex;flex-direction:column;gap:6px;transition:border-color .12s,background .12s}
+  .day:hover{border-color:var(--primary);background:var(--primary-soft)}
+  .day.blank{background:transparent;border-color:transparent;cursor:default}
+  .day.blank:hover{background:transparent}
+  .day .num{font-size:13px;font-weight:600;color:var(--muted);font-variant-numeric:tabular-nums}
+  .day.today{border-color:var(--accent);border-width:2px}
+  .day.today .num{color:var(--accent)}
+  .day .cnt{display:inline-flex;align-items:center;gap:5px;background:var(--primary);color:#fff;
+            border-radius:999px;padding:3px 10px;font-size:12px;font-weight:600;align-self:flex-start}
+  .day.none{opacity:.62}
+  .day.weekend{background:var(--surface-2)}
+  .legend{display:flex;gap:16px;font-size:12.5px;color:var(--muted);margin-top:16px;flex-wrap:wrap}
+  .legend i{display:inline-block;width:11px;height:11px;border-radius:3px;margin-inline-end:6px;vertical-align:-1px}
+  @media(max-width:620px){ .day{min-height:62px;padding:6px} .day .cnt{padding:2px 7px;font-size:11px} }
+</style>
 </head>
 <body>
 <main>
   <div class="wrap">
-    <div class="page-head" style="display:flex;justify-content:space-between;align-items:end;gap:16px;flex-wrap:wrap">
-      <div>
-        <h1>ภารกิจรายวัน</h1>
-        <div class="sub">เลือกวันที่เพื่อดูภารกิจและจัดลูกเรือ</div>
-      </div>
-      <div style="display:flex;gap:10px;align-items:center">
-        <input type="date" id="datePick" style="width:auto">
-        <a class="btn primary" id="newBtn" href="mission.html?new=1" hidden>+ ภารกิจใหม่</a>
-      </div>
+    <div class="page-head">
+      <h1>ปฏิทินภารกิจ</h1>
+      <div class="sub">กดที่วันเพื่อดูสรุปภารกิจของวันนั้น</div>
     </div>
-    <div class="grid cols" id="list"><div class="empty">กำลังโหลด…</div></div>
+
+    <div class="cal-head">
+      <button class="btn sm" id="prev">←</button>
+      <div class="cal-title" id="title">—</div>
+      <button class="btn sm" id="next">→</button>
+      <button class="btn sm ghost" id="today">วันนี้</button>
+      <a class="btn sm primary" id="addBtn" href="#" hidden style="margin-inline-start:auto">+ เพิ่มภารกิจ</a>
+    </div>
+
+    <div class="cal" id="dow"></div>
+    <div class="cal" id="grid" style="margin-top:6px"></div>
+
+    <div class="legend">
+      <span><i style="background:var(--primary)"></i>จำนวนภารกิจในวันนั้น</span>
+      <span><i style="background:var(--accent)"></i>วันนี้</span>
+    </div>
   </div>
 </main>
 
 <script type="module">
   import { requireAuth, canPlan } from "./js/auth.js";
   import { renderTopbar } from "./js/ui.js";
-  import { loadMissions, renderMissions } from "./js/missions.js";
+  import { loadMonthCounts, isoLocal } from "./js/missions.js";
 
-  const profile = await requireAuth();     // ต้อง active เท่านั้น
+  const profile = await requireAuth();
   if (profile) {
     renderTopbar(profile);
-    if (canPlan(profile)) document.getElementById("newBtn").hidden = false;
 
-    const pick = document.getElementById("datePick");
-    const list = document.getElementById("list");
-    pick.value = new Date().toISOString().slice(0,10);
+    const DOW = ["อา","จ","อ","พ","พฤ","ศ","ส"];
+    document.getElementById("dow").innerHTML = DOW.map(d=>`<div class="dow">${d}</div>`).join("");
 
-    async function refresh(){
-      list.innerHTML = `<div class="empty">กำลังโหลด…</div>`;
-      renderMissions(list, await loadMissions(pick.value));
+    const TH_MONTH = ["มกราคม","กุมภาพันธ์","มีนาคม","เมษายน","พฤษภาคม","มิถุนายน",
+                      "กรกฎาคม","สิงหาคม","กันยายน","ตุลาคม","พฤศจิกายน","ธันวาคม"];
+
+    let view = new Date(); view.setDate(1);
+    const todayStr = isoLocal(new Date());
+
+    if (canPlan(profile)) {
+      const a = document.getElementById("addBtn");
+      a.hidden = false;
+      a.href = `mission.html?new=1&date=${todayStr}`;
     }
-    pick.addEventListener("change", refresh);
-    refresh();
+
+    async function render() {
+      const y = view.getFullYear(), m = view.getMonth();
+      document.getElementById("title").textContent = `${TH_MONTH[m]} ${y + 543}`;
+
+      const counts = await loadMonthCounts(y, m);
+      const firstDow = new Date(y, m, 1).getDay();
+      const daysInMonth = new Date(y, m + 1, 0).getDate();
+
+      let html = "";
+      for (let i = 0; i < firstDow; i++) html += `<div class="day blank"></div>`;
+      for (let d = 1; d <= daysInMonth; d++) {
+        const date = isoLocal(new Date(y, m, d));
+        const n = counts[date] || 0;
+        const dow = new Date(y, m, d).getDay();
+        const cls = ["day", n ? "" : "none", (dow===0||dow===6) ? "weekend" : "",
+                     date === todayStr ? "today" : ""].filter(Boolean).join(" ");
+        html += `<button class="${cls}" data-date="${date}">
+                   <span class="num">${d}</span>
+                   ${n ? `<span class="cnt">✈️ ${n}</span>` : ``}
+                 </button>`;
+      }
+      const grid = document.getElementById("grid");
+      grid.innerHTML = html;
+      grid.querySelectorAll("[data-date]").forEach((b) =>
+        b.addEventListener("click", () => location.href = `day.html?date=${b.dataset.date}`));
+    }
+
+    document.getElementById("prev").addEventListener("click", () => { view.setMonth(view.getMonth()-1); render(); });
+    document.getElementById("next").addEventListener("click", () => { view.setMonth(view.getMonth()+1); render(); });
+    document.getElementById("today").addEventListener("click", () => { view = new Date(); view.setDate(1); render(); });
+    render();
   }
 </script>
 </body>
