@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Flight Operation · ภารกิจ</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bai+Jamjuree:wght@600;700&family=IBM+Plex+Sans+Thai:wght@400;500;600&family=IBM+Plex+Mono&display=swap">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<main>
+  <div class="wrap" style="max-width:760px">
+    <div class="page-head"><h1 id="title">ภารกิจ</h1><div class="sub" id="sub"></div></div>
+
+    <!-- ฟอร์มสร้าง/แก้ภารกิจ (เฉพาะ planner+admin) -->
+    <div class="panel" id="formPanel" hidden>
+      <div class="grid" style="grid-template-columns:1fr 1fr">
+        <div><label>วันที่</label><input type="date" id="f_date"></div>
+        <div><label>เวลา (แผน)</label><input id="f_time" placeholder="08:00-10:00"></div>
+      </div>
+      <label>ชื่อภารกิจ</label><input id="f_name" placeholder="เช่น ลาดตระเวนพื้นที่ A">
+      <label>เครื่องที่ใช้</label><select id="f_aircraft"></select>
+      <label>เส้นทางบิน</label><input id="f_route" placeholder="เช่น ฐาน→A→B→ฐาน">
+      <div style="margin-top:16px;display:flex;gap:10px">
+        <button class="btn primary" id="saveMission">บันทึกภารกิจ</button>
+        <a class="btn ghost" href="dashboard.html">กลับ</a>
+      </div>
+    </div>
+
+    <!-- จัดลูกเรือ (เฉพาะ planner+admin) -->
+    <div class="panel" id="crewPanel" hidden style="margin-top:16px">
+      <h3 style="margin:0 0 4px;font-family:'Bai Jamjuree',sans-serif">จัดลูกเรือ (~10 คน)</h3>
+      <div class="grid" style="grid-template-columns:2fr 1fr auto;align-items:end">
+        <div><label>เจ้าหน้าที่/นักบิน</label><select id="c_person"></select></div>
+        <div><label>ตำแหน่ง</label><input id="c_pos" placeholder="นักบิน / ช่าง"></div>
+        <button class="btn accent" id="addCrew" style="margin-bottom:0">+ เพิ่ม</button>
+      </div>
+      <div class="tablewrap" style="margin-top:14px">
+        <table><thead><tr><th>ชื่อ</th><th>ตำแหน่ง</th><th></th></tr></thead>
+        <tbody id="crewRows"><tr><td colspan="3" class="empty">ยังไม่มีลูกเรือ</td></tr></tbody></table>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script type="module">
+  import { requireAuth, canPlan } from "./js/auth.js";
+  import { renderTopbar, } from "./js/ui.js";
+  import { createMission, loadAircraft } from "./js/missions.js";
+  import { supabase } from "./js/supabase.js";
+
+  const profile = await requireAuth();
+  if (!profile) throw new Error("no auth");
+  renderTopbar(profile);
+
+  const q = new URLSearchParams(location.search);
+  const isNew = q.get("new") === "1";
+  let missionId = q.get("id");
+  const planner = canPlan(profile);
+
+  const aircraft = await loadAircraft();
+  const acOptions = `<option value="">— เลือกเครื่อง —</option>` +
+    aircraft.map(a=>`<option value="${a.id}">${a.tail_number} · ${a.type||"-"}</option>`).join("");
+
+  // ---------- โหมดสร้างใหม่ ----------
+  if (isNew && planner) {
+    document.getElementById("title").textContent = "สร้างภารกิจใหม่";
+    const fp = document.getElementById("formPanel"); fp.hidden = false;
+    document.getElementById("f_aircraft").innerHTML = acOptions;
+    document.getElementById("f_date").value = new Date().toISOString().slice(0,10);
+    document.getElementById("saveMission").addEventListener("click", async () => {
+      const m = await createMission({
+        mission_date: document.getElementById("f_date").value,
+        planned_time: document.getElementById("f_time").value,
+        mission_name: document.getElementById("f_name").value,
+        aircraft_id:  document.getElementById("f_aircraft").value || null,
+        route:        document.getElementById("f_route").value,
+      });
+      if (m) location.href = "mission.html?id=" + m.id;
+    });
+  }
+
+  // ---------- โหมดดู/จัดลูกเรือ ----------
+  if (missionId) {
+    const { data: m } = await supabase.from("missions")
+      .select("*, aircraft(tail_number,type)").eq("id", missionId).single();
+    if (m) {
+      document.getElementById("title").textContent = m.mission_name;
+      document.getElementById("sub").textContent =
+        `${m.mission_date} · ${m.planned_time||"-"} · ${m.aircraft? m.aircraft.tail_number:"ยังไม่กำหนดเครื่อง"} · ${m.route||""}`;
+    }
+    if (planner) {
+      document.getElementById("crewPanel").hidden = false;
+      // รายชื่อ active users
+      const { data: people } = await supabase.from("profiles")
+        .select("id,full_name,email").eq("status","active").order("full_name");
+      document.getElementById("c_person").innerHTML =
+        people.map(p=>`<option value="${p.id}">${p.full_name||p.email}</option>`).join("");
+      document.getElementById("addCrew").addEventListener("click", addCrew);
+      loadCrew();
+    }
+  }
+
+  async function loadCrew(){
+    const { data } = await supabase.from("mission_crew")
+      .select("id, position, profiles(full_name,email)").eq("mission_id", missionId);
+    const tb = document.getElementById("crewRows");
+    tb.innerHTML = (data && data.length)
+      ? data.map(r=>`<tr><td>${r.profiles?.full_name||r.profiles?.email||"-"}</td><td>${r.position||"-"}</td>
+          <td><button class="btn sm ghost" data-del="${r.id}">ลบ</button></td></tr>`).join("")
+      : `<tr><td colspan="3" class="empty">ยังไม่มีลูกเรือ</td></tr>`;
+    tb.querySelectorAll("[data-del]").forEach(b=>b.addEventListener("click", async()=>{
+      await supabase.from("mission_crew").delete().eq("id", b.dataset.del); loadCrew();
+    }));
+  }
+  async function addCrew(){
+    const profile_id = document.getElementById("c_person").value;
+    const position   = document.getElementById("c_pos").value;
+    const { error } = await supabase.from("mission_crew").insert({ mission_id: missionId, profile_id, position });
+    if (error) alert(error.message); else { document.getElementById("c_pos").value=""; loadCrew(); }
+  }
+</script>
+</body>
+</html>

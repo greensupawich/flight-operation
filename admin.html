@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Flight Operation · ผู้ดูแล</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bai+Jamjuree:wght@600;700&family=IBM+Plex+Sans+Thai:wght@400;500;600&family=IBM+Plex+Mono&display=swap">
+<link rel="stylesheet" href="css/style.css">
+<style>
+  .req-card{border:1px solid var(--accent);border-radius:var(--radius);overflow:hidden;margin-bottom:26px}
+  .req-head{background:var(--accent-soft);color:var(--warn);padding:12px 18px;font-weight:600;
+            font-family:"Bai Jamjuree",sans-serif;display:flex;align-items:center;gap:8px}
+  .req-card .tablewrap{border:0;border-radius:0}
+  h2.sec{font-family:"Bai Jamjuree",sans-serif;font-weight:600;font-size:18px;margin:0 0 10px}
+</style>
+</head>
+<body>
+<main>
+  <div class="wrap">
+    <div class="page-head">
+      <h1>ผู้ดูแลระบบ</h1>
+      <div class="sub">อนุมัติคำขอใช้งาน · กำหนดตำแหน่งและสิทธิ์ — เฉพาะ admin เท่านั้น</div>
+    </div>
+
+    <!-- ===== คำขอใช้งาน (ซ่อนถ้าไม่มี) ===== -->
+    <div class="req-card" id="reqCard" hidden>
+      <div class="req-head">📝 คำขอใช้งาน <span id="reqCount"></span></div>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>ผู้ขอ</th><th>ตำแหน่ง</th><th>ขอเมื่อ</th><th>ให้สิทธิ์เป็น</th><th>จัดการ</th></tr></thead>
+          <tbody id="reqRows"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ===== ผู้ใช้ทั้งหมด ===== -->
+    <h2 class="sec">ผู้ใช้ในระบบ</h2>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>ผู้ใช้</th><th>ตำแหน่ง</th><th>สิทธิ์</th><th>สถานะ</th><th></th></tr></thead>
+        <tbody id="userRows"><tr><td colspan="5" class="empty">กำลังโหลด…</td></tr></tbody>
+      </table>
+    </div>
+    <p class="muted" style="margin-top:14px;font-size:12.5px">
+      💡 ผู้ใช้ใหม่ที่ล็อกอิน Google แล้วกรอกคำขอ จะโผล่ในกล่อง "คำขอใช้งาน" ด้านบน · กด <b>✓ อนุมัติ</b> พร้อมเลือกสิทธิ์เพื่อเปิดใช้งาน
+    </p>
+  </div>
+</main>
+
+<script type="module">
+  import { requireAuth } from "./js/auth.js";
+  import { renderTopbar } from "./js/ui.js";
+  import { loadProfiles, renderRequests, renderUsers } from "./js/admin.js";
+
+  const profile = await requireAuth(["admin"]);   // เข้าได้เฉพาะ admin
+  if (profile) {
+    renderTopbar(profile);
+
+    const card  = document.getElementById("reqCard");
+    const reqTb = document.getElementById("reqRows");
+    const cnt   = document.getElementById("reqCount");
+    const userTb= document.getElementById("userRows");
+
+    async function refresh() {
+      const profiles = await loadProfiles();
+      renderRequests(card, reqTb, cnt, profiles, refresh);
+      renderUsers(userTb, profiles, null);
+    }
+    refresh();
+  }
+</script>
+</body>
+</html>

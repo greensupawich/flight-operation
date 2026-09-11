@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Flight Operation · หน้าหลัก</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bai+Jamjuree:wght@600;700&family=IBM+Plex+Sans+Thai:wght@400;500;600&family=IBM+Plex+Mono&display=swap">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<main>
+  <div class="wrap">
+    <div class="empty" style="margin-top:80px" id="body">
+      <div style="font-size:40px">🛩️</div>
+      <p style="font-size:16px;color:var(--muted);margin-top:12px">กำลังตรวจสอบสิทธิ์…</p>
+    </div>
+  </div>
+</main>
+
+<script type="module">
+  import { getCurrentProfile } from "./js/auth.js";
+  import { renderTopbar } from "./js/ui.js";
+
+  const profile = await getCurrentProfile();
+
+  if (!profile || !profile.email) {          // ยังไม่ล็อกอิน
+    location.href = "index.html";
+  } else if (profile.status !== "active") {  // ล็อกอินแล้วแต่ยังไม่อนุมัติ
+    location.href = "pending.html";
+  } else {
+    renderTopbar(profile);
+
+    // ---- หน้าหลัก (ว่างไว้ก่อน) ----
+    document.getElementById("body").innerHTML = `
+      <div style="font-size:40px">🛩️</div>
+      <p style="font-size:16px;color:var(--muted);margin-top:12px">หน้าหลัก — ว่างไว้ก่อน</p>
+      <p style="font-size:13px">เข้าสู่ระบบสำเร็จ · ส่วนภารกิจ/รายงาน/สถิติ จะเพิ่มในขั้นถัดไป</p>`;
+  }
+</script>
+</body>
+</html>

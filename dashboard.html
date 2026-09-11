@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Flight Operation · ภารกิจ</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bai+Jamjuree:wght@600;700&family=IBM+Plex+Sans+Thai:wght@400;500;600&family=IBM+Plex+Mono&display=swap">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<main>
+  <div class="wrap">
+    <div class="page-head" style="display:flex;justify-content:space-between;align-items:end;gap:16px;flex-wrap:wrap">
+      <div>
+        <h1>ภารกิจรายวัน</h1>
+        <div class="sub">เลือกวันที่เพื่อดูภารกิจและจัดลูกเรือ</div>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center">
+        <input type="date" id="datePick" style="width:auto">
+        <a class="btn primary" id="newBtn" href="mission.html?new=1" hidden>+ ภารกิจใหม่</a>
+      </div>
+    </div>
+    <div class="grid cols" id="list"><div class="empty">กำลังโหลด…</div></div>
+  </div>
+</main>
+
+<script type="module">
+  import { requireAuth, canPlan } from "./js/auth.js";
+  import { renderTopbar } from "./js/ui.js";
+  import { loadMissions, renderMissions } from "./js/missions.js";
+
+  const profile = await requireAuth();     // ต้อง active เท่านั้น
+  if (profile) {
+    renderTopbar(profile);
+    if (canPlan(profile)) document.getElementById("newBtn").hidden = false;
+
+    const pick = document.getElementById("datePick");
+    const list = document.getElementById("list");
+    pick.value = new Date().toISOString().slice(0,10);
+
+    async function refresh(){
+      list.innerHTML = `<div class="empty">กำลังโหลด…</div>`;
+      renderMissions(list, await loadMissions(pick.value));
+    }
+    pick.addEventListener("change", refresh);
+    refresh();
+  }
+</script>
+</body>
+</html>

@@ -1,0 +1,133 @@
+/* =====================================================================
+   Flight Operation · style.css  (shared)
+   ธีมอากาศยาน: steel-blue + amber, รองรับ light/dark ตามระบบผู้ใช้
+   ===================================================================== */
+:root{
+  --ground:#eef1f5; --surface:#fff; --surface-2:#f6f8fb;
+  --ink:#16202e; --muted:#5d6b7e; --faint:#8593a5;
+  --line:#dce2ea; --line-strong:#c3ccd8;
+  --primary:#245073; --primary-soft:#e5edf4;
+  --accent:#dd8a2a; --accent-soft:#fbeed6;
+  --good:#2f7d5b; --good-soft:#e2f0ea;
+  --warn:#b26a12; --crit:#b23b3b; --crit-soft:#f6e2e2;
+  --radius:12px; --shadow:0 1px 2px rgba(22,32,46,.05),0 8px 24px -12px rgba(22,32,46,.18);
+}
+@media (prefers-color-scheme:dark){ :root:not([data-theme="light"]){
+  --ground:#0d141d; --surface:#141d28; --surface-2:#0f1822;
+  --ink:#e6ecf3; --muted:#97a5b6; --faint:#6b7a8c;
+  --line:#243040; --line-strong:#31404f;
+  --primary:#6fa6d0; --primary-soft:#182838;
+  --accent:#e6a24a; --accent-soft:#2a2114;
+  --good:#5cbf94; --good-soft:#12241c;
+  --warn:#d99a3f; --crit:#e07b7b; --crit-soft:#2a1717;
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 10px 30px -14px rgba(0,0,0,.6);
+}}
+:root[data-theme="dark"]{
+  --ground:#0d141d; --surface:#141d28; --surface-2:#0f1822;
+  --ink:#e6ecf3; --muted:#97a5b6; --faint:#6b7a8c;
+  --line:#243040; --line-strong:#31404f;
+  --primary:#6fa6d0; --primary-soft:#182838;
+  --accent:#e6a24a; --accent-soft:#2a2114;
+  --good:#5cbf94; --good-soft:#12241c;
+  --warn:#d99a3f; --crit:#e07b7b; --crit-soft:#2a1717;
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 10px 30px -14px rgba(0,0,0,.6);
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0;background:var(--ground);color:var(--ink);
+  font-family:"IBM Plex Sans Thai","Segoe UI",system-ui,sans-serif;
+  line-height:1.6;font-size:15px;-webkit-font-smoothing:antialiased;
+}
+a{color:var(--primary)}
+.mono,code{font-family:"IBM Plex Mono",ui-monospace,monospace}
+.wrap{max-width:1000px;margin:0 auto;padding:0 20px}
+
+/* ---------- top bar ---------- */
+.topbar{
+  background:var(--surface);border-bottom:1px solid var(--line);
+  position:sticky;top:0;z-index:10;
+}
+.topbar .wrap{display:flex;align-items:center;gap:18px;height:58px}
+.brand{font-family:"Bai Jamjuree",sans-serif;font-weight:700;font-size:17px;letter-spacing:-.01em;display:flex;align-items:center;gap:8px}
+.brand .mk{color:var(--accent)}
+.nav{display:flex;gap:4px;margin-inline-start:auto;flex-wrap:wrap}
+.nav a{
+  text-decoration:none;color:var(--muted);font-size:14px;font-weight:500;
+  padding:7px 12px;border-radius:8px;
+}
+.nav a:hover{background:var(--surface-2);color:var(--ink)}
+.nav a.active{background:var(--primary-soft);color:var(--primary)}
+.userchip{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--muted)}
+.userchip .role{font-family:"IBM Plex Mono",monospace;font-size:11px;text-transform:uppercase;color:var(--accent);border:1px solid var(--line);border-radius:6px;padding:2px 7px}
+
+/* ---------- buttons ---------- */
+.btn{
+  font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;
+  border:1px solid var(--line-strong);background:var(--surface);color:var(--ink);
+  border-radius:9px;padding:9px 16px;display:inline-flex;align-items:center;gap:8px;
+}
+.btn:hover{background:var(--surface-2)}
+.btn.primary{background:var(--primary);border-color:var(--primary);color:#fff}
+.btn.primary:hover{filter:brightness(1.06)}
+.btn.accent{background:var(--accent);border-color:var(--accent);color:#1a1206}
+.btn.ghost{background:transparent}
+.btn.sm{padding:6px 11px;font-size:13px}
+
+/* ---------- page heading ---------- */
+.page-head{padding:26px 0 8px}
+.page-head h1{font-family:"Bai Jamjuree",sans-serif;font-weight:600;font-size:26px;margin:0 0 4px}
+.page-head .sub{color:var(--muted);font-size:14px}
+
+/* ---------- cards / panels ---------- */
+main{padding-bottom:60px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:18px 20px;box-shadow:var(--shadow)}
+.grid{display:grid;gap:14px}
+.grid.cols{grid-template-columns:repeat(auto-fill,minmax(260px,1fr))}
+
+/* ---------- mission cards ---------- */
+.mission{
+  background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+  padding:16px 18px;box-shadow:var(--shadow);border-inline-start:4px solid var(--primary);
+}
+.mission h3{font-family:"Bai Jamjuree",sans-serif;font-weight:600;font-size:16px;margin:0 0 6px}
+.mission .row{display:flex;gap:8px;font-size:13px;color:var(--muted);flex-wrap:wrap;margin:2px 0}
+.mission .row b{color:var(--ink);font-weight:600}
+.pill{font-size:11px;font-weight:600;border-radius:999px;padding:3px 10px;text-transform:uppercase;letter-spacing:.04em}
+.pill.planned{background:var(--primary-soft);color:var(--primary)}
+.pill.flying{background:var(--accent-soft);color:var(--warn)}
+.pill.completed{background:var(--good-soft);color:var(--good)}
+.pill.cancelled{background:var(--crit-soft);color:var(--crit)}
+
+/* ---------- table ---------- */
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:var(--radius);background:var(--surface)}
+table{border-collapse:collapse;width:100%;min-width:520px;font-size:14px}
+th,td{text-align:start;padding:11px 14px;border-bottom:1px solid var(--line)}
+thead th{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);background:var(--surface-2)}
+tbody tr:last-child td{border-bottom:0}
+td.num{font-variant-numeric:tabular-nums;text-align:end}
+
+/* ---------- forms ---------- */
+label{display:block;font-size:13px;font-weight:600;color:var(--ink);margin:12px 0 5px}
+input,select,textarea{
+  width:100%;font-family:inherit;font-size:14px;color:var(--ink);
+  background:var(--surface-2);border:1px solid var(--line-strong);border-radius:8px;padding:9px 11px;
+}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--primary);outline-offset:1px}
+
+/* ---------- login / pending centered ---------- */
+.center-screen{min-height:100vh;display:grid;place-items:center;padding:24px}
+.auth-card{
+  background:var(--surface);border:1px solid var(--line);border-radius:16px;
+  box-shadow:var(--shadow);padding:38px 34px;max-width:400px;width:100%;text-align:center;
+}
+.auth-card .logo{font-size:34px}
+.auth-card h1{font-family:"Bai Jamjuree",sans-serif;font-weight:700;font-size:24px;margin:12px 0 6px}
+.auth-card p{color:var(--muted);font-size:14px;margin:0 0 24px}
+.google-btn{
+  width:100%;justify-content:center;font-size:15px;padding:12px;
+  background:var(--surface);border:1px solid var(--line-strong);color:var(--ink);
+}
+.muted{color:var(--muted)}
+.empty{padding:40px;text-align:center;color:var(--faint);font-size:14px}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}

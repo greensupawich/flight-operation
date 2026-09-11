@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Flight Operation · รายงานหลังบิน</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bai+Jamjuree:wght@600;700&family=IBM+Plex+Sans+Thai:wght@400;500;600&family=IBM+Plex+Mono&display=swap">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<main>
+  <div class="wrap" style="max-width:720px">
+    <div class="page-head"><h1>รายงานหลังบิน</h1><div class="sub" id="sub"></div></div>
+
+    <!-- ขาการบิน -->
+    <div class="panel">
+      <h3 style="margin:0 0 10px;font-family:'Bai Jamjuree',sans-serif">ขาการบิน</h3>
+      <div class="grid" style="grid-template-columns:1fr 1fr 1fr auto;align-items:end">
+        <div><label>จาก</label><input id="l_from"></div>
+        <div><label>ถึง</label><input id="l_to"></div>
+        <div><label>ชม.</label><input id="l_hours" type="number" step="0.1" value="0"></div>
+        <button class="btn accent" id="addLeg" style="margin-bottom:0">+ ขา</button>
+      </div>
+      <div class="tablewrap" style="margin-top:12px">
+        <table><thead><tr><th>#</th><th>จาก → ถึง</th><th style="text-align:end">ชม.</th></tr></thead>
+        <tbody id="legRows"><tr><td colspan="3" class="empty">ยังไม่มีขาบิน</td></tr></tbody></table>
+      </div>
+    </div>
+
+    <!-- สรุปรายงาน -->
+    <div class="panel" style="margin-top:16px">
+      <h3 style="margin:0 0 10px;font-family:'Bai Jamjuree',sans-serif">สรุปหลังบิน</h3>
+      <label>ชั่วโมงบินรวม (จะกระจายไปลูกเรือทุกคน + เครื่องอัตโนมัติ)</label>
+      <input id="r_total" type="number" step="0.1" value="0">
+      <label>หมายเหตุ</label><textarea id="r_remarks" rows="3"></textarea>
+      <button class="btn primary" id="saveReport" style="margin-top:14px">บันทึกรายงาน</button>
+      <span id="ok" class="muted" style="margin-inline-start:10px"></span>
+    </div>
+
+    <!-- ข้อขัดข้อง -->
+    <div class="panel" style="margin-top:16px">
+      <h3 style="margin:0 0 10px;font-family:'Bai Jamjuree',sans-serif">ข้อขัดข้อง (บันทึกเข้าสถิติเครื่อง)</h3>
+      <label>รายละเอียดข้อขัดข้อง</label><textarea id="d_desc" rows="2"></textarea>
+      <button class="btn" id="addDisc" style="margin-top:12px">+ บันทึกข้อขัดข้อง</button>
+      <span id="dok" class="muted" style="margin-inline-start:10px"></span>
+    </div>
+  </div>
+</main>
+
+<script type="module">
+  import { requireAuth } from "./js/auth.js";
+  import { renderTopbar } from "./js/ui.js";
+  import { getMission, addLeg, loadLegs, saveReport, getReport, addDiscrepancy } from "./js/reports.js";
+
+  const profile = await requireAuth();
+  if (!profile) throw new Error("no auth");
+  renderTopbar(profile);
+
+  const missionId = new URLSearchParams(location.search).get("mission");
+  if (!missionId) { document.body.innerHTML += "<p class='wrap'>ไม่พบภารกิจ</p>"; throw new Error("no mission"); }
+
+  const m = await getMission(missionId);
+  let aircraftId = null;
+  if (m) {
+    aircraftId = m.aircraft_id;
+    document.getElementById("sub").textContent =
+      `${m.mission_name} · ${m.mission_date} · ${m.aircraft? m.aircraft.tail_number : "ไม่ระบุเครื่อง"}`;
+  }
+
+  // โหลดรายงานเดิม (ถ้ามี)
+  const existing = await getReport(missionId);
+  if (existing) {
+    document.getElementById("r_total").value = existing.total_hours;
+    document.getElementById("r_remarks").value = existing.remarks || "";
+  }
+
+  async function refreshLegs(){
+    const legs = await loadLegs(missionId);
+    const tb = document.getElementById("legRows");
+    tb.innerHTML = legs.length
+      ? legs.map((l,i)=>`<tr><td>${l.leg_no||i+1}</td><td>${l.from_point||"-"} → ${l.to_point||"-"}</td><td class="num">${l.hours}</td></tr>`).join("")
+      : `<tr><td colspan="3" class="empty">ยังไม่มีขาบิน</td></tr>`;
+  }
+  refreshLegs();
+
+  document.getElementById("addLeg").addEventListener("click", async ()=>{
+    const legs = await loadLegs(missionId);
+    await addLeg(missionId, {
+      leg_no: legs.length+1,
+      from_point: document.getElementById("l_from").value,
+      to_point:   document.getElementById("l_to").value,
+      hours: parseFloat(document.getElementById("l_hours").value)||0,
+    });
+    document.getElementById("l_from").value=""; document.getElementById("l_to").value="";
+    document.getElementById("l_hours").value="0"; refreshLegs();
+  });
+
+  document.getElementById("saveReport").addEventListener("click", async ()=>{
+    const ok = await saveReport(missionId, parseFloat(document.getElementById("r_total").value)||0,
+                                document.getElementById("r_remarks").value);
+    document.getElementById("ok").textContent = ok ? "✓ บันทึกแล้ว — ชม.ถูกกระจายอัตโนมัติ" : "";
+  });
+
+  document.getElementById("addDisc").addEventListener("click", async ()=>{
+    const desc = document.getElementById("d_desc").value.trim();
+    if (!desc) return;
+    const ok = await addDiscrepancy(missionId, aircraftId, desc);
+    if (ok){ document.getElementById("d_desc").value=""; document.getElementById("dok").textContent="✓ บันทึกแล้ว"; }
+  });
+</script>
+</body>
+</html>
