@@ -10,8 +10,10 @@
 <link rel="stylesheet" href="css/style.css">
 <style>
   .day-head{display:flex;align-items:end;gap:14px;flex-wrap:wrap;margin-bottom:18px}
-  .sheets{display:grid;grid-template-columns:repeat(auto-fill,minmax(430px,1fr));gap:20px}
+  /* min() กัน grid item กว้างเกินคอนเทนเนอร์ (เหตุที่ตารางตกขอบ) */
+  .sheets{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(430px,100%),1fr));gap:20px}
   @media(max-width:900px){ .sheets{grid-template-columns:1fr} }
+  .sheet-body{overflow-x:auto}          /* ตารางกว้างเกิน → เลื่อนในกรอบตัวเอง */
 
   /* ---- ฟอร์มภารกิจ (เลียนแบบกระดานจัดบิน) ---- */
   .sheet{background:var(--surface);border:2px solid var(--line-strong);border-radius:8px;overflow:hidden;
@@ -41,6 +43,12 @@
   .crewgrid span{padding:1px 4px;border-inline-end:1px dashed var(--line);min-height:18px}
   .crewgrid span:last-child{border-inline-end:0}
   .muted-cell{color:var(--faint);font-weight:400}
+  /* จอแคบ: ย่อตัวอักษร/ระยะขอบ ให้ตารางพอดีไม่ตกขอบ */
+  @media(max-width:520px){
+    table.fm{font-size:11px}
+    table.fm td{padding:4px 4px}
+    table.fm td.lb{font-size:10px}
+  }
 </style>
 </head>
 <body>
@@ -101,10 +109,13 @@
       `วัน${TH_DOW[dObj.getDay()]}ที่ ${dd} ${TH_MONTH[mm-1]} ${yy+543}`;
 
     // ---------- แถวลูกเรือ ----------
+    // ตำแหน่งที่ไม่มีคน → ไม่แสดงแถวเลย
     function crewRow(role, crew) {
       const names = crew.filter(c => (c.position||"").toUpperCase() === role)
                         .sort((a,b)=>(a.sort_order||0)-(b.sort_order||0))
-                        .map(c => c.crew_name || "");
+                        .map(c => (c.crew_name || "").trim())
+                        .filter(Boolean);
+      if (!names.length) return "";
       const slots = Math.max(3, names.length);          // อย่างน้อย 3 ช่องให้ตรงกับกระดาน
       const cells = Array.from({length: slots}, (_, i) => `<span>${esc(names[i] || "")}</span>`).join("");
       return `<tr><td class="lb">${role}</td><td colspan="5" class="v">
@@ -128,6 +139,7 @@
             <a class="btn sm accent" href="report.html?mission=${m.id}">รายงาน</a>
           </div>
         </div>
+        <div class="sheet-body">
         <table class="fm">
           <colgroup><col style="width:17%"><col style="width:16%"><col style="width:17%">
                     <col style="width:16%"><col style="width:17%"><col style="width:17%"></colgroup>
@@ -141,7 +153,7 @@
           <tr><td class="lb">ชพ.</td><td class="v c hot">${v(m.fuel)}</td>
               <td class="lb">จัดรับรอง</td><td class="v c hot">${v(m.catering)}</td>
               <td class="lb">PAX.</td><td class="v c hot">${v(m.pax)}</td></tr>
-          <tr><td class="lb">ภารกิจ</td><td colspan="5" class="v">${v(m.mission_name)}</td></tr>
+          <tr><td class="lb">ภารกิจ</td><td colspan="5" class="v c">${v(m.mission_name)}</td></tr>
           <tr><td class="lb">เส้นทางบิน</td><td colspan="5" class="v c">${v(m.route)}</td></tr>
           <tr><td class="lb">หน.คณะ</td><td colspan="5" class="v">${v(m.head_delegation)}</td></tr>
           ${[...PILOT_ROLES, ...OTHER_ROLES].map(r => crewRow(r, crew)).join("")}
@@ -150,6 +162,7 @@
               <td class="lb">ไป</td><td class="v c hot">${v(m.parking_out)}</td></tr>
           <tr><td class="lb">กลับ</td><td class="v c hot">${v(m.parking_in)}</td></tr>
         </table>
+        </div>
       </div>`;
     }
 
