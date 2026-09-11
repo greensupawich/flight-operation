@@ -19,14 +19,27 @@
   .r3{grid-template-columns:repeat(3,1fr)}
   .r5{grid-template-columns:repeat(5,1fr)}
   label{margin:0 0 5px}
-  .crew-row{display:grid;grid-template-columns:56px repeat(3,1fr);gap:8px;align-items:center;margin-bottom:8px}
-  .crew-tag{font-family:"IBM Plex Mono",monospace;font-weight:600;font-size:13px;text-align:center;
-            background:var(--surface-2);border:1px solid var(--line);border-radius:7px;padding:8px 0}
-  .crew-tag.nohr{background:var(--crit-soft);color:var(--crit);border-color:transparent}
+  /* ---- ลูกเรือแบบเพิ่ม/ลบแถวได้ (แบบ flight-ops) ---- */
+  .crew-block{background:var(--surface-2);border:1px solid var(--line);border-radius:10px;
+              padding:13px 14px;margin-bottom:12px}
+  .crew-title{font-size:13px;font-weight:700;margin-bottom:9px;display:flex;align-items:center;gap:8px}
+  .crew-title .tag{font-family:"IBM Plex Mono",monospace;background:var(--surface);border:1px solid var(--line);
+                   border-radius:6px;padding:2px 8px;font-size:12px}
+  .crew-title .nohr{background:var(--crit-soft);color:var(--crit);border:0;border-radius:5px;
+                    padding:2px 7px;font-size:10.5px;font-weight:700}
+  .crew-dyn{display:flex;flex-direction:column;gap:6px}
+  .crew-dyn-row{display:flex;gap:6px;align-items:center}
+  .crew-dyn-row input{flex:1}
+  .crew-dyn-row select{width:88px;flex-shrink:0}
+  .btn-mini{flex-shrink:0;padding:7px 11px;font-size:14px;line-height:1;border-radius:8px;
+            border:1px solid var(--line-strong);background:var(--surface);color:var(--crit);
+            cursor:pointer;font-family:inherit;font-weight:700}
+  .btn-mini:hover{background:var(--crit-soft)}
+  .btn-add{align-self:flex-start;margin-top:4px}
   .bar{position:sticky;bottom:0;background:var(--surface);border-top:1px solid var(--line);
        padding:14px 0;display:flex;gap:10px;margin-top:8px}
   .err{color:var(--crit);font-size:13px;align-self:center}
-  @media(max-width:700px){ .r5,.r3,.r2{grid-template-columns:1fr 1fr} .crew-row{grid-template-columns:52px 1fr} }
+  @media(max-width:700px){ .r5,.r3,.r2{grid-template-columns:1fr 1fr} }
 </style>
 </head>
 <body>
@@ -42,16 +55,8 @@
       <h3>✈️ เครื่องบินและภารกิจ</h3>
       <div class="row r3">
         <div><label>วันที่</label><input type="date" id="f_date"></div>
-        <div><label>หมายเลขเครื่อง (A/C No.)</label>
-          <select id="f_aircraft"></select>
-          <button class="btn sm ghost" id="newAc" type="button" style="margin-top:6px">+ เพิ่มเครื่องใหม่</button>
-        </div>
+        <div><label>หมายเลขเครื่อง (A/C No.)</label><select id="f_aircraft"></select></div>
         <div><label>Callsign</label><input id="f_callsign" placeholder="เช่น CBY01"></div>
-      </div>
-      <div class="row r2" id="newAcBox" hidden style="margin-top:10px">
-        <div><label>ทะเบียน/หมายเลข</label><input id="f_acTail" placeholder="เช่น 303"></div>
-        <div><label>แบบเครื่อง</label><input id="f_acType" placeholder="เช่น ATR72-600">
-          <button class="btn sm primary" id="saveAc" type="button" style="margin-top:6px">บันทึกเครื่อง</button></div>
       </div>
       <div class="row r2" style="margin-top:12px">
         <div><label>ชนิดภารกิจ</label><select id="f_kind"></select></div>
@@ -87,11 +92,6 @@
       <h3>🧭 เส้นทางบินและจุดจอด</h3>
       <label>เส้นทางบิน</label>
       <input id="f_route" placeholder="เช่น บน.6 - บน.41 - บน.6">
-      <div class="row r3" style="margin-top:12px">
-        <div><label>ระยะทาง</label><input id="f_distance"></div>
-        <div><label>เวลา</label><input id="f_duration"></div>
-        <div><label>ความสูง</label><input id="f_altitude"></div>
-      </div>
       <div class="row r2" style="margin-top:12px">
         <div><label>จุดจอด — ไป</label><input id="f_parkOut" placeholder="เช่น N14"></div>
         <div><label>จุดจอด — กลับ</label><input id="f_parkIn" placeholder="เช่น N14 / RTAF"></div>
@@ -113,8 +113,9 @@
     <div class="fieldset">
       <h3>🧑‍✈️ รายชื่อลูกเรือ</h3>
       <p class="hint">
+        กด <b>+ เพิ่ม</b> เพื่อเพิ่มคน · กด <b>−</b> เพื่อลบแถว<br>
         พิมพ์ชื่อได้อิสระ · ถ้าชื่อตรงกับผู้ใช้ในระบบ ระบบจะผูกให้อัตโนมัติเพื่อสะสม ชม.บิน<br>
-        <b style="color:var(--crit)">AC และ N ไม่นับชั่วโมงบิน</b> (ตำแหน่งที่มีพื้นแดง)
+        <b style="color:var(--crit)">AC และ N ไม่นับชั่วโมงบิน</b>
       </p>
       <div id="crewBox"></div>
       <datalist id="peopleList"></datalist>
@@ -137,8 +138,8 @@
 <script type="module">
   import { requireAuth, canPlan } from "./js/auth.js";
   import { renderTopbar } from "./js/ui.js";
-  import { getMission, saveMission, loadAircraft, addAircraft, loadActiveProfiles,
-           KINDS, PILOT_ROLES, OTHER_ROLES, NO_HOURS_ROLES, esc } from "./js/missions.js";
+  import { getMission, saveMission, loadAircraft, loadActiveProfiles, acLabel,
+           KINDS, PILOT_ROLES, OTHER_ROLES, esc } from "./js/missions.js";
 
   const profile = await requireAuth();
   if (profile) {
@@ -148,33 +149,19 @@
     const q = new URLSearchParams(location.search);
     const missionId = q.get("id");
     const presetDate = q.get("date");
-    const ROLES = [...PILOT_ROLES, ...OTHER_ROLES];
 
     // ---- ชนิดภารกิจ ----
     document.getElementById("f_kind").innerHTML =
       Object.entries(KINDS).map(([k,l]) => `<option value="${k}">${l}</option>`).join("");
 
-    // ---- เครื่องบิน ----
-    let aircraft = await loadAircraft();
+    // ---- เครื่องบิน (รายการตายตัว 6 ลำ) ----
+    const aircraft = await loadAircraft();
     function fillAircraft(sel) {
       document.getElementById("f_aircraft").innerHTML =
         `<option value="">— เลือกเครื่อง —</option>` +
-        aircraft.map(a => `<option value="${a.id}" ${a.id===sel?"selected":""}>${esc(a.type||"")}/ ${esc(a.tail_number)}</option>`).join("");
+        aircraft.map(a => `<option value="${a.id}" ${a.id===sel?"selected":""}>${esc(acLabel(a))}</option>`).join("");
     }
     fillAircraft();
-    document.getElementById("newAc").addEventListener("click", () => {
-      const b = document.getElementById("newAcBox"); b.hidden = !b.hidden;
-    });
-    document.getElementById("saveAc").addEventListener("click", async () => {
-      const tail = document.getElementById("f_acTail").value.trim();
-      const type = document.getElementById("f_acType").value.trim();
-      if (!tail) { alert("กรอกทะเบียน/หมายเลขเครื่อง"); return; }
-      const { data, error } = await addAircraft(tail, type);
-      if (error) { alert("เพิ่มไม่สำเร็จ: " + error.message); return; }
-      aircraft = await loadAircraft(); fillAircraft(data.id);
-      document.getElementById("newAcBox").hidden = true;
-      document.getElementById("f_acTail").value = ""; document.getElementById("f_acType").value = "";
-    });
 
     // ---- รายชื่อผู้ใช้ (autocomplete + ผูก profile) ----
     const people = await loadActiveProfiles();
@@ -183,12 +170,65 @@
     document.getElementById("peopleList").innerHTML =
       people.filter(p=>p.full_name).map(p => `<option value="${esc(p.full_name)}">`).join("");
 
-    // ---- ช่องกรอกลูกเรือ 3 คน/ตำแหน่ง ----
-    document.getElementById("crewBox").innerHTML = ROLES.map(r => `
-      <div class="crew-row" data-role="${r}">
-        <div class="crew-tag ${NO_HOURS_ROLES.includes(r) ? "nohr" : ""}">${r}</div>
-        ${[0,1,2].map(i => `<input list="peopleList" data-i="${i}" placeholder="ชื่อ">`).join("")}
-      </div>`).join("");
+    // =================================================================
+    //  ลูกเรือ — แถวเพิ่ม/ลบได้ (แบบ flight-ops)
+    //   • นักบิน: 1 แถว = [เลือกตำแหน่ง AC/IP/P/CP/N] + ชื่อ
+    //   • FM/RO/LM/AH: 1 แถว = ชื่อ
+    // =================================================================
+    let pilots = [];                                   // [{role, name}]
+    const others = Object.fromEntries(OTHER_ROLES.map(r => [r, []]));   // {FM:[name,...]}
+
+    document.getElementById("crewBox").innerHTML = `
+      <div class="crew-block">
+        <div class="crew-title"><span class="tag">นบ.</span> นักบิน
+          <span class="nohr">AC · N ไม่นับ ชม.บิน</span></div>
+        <div class="crew-dyn" id="pilotRows"></div>
+      </div>
+      ${OTHER_ROLES.map(r => `
+      <div class="crew-block">
+        <div class="crew-title"><span class="tag">${r}</span></div>
+        <div class="crew-dyn" id="rows_${r}"></div>
+      </div>`).join("")}`;
+
+    function renderPilots() {
+      const el = document.getElementById("pilotRows");
+      el.innerHTML = pilots.map((p, i) => `
+        <div class="crew-dyn-row">
+          <select data-i="${i}">${PILOT_ROLES.map(r =>
+            `<option value="${r}" ${p.role === r ? "selected" : ""}>${r}</option>`).join("")}</select>
+          <input list="peopleList" data-i="${i}" value="${esc(p.name)}" placeholder="ชื่อ">
+          <button type="button" class="btn-mini" data-del="${i}">−</button>
+        </div>`).join("") +
+        `<button type="button" class="btn sm ghost btn-add" data-add>+ เพิ่มนักบิน</button>`;
+
+      el.querySelectorAll("select[data-i]").forEach(s =>
+        s.addEventListener("change", e => { pilots[+e.target.dataset.i].role = e.target.value; }));
+      el.querySelectorAll("input[data-i]").forEach(s =>
+        s.addEventListener("input", e => { pilots[+e.target.dataset.i].name = e.target.value; }));
+      el.querySelectorAll("[data-del]").forEach(b =>
+        b.addEventListener("click", () => { pilots.splice(+b.dataset.del, 1); renderPilots(); }));
+      el.querySelector("[data-add]").addEventListener("click",
+        () => { pilots.push({ role: "IP", name: "" }); renderPilots(); });
+    }
+
+    function renderOther(role) {
+      const el = document.getElementById(`rows_${role}`);
+      el.innerHTML = others[role].map((name, i) => `
+        <div class="crew-dyn-row">
+          <input list="peopleList" data-i="${i}" value="${esc(name)}" placeholder="ชื่อ ${role}">
+          <button type="button" class="btn-mini" data-del="${i}">−</button>
+        </div>`).join("") +
+        `<button type="button" class="btn sm ghost btn-add" data-add>+ เพิ่ม ${role}</button>`;
+
+      el.querySelectorAll("input[data-i]").forEach(s =>
+        s.addEventListener("input", e => { others[role][+e.target.dataset.i] = e.target.value; }));
+      el.querySelectorAll("[data-del]").forEach(b =>
+        b.addEventListener("click", () => { others[role].splice(+b.dataset.del, 1); renderOther(role); }));
+      el.querySelector("[data-add]").addEventListener("click",
+        () => { others[role].push(""); renderOther(role); });
+    }
+
+    const renderCrew = () => { renderPilots(); OTHER_ROLES.forEach(renderOther); };
 
     // ---- โหลดข้อมูลเดิม (โหมดแก้ไข) ----
     const $ = (id) => document.getElementById(id);
@@ -203,24 +243,28 @@
         $("f_step").value = m.step_time || ""; $("f_taxi").value = m.taxi_time || "";
         $("f_to").value = m.takeoff_time || "";
         $("f_fuel").value = m.fuel || ""; $("f_catering").value = m.catering || ""; $("f_pax").value = m.pax || "";
-        $("f_route").value = m.route || ""; $("f_distance").value = m.distance || "";
-        $("f_duration").value = m.duration || ""; $("f_altitude").value = m.altitude || "";
+        $("f_route").value = m.route || "";
         $("f_parkOut").value = m.parking_out || ""; $("f_parkIn").value = m.parking_in || "";
         $("f_head").value = m.head_delegation || ""; $("f_pocName").value = m.poc_name || "";
         $("f_pocPhone").value = m.poc_phone || ""; $("f_remark").value = m.remark || "";
         $("back").href = `day.html?date=${m.mission_date}`;
 
+        // เติมลูกเรือเดิมเข้า state
         (m.mission_crew || []).sort((a,b)=>(a.sort_order||0)-(b.sort_order||0)).forEach((c) => {
-          const row = document.querySelector(`.crew-row[data-role="${(c.position||"").toUpperCase()}"]`);
-          if (!row) return;
-          const free = [...row.querySelectorAll("input")].find(i => !i.value);
-          if (free) free.value = c.crew_name || "";
+          const role = (c.position || "").toUpperCase();
+          if (PILOT_ROLES.includes(role)) pilots.push({ role, name: c.crew_name || "" });
+          else if (OTHER_ROLES.includes(role)) others[role].push(c.crew_name || "");
         });
       }
     } else {
       $("f_date").value = presetDate || new Date().toISOString().slice(0,10);
       if (presetDate) $("back").href = `day.html?date=${presetDate}`;
     }
+
+    // ค่าเริ่มต้น: อย่างน้อยกลุ่มละ 1 แถวว่าง ให้พร้อมกรอก
+    if (!pilots.length) pilots = [{ role: "IP", name: "" }];
+    OTHER_ROLES.forEach(r => { if (!others[r].length) others[r] = [""]; });
+    renderCrew();
 
     // ---- บันทึก ----
     document.getElementById("save").addEventListener("click", async () => {
@@ -239,8 +283,7 @@
         step_time: $("f_step").value.trim(),   taxi_time: $("f_taxi").value.trim(),
         takeoff_time: $("f_to").value.trim(),
         fuel: $("f_fuel").value.trim(), catering: $("f_catering").value.trim(), pax: $("f_pax").value.trim(),
-        route: $("f_route").value.trim(), distance: $("f_distance").value.trim(),
-        duration: $("f_duration").value.trim(), altitude: $("f_altitude").value.trim(),
+        route: $("f_route").value.trim(),
         parking_out: $("f_parkOut").value.trim(), parking_in: $("f_parkIn").value.trim(),
         head_delegation: $("f_head").value.trim(),
         poc_name: $("f_pocName").value.trim(), poc_phone: $("f_pocPhone").value.trim(),
@@ -249,14 +292,13 @@
 
       // รวบรวมลูกเรือ + ผูก profile ถ้าชื่อตรงกับผู้ใช้ในระบบ
       const crew = [];
-      document.querySelectorAll(".crew-row").forEach((row) => {
-        const role = row.dataset.role;
-        row.querySelectorAll("input").forEach((inp) => {
-          const name = inp.value.trim();
-          if (name) crew.push({ position: role, crew_name: name,
-                                profile_id: nameToId.get(name.toLowerCase()) || null });
-        });
-      });
+      const push = (role, name) => {
+        name = (name || "").trim();
+        if (name) crew.push({ position: role, crew_name: name,
+                              profile_id: nameToId.get(name.toLowerCase()) || null });
+      };
+      pilots.forEach(p => push(p.role, p.name));
+      OTHER_ROLES.forEach(r => others[r].forEach(n => push(r, n)));
 
       const btn = document.getElementById("save");
       btn.disabled = true; btn.textContent = "กำลังบันทึก…";

@@ -97,17 +97,14 @@ export async function deleteMission(id) {
   return error;
 }
 
-// ---------- เครื่องบิน ----------
+// ---------- เครื่องบิน (รายการตายตัว 6 ลำ — seed ไว้ใน migration_02) ----------
 export async function loadAircraft() {
   const { data } = await supabase.from("aircraft").select("id,tail_number,type").order("tail_number");
   return data || [];
 }
 
-export async function addAircraft(tail_number, type) {
-  const { data, error } = await supabase.from("aircraft")
-    .insert({ tail_number, type }).select("id,tail_number,type").single();
-  return { data, error };
-}
+// ชื่อที่แสดง เช่น "ATR72-600/60301"
+export const acLabel = (a) => a ? `${a.type || ""}/${a.tail_number}` : "-";
 
 // ---------- ผู้ใช้ในระบบ (ไว้ผูกลูกเรือกับบัญชี เพื่อสะสม ชม.บิน) ----------
 export async function loadActiveProfiles() {
