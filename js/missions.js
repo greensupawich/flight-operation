@@ -16,7 +16,7 @@ export const CREW_ROLES  = [...PILOT_ROLES, ...OTHER_ROLES];
 export const NO_HOURS_ROLES = ["AC", "N"];
 
 const MISSION_SELECT =
-  "*, aircraft(id,tail_number,type), mission_crew(id,position,crew_name,profile_id,sort_order)";
+  "*, aircraft(id,tail_number,type), mission_crew(id,position,crew_name,crew_member_id,sort_order)";
 
 // =====================================================================
 //  ปฏิทิน — นับจำนวนภารกิจต่อวันในเดือนที่กำหนด
@@ -55,7 +55,7 @@ export async function getMission(id) {
 
 // =====================================================================
 //  บันทึกภารกิจ (สร้างใหม่ถ้าไม่มี id) + แทนที่รายชื่อลูกเรือทั้งชุด
-//  crew = [{ position, crew_name, profile_id }]
+//  crew = [{ position, crew_name, crew_member_id }]
 // =====================================================================
 export async function saveMission(id, fields, crew) {
   const { data: { session } } = await supabase.auth.getSession();
@@ -81,7 +81,7 @@ export async function saveMission(id, fields, crew) {
       mission_id: missionId,
       position: c.position,
       crew_name: c.crew_name.trim(),
-      profile_id: c.profile_id || null,
+      crew_member_id: c.crew_member_id || null,
       sort_order: i,
     }));
 
@@ -106,10 +106,10 @@ export async function loadAircraft() {
 // ชื่อที่แสดง เช่น "ATR72-600/60301"
 export const acLabel = (a) => a ? `${a.type || ""}/${a.tail_number}` : "-";
 
-// ---------- ผู้ใช้ในระบบ (ไว้ผูกลูกเรือกับบัญชี เพื่อสะสม ชม.บิน) ----------
-export async function loadActiveProfiles() {
-  const { data } = await supabase.from("profiles")
-    .select("id,full_name,email,rank").eq("status", "active").order("full_name");
+// ---------- ทะเบียนลูกเรือ (ไว้เลือกตอนจัดลูกเรือ — ชม.บินผูกกับรหัสในทะเบียน) ----------
+export async function loadCrewRoster() {
+  const { data } = await supabase.from("crew_members")
+    .select("id,code,full_name,position").eq("active", true).order("full_name");
   return data || [];
 }
 

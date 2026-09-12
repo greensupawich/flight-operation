@@ -16,7 +16,7 @@
 
     <h3 style="font-family:'Bai Jamjuree',sans-serif;margin:18px 0 8px">ชั่วโมงบินสะสม — รายคน</h3>
     <div class="tablewrap">
-      <table><thead><tr><th>ลูกเรือ</th><th>แบบเครื่อง</th><th style="text-align:end">ชม.รวม</th></tr></thead>
+      <table><thead><tr><th>ลูกเรือ (รหัส)</th><th>แบบเครื่อง</th><th style="text-align:end">ชม.รวม</th></tr></thead>
       <tbody id="crew"><tr><td colspan="3" class="empty">กำลังโหลด…</td></tr></tbody></table>
     </div>
 
@@ -46,9 +46,11 @@
 
   // ชม.รายคน
   const { data: ch } = await supabase.from("crew_hours")
-    .select("total_hours, aircraft_type, profiles(full_name,email)").order("total_hours",{ascending:false});
+    .select("total_hours, aircraft_type, crew_members(code,full_name)").order("total_hours",{ascending:false});
   document.getElementById("crew").innerHTML = (ch&&ch.length)
-    ? ch.map(r=>`<tr><td>${esc(r.profiles?.full_name||r.profiles?.email||"-")}</td><td>${esc(r.aircraft_type)}</td><td class="num">${r.total_hours}</td></tr>`).join("")
+    ? ch.map(r=>`<tr><td>${esc(r.crew_members?.full_name||"-")}
+        <span class="mono muted" style="font-size:11.5px">${esc(r.crew_members?.code||"")}</span></td>
+        <td>${esc(r.aircraft_type)}</td><td class="num">${r.total_hours}</td></tr>`).join("")
     : `<tr><td colspan="3" class="empty">ยังไม่มีข้อมูล</td></tr>`;
 
   // ชม.เครื่อง

@@ -114,7 +114,8 @@
       <h3>🧑‍✈️ รายชื่อลูกเรือ</h3>
       <p class="hint">
         กด <b>+ เพิ่ม</b> เพื่อเพิ่มคน · กด <b>−</b> เพื่อลบแถว<br>
-        พิมพ์ชื่อได้อิสระ · ถ้าชื่อตรงกับผู้ใช้ในระบบ ระบบจะผูกให้อัตโนมัติเพื่อสะสม ชม.บิน<br>
+เลือกชื่อจาก<b>ทะเบียนลูกเรือ</b> (พิมพ์ชื่อหรือรหัสก็ได้) — ชม.บินจะสะสมให้คนนั้นอัตโนมัติ<br>
+        ยังไม่มีชื่อในทะเบียน? <a href="crew.html">เพิ่มที่หน้าทะเบียนลูกเรือ</a> ก่อน<br>
         <b style="color:var(--crit)">AC และ N ไม่นับชั่วโมงบิน</b>
       </p>
       <div id="crewBox"></div>
@@ -138,7 +139,7 @@
 <script type="module">
   import { requireAuth, canPlan } from "./js/auth.js";
   import { renderTopbar } from "./js/ui.js";
-  import { getMission, saveMission, loadAircraft, loadActiveProfiles, acLabel,
+  import { getMission, saveMission, loadAircraft, loadCrewRoster, acLabel,
            KINDS, PILOT_ROLES, OTHER_ROLES, esc } from "./js/missions.js";
 
   const profile = await requireAuth();
@@ -163,12 +164,20 @@
     }
     fillAircraft();
 
-    // ---- รายชื่อผู้ใช้ (autocomplete + ผูก profile) ----
-    const people = await loadActiveProfiles();
-    const nameToId = new Map();
-    people.forEach(p => { if (p.full_name) nameToId.set(p.full_name.trim().toLowerCase(), p.id); });
+    // ---- ทะเบียนลูกเรือ (autocomplete + ผูกรหัสประจำตัว) ----
+    const roster = await loadCrewRoster();
+    const byName = new Map(), byCode = new Map();
+    roster.forEach(p => {
+      byName.set(p.full_name.trim().toLowerCase(), p);
+      byCode.set(String(p.code).trim().toLowerCase(), p);
+    });
+    // พิมพ์ได้ทั้งชื่อและรหัส
+    const resolveCrew = (text) => {
+      const k = (text || "").trim().toLowerCase();
+      return byName.get(k) || byCode.get(k) || null;
+    };
     document.getElementById("peopleList").innerHTML =
-      people.filter(p=>p.full_name).map(p => `<option value="${esc(p.full_name)}">`).join("");
+      roster.map(p => `<option value="${esc(p.full_name)}">${esc(p.code)}</option>`).join("");
 
     // =================================================================
     //  ลูกเรือ — แถวเพิ่ม/ลบได้ (แบบ flight-ops)
@@ -292,13 +301,22 @@
 
       // รวบรวมลูกเรือ + ผูก profile ถ้าชื่อตรงกับผู้ใช้ในระบบ
       const crew = [];
+      const unknown = [];
       const push = (role, name) => {
         name = (name || "").trim();
-        if (name) crew.push({ position: role, crew_name: name,
-                              profile_id: nameToId.get(name.toLowerCase()) || null });
+        if (!name) return;
+        const m = resolveCrew(name);
+        if (!m) unknown.push(name);
+        crew.push({ position: role,
+                    crew_name: m ? m.full_name : name,
+                    crew_member_id: m ? m.id : null });
       };
       pilots.forEach(p => push(p.role, p.name));
       OTHER_ROLES.forEach(r => others[r].forEach(n => push(r, n)));
+
+      if (unknown.length &&
+          !confirm(`ชื่อเหล่านี้ไม่มีในทะเบียนลูกเรือ:\n\n${unknown.join(", ")}\n\n` +
+                   `จะบันทึกได้ แต่ระบบจะไม่สะสม ชม.บินให้\nกด OK เพื่อบันทึกต่อ / Cancel เพื่อกลับไปแก้`)) return;
 
       const btn = document.getElementById("save");
       btn.disabled = true; btn.textContent = "กำลังบันทึก…";
