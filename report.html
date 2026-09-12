@@ -8,43 +8,101 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bai+Jamjuree:wght@600;700&family=IBM+Plex+Sans+Thai:wght@400;500;600&family=IBM+Plex+Mono&display=swap">
 <link rel="stylesheet" href="css/style.css">
+<style>
+  .panel h3{font-family:"Bai Jamjuree",sans-serif;font-weight:600;font-size:16px;margin:0 0 4px;
+            display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .panel .hint{font-size:12.5px;color:var(--faint);margin:0 0 14px;line-height:1.6}
+  .routebox{background:var(--surface-2);border:1px solid var(--line);border-radius:9px;
+            padding:9px 13px;font-weight:600;font-size:13.5px;margin-bottom:14px;
+            display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .routebox .lbl{font-size:11.5px;color:var(--faint);font-weight:500}
+
+  /* ---- ขาการบิน ---- */
+  .leg{display:grid;grid-template-columns:26px 1fr 22px 1fr 88px auto;gap:8px;align-items:center;
+       margin-bottom:8px}
+  .leg .no{font-family:"IBM Plex Mono",monospace;font-size:12.5px;color:var(--faint);text-align:center;
+           font-weight:600}
+  .leg .arrow{text-align:center;color:var(--faint);font-size:14px}
+  .leg input{margin:0}
+  .leg .ops{display:flex;gap:4px}
+  .ibtn{flex-shrink:0;width:30px;height:34px;border-radius:8px;border:1px solid var(--line-strong);
+        background:var(--surface);color:var(--muted);cursor:pointer;font-size:13px;font-family:inherit;
+        line-height:1;display:grid;place-items:center}
+  .ibtn:hover:not(:disabled){background:var(--surface-2);color:var(--ink)}
+  .ibtn:disabled{opacity:.3;cursor:default}
+  .ibtn.del{color:var(--crit)}
+  .ibtn.del:hover{background:var(--crit-soft)}
+  .leg-head{display:grid;grid-template-columns:26px 1fr 22px 1fr 88px auto;gap:8px;
+            font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);
+            font-family:"IBM Plex Mono",monospace;margin-bottom:6px}
+  .leg-head span:nth-child(5){text-align:end}
+  .total{display:flex;justify-content:space-between;align-items:center;background:var(--good-soft);
+         border-radius:10px;padding:13px 18px;margin-top:14px}
+  .total .lb{font-weight:600;color:var(--good);font-size:14px}
+  .total .val{font-family:"Bai Jamjuree",sans-serif;font-weight:700;font-size:24px;color:var(--good);
+              font-variant-numeric:tabular-nums}
+  .disc-item{display:flex;gap:10px;align-items:start;background:var(--surface-2);border:1px solid var(--line);
+             border-radius:9px;padding:10px 12px;margin-bottom:8px;font-size:13.5px}
+  .disc-item .txt{flex:1}
+  .msg{font-size:13.5px;margin-top:10px;min-height:18px}
+  .msg.ok{color:var(--good)} .msg.err{color:var(--crit)}
+  @media(max-width:640px){
+    .leg,.leg-head{grid-template-columns:22px 1fr 16px 1fr;row-gap:6px}
+    .leg .hrs{grid-column:2/4} .leg .ops{grid-column:4/5;justify-content:end}
+    .leg-head span:nth-child(5),.leg-head span:nth-child(6){display:none}
+  }
+</style>
 </head>
 <body>
 <main>
-  <div class="wrap" style="max-width:720px">
-    <div class="page-head"><h1>รายงานหลังบิน</h1><div class="sub" id="sub"></div></div>
+  <div class="wrap" style="max-width:780px">
+    <div class="page-head">
+      <h1>รายงานหลังบิน</h1>
+      <div class="sub" id="sub">กำลังโหลด…</div>
+    </div>
 
     <!-- ขาการบิน -->
     <div class="panel">
-      <h3 style="margin:0 0 10px;font-family:'Bai Jamjuree',sans-serif">ขาการบิน</h3>
-      <div class="grid" style="grid-template-columns:1fr 1fr 1fr auto;align-items:end">
-        <div><label>จาก</label><input id="l_from"></div>
-        <div><label>ถึง</label><input id="l_to"></div>
-        <div><label>ชม.</label><input id="l_hours" type="number" step="0.1" value="0"></div>
-        <button class="btn accent" id="addLeg" style="margin-bottom:0">+ ขา</button>
+      <h3>🧭 ขาการบิน
+        <button class="btn sm ghost" id="regen" style="margin-inline-start:auto">↻ สร้างขาใหม่จากเส้นทาง</button>
+      </h3>
+      <p class="hint">ระบบแตกขาให้อัตโนมัติจากเส้นทางบิน — กรอกแค่ <b>ชม.</b> ของแต่ละขา · เพิ่ม/ลบ/สลับลำดับได้</p>
+      <div class="routebox"><span class="lbl">เส้นทางบิน</span><span id="routeTxt">-</span></div>
+
+      <div class="leg-head">
+        <span>#</span><span>จาก</span><span></span><span>ถึง</span><span>ชม.</span><span></span>
       </div>
-      <div class="tablewrap" style="margin-top:12px">
-        <table><thead><tr><th>#</th><th>จาก → ถึง</th><th style="text-align:end">ชม.</th></tr></thead>
-        <tbody id="legRows"><tr><td colspan="3" class="empty">ยังไม่มีขาบิน</td></tr></tbody></table>
+      <div id="legsBox"></div>
+      <button class="btn sm" id="addLeg" style="margin-top:4px">+ เพิ่มขา</button>
+
+      <div class="total">
+        <span class="lb">ชั่วโมงบินรวม (คิดจากทุกขา)</span>
+        <span class="val" id="totalVal">0.0</span>
       </div>
     </div>
 
-    <!-- สรุปรายงาน -->
+    <!-- หมายเหตุ -->
     <div class="panel" style="margin-top:16px">
-      <h3 style="margin:0 0 10px;font-family:'Bai Jamjuree',sans-serif">สรุปหลังบิน</h3>
-      <label>ชั่วโมงบินรวม (จะกระจายไปลูกเรือทุกคน + เครื่องอัตโนมัติ)</label>
-      <input id="r_total" type="number" step="0.1" value="0">
-      <label>หมายเหตุ</label><textarea id="r_remarks" rows="3"></textarea>
-      <button class="btn primary" id="saveReport" style="margin-top:14px">บันทึกรายงาน</button>
-      <span id="ok" class="muted" style="margin-inline-start:10px"></span>
+      <h3>📝 หมายเหตุ</h3>
+      <textarea id="remarks" rows="3" placeholder="บันทึกเพิ่มเติมเกี่ยวกับการบินครั้งนี้"></textarea>
     </div>
 
     <!-- ข้อขัดข้อง -->
     <div class="panel" style="margin-top:16px">
-      <h3 style="margin:0 0 10px;font-family:'Bai Jamjuree',sans-serif">ข้อขัดข้อง (บันทึกเข้าสถิติเครื่อง)</h3>
-      <label>รายละเอียดข้อขัดข้อง</label><textarea id="d_desc" rows="2"></textarea>
-      <button class="btn" id="addDisc" style="margin-top:12px">+ บันทึกข้อขัดข้อง</button>
-      <span id="dok" class="muted" style="margin-inline-start:10px"></span>
+      <h3>🔧 ข้อขัดข้อง</h3>
+      <p class="hint">บันทึกแล้วจะเข้าไปรวมในสถิติของเครื่องลำนี้</p>
+      <div id="discList"></div>
+      <div style="display:flex;gap:8px;align-items:end;margin-top:10px">
+        <div style="flex:1"><label style="margin-top:0">รายละเอียด</label>
+          <input id="discText" placeholder="เช่น ไฟสัญญาณ HYD ติดค้าง"></div>
+        <button class="btn" id="addDisc">+ บันทึก</button>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:10px;align-items:center;margin-top:20px;padding-bottom:40px">
+      <button class="btn primary" id="save">บันทึกรายงาน</button>
+      <a class="btn ghost" id="back" href="dashboard.html">กลับ</a>
+      <span class="msg" id="msg"></span>
     </div>
   </div>
 </main>
@@ -52,63 +110,154 @@
 <script type="module">
   import { requireAuth } from "./js/auth.js";
   import { renderTopbar } from "./js/ui.js";
-  import { getMission, addLeg, loadLegs, saveReport, getReport, addDiscrepancy } from "./js/reports.js";
+  import { getMission, routeToLegs, loadLegs, replaceLegs, saveReport, getReport,
+           loadDiscrepancies, addDiscrepancy, deleteDiscrepancy } from "./js/reports.js";
+  import { esc } from "./js/missions.js";
 
   const profile = await requireAuth();
-  if (!profile) throw new Error("no auth");
-  renderTopbar(profile);
+  if (profile) {
+    renderTopbar(profile);
 
-  const missionId = new URLSearchParams(location.search).get("mission");
-  if (!missionId) { document.body.innerHTML += "<p class='wrap'>ไม่พบภารกิจ</p>"; throw new Error("no mission"); }
+    const missionId = new URLSearchParams(location.search).get("mission");
+    const msg = document.getElementById("msg");
+    if (!missionId) {
+      document.getElementById("sub").textContent = "ไม่พบภารกิจ";
+      throw new Error("no mission");
+    }
 
-  const m = await getMission(missionId);
-  let aircraftId = null;
-  if (m) {
-    aircraftId = m.aircraft_id;
+    const m = await getMission(missionId);
+    if (!m) { document.getElementById("sub").textContent = "ไม่พบภารกิจ"; throw new Error("not found"); }
+
+    const acTxt = m.aircraft ? `${m.aircraft.type || ""}/${m.aircraft.tail_number}` : "ไม่ระบุเครื่อง";
     document.getElementById("sub").textContent =
-      `${m.mission_name} · ${m.mission_date} · ${m.aircraft? m.aircraft.tail_number : "ไม่ระบุเครื่อง"}`;
-  }
+      `${m.mission_name || "-"} · ${m.mission_date} · ${m.callsign || ""} · ${acTxt}`;
+    document.getElementById("routeTxt").textContent = m.route || "— ยังไม่ได้ระบุเส้นทางบิน —";
+    document.getElementById("back").href = `day.html?date=${m.mission_date}`;
 
-  // โหลดรายงานเดิม (ถ้ามี)
-  const existing = await getReport(missionId);
-  if (existing) {
-    document.getElementById("r_total").value = existing.total_hours;
-    document.getElementById("r_remarks").value = existing.remarks || "";
-  }
+    // ---------- state ของขาการบิน ----------
+    let legs = (await loadLegs(missionId)).map(l => ({
+      from_point: l.from_point || "", to_point: l.to_point || "", hours: l.hours ?? 0,
+    }));
+    // ยังไม่เคยบันทึกขา → แตกจากเส้นทางบินให้เลย
+    if (!legs.length) legs = routeToLegs(m.route);
+    if (!legs.length) legs = [{ from_point: "", to_point: "", hours: 0 }];
 
-  async function refreshLegs(){
-    const legs = await loadLegs(missionId);
-    const tb = document.getElementById("legRows");
-    tb.innerHTML = legs.length
-      ? legs.map((l,i)=>`<tr><td>${l.leg_no||i+1}</td><td>${l.from_point||"-"} → ${l.to_point||"-"}</td><td class="num">${l.hours}</td></tr>`).join("")
-      : `<tr><td colspan="3" class="empty">ยังไม่มีขาบิน</td></tr>`;
-  }
-  refreshLegs();
+    const box = document.getElementById("legsBox");
+    const fmt = (n) => (Math.round(n * 10) / 10).toFixed(1);
 
-  document.getElementById("addLeg").addEventListener("click", async ()=>{
-    const legs = await loadLegs(missionId);
-    await addLeg(missionId, {
-      leg_no: legs.length+1,
-      from_point: document.getElementById("l_from").value,
-      to_point:   document.getElementById("l_to").value,
-      hours: parseFloat(document.getElementById("l_hours").value)||0,
+    function recalcTotal() {
+      const t = legs.reduce((s, l) => s + (Number(l.hours) || 0), 0);
+      document.getElementById("totalVal").textContent = fmt(t);
+      return t;
+    }
+
+    function render() {
+      box.innerHTML = legs.map((l, i) => `
+        <div class="leg" data-i="${i}">
+          <span class="no">${i + 1}</span>
+          <input data-f="from_point" value="${esc(l.from_point)}" placeholder="จาก">
+          <span class="arrow">→</span>
+          <input data-f="to_point" value="${esc(l.to_point)}" placeholder="ถึง">
+          <input class="hrs" data-f="hours" type="number" step="0.1" min="0" value="${l.hours ?? 0}">
+          <span class="ops">
+            <button class="ibtn" data-up title="เลื่อนขึ้น" ${i === 0 ? "disabled" : ""}>↑</button>
+            <button class="ibtn" data-down title="เลื่อนลง" ${i === legs.length - 1 ? "disabled" : ""}>↓</button>
+            <button class="ibtn del" data-del title="ลบขานี้">×</button>
+          </span>
+        </div>`).join("");
+
+      box.querySelectorAll("input").forEach((inp) =>
+        inp.addEventListener("input", (e) => {
+          const i = +e.target.closest(".leg").dataset.i;
+          const f = e.target.dataset.f;
+          legs[i][f] = f === "hours" ? (parseFloat(e.target.value) || 0) : e.target.value;
+          if (f === "hours") recalcTotal();
+        }));
+
+      box.querySelectorAll("[data-up]").forEach((b) =>
+        b.addEventListener("click", (e) => {
+          const i = +e.target.closest(".leg").dataset.i;
+          [legs[i - 1], legs[i]] = [legs[i], legs[i - 1]];
+          render();
+        }));
+      box.querySelectorAll("[data-down]").forEach((b) =>
+        b.addEventListener("click", (e) => {
+          const i = +e.target.closest(".leg").dataset.i;
+          [legs[i + 1], legs[i]] = [legs[i], legs[i + 1]];
+          render();
+        }));
+      box.querySelectorAll("[data-del]").forEach((b) =>
+        b.addEventListener("click", (e) => {
+          const i = +e.target.closest(".leg").dataset.i;
+          legs.splice(i, 1);
+          if (!legs.length) legs = [{ from_point: "", to_point: "", hours: 0 }];
+          render();
+        }));
+
+      recalcTotal();
+    }
+    render();
+
+    document.getElementById("addLeg").addEventListener("click", () => {
+      const last = legs[legs.length - 1];
+      legs.push({ from_point: last ? last.to_point : "", to_point: "", hours: 0 });
+      render();
     });
-    document.getElementById("l_from").value=""; document.getElementById("l_to").value="";
-    document.getElementById("l_hours").value="0"; refreshLegs();
-  });
 
-  document.getElementById("saveReport").addEventListener("click", async ()=>{
-    const ok = await saveReport(missionId, parseFloat(document.getElementById("r_total").value)||0,
-                                document.getElementById("r_remarks").value);
-    document.getElementById("ok").textContent = ok ? "✓ บันทึกแล้ว — ชม.ถูกกระจายอัตโนมัติ" : "";
-  });
+    document.getElementById("regen").addEventListener("click", () => {
+      const fresh = routeToLegs(m.route);
+      if (!fresh.length) { alert("ภารกิจนี้ยังไม่ได้ระบุเส้นทางบิน"); return; }
+      if (!confirm("สร้างขาใหม่จากเส้นทางบิน? ชม.ที่กรอกไว้จะถูกล้าง")) return;
+      legs = fresh; render();
+    });
 
-  document.getElementById("addDisc").addEventListener("click", async ()=>{
-    const desc = document.getElementById("d_desc").value.trim();
-    if (!desc) return;
-    const ok = await addDiscrepancy(missionId, aircraftId, desc);
-    if (ok){ document.getElementById("d_desc").value=""; document.getElementById("dok").textContent="✓ บันทึกแล้ว"; }
-  });
+    // ---------- รายงานเดิม ----------
+    const existing = await getReport(missionId);
+    if (existing) document.getElementById("remarks").value = existing.remarks || "";
+
+    // ---------- ข้อขัดข้อง ----------
+    async function refreshDisc() {
+      const list = await loadDiscrepancies(missionId);
+      document.getElementById("discList").innerHTML = list.length
+        ? list.map(d => `<div class="disc-item" data-id="${d.id}">
+             <span class="txt">${esc(d.description)}</span>
+             <button class="ibtn del" data-deldisc title="ลบ">×</button></div>`).join("")
+        : `<div class="muted" style="font-size:13px">— ยังไม่มีข้อขัดข้อง —</div>`;
+      document.querySelectorAll("[data-deldisc]").forEach(b =>
+        b.addEventListener("click", async (e) => {
+          const id = e.target.closest(".disc-item").dataset.id;
+          if (!confirm("ลบข้อขัดข้องนี้?")) return;
+          await deleteDiscrepancy(id); refreshDisc();
+        }));
+    }
+    refreshDisc();
+
+    document.getElementById("addDisc").addEventListener("click", async () => {
+      const t = document.getElementById("discText");
+      const text = t.value.trim(); if (!text) return;
+      const err = await addDiscrepancy(missionId, m.aircraft_id, text);
+      if (err) { alert("บันทึกไม่สำเร็จ: " + err.message); return; }
+      t.value = ""; refreshDisc();
+    });
+
+    // ---------- บันทึกทั้งหมด ----------
+    document.getElementById("save").addEventListener("click", async () => {
+      const btn = document.getElementById("save");
+      btn.disabled = true; btn.textContent = "กำลังบันทึก…"; msg.className = "msg"; msg.textContent = "";
+
+      const clean = legs.filter(l => (l.from_point||"").trim() || (l.to_point||"").trim() || Number(l.hours));
+      const legErr = await replaceLegs(missionId, clean);
+      if (legErr) { msg.className = "msg err"; msg.textContent = "บันทึกขาไม่สำเร็จ: " + legErr.message;
+                    btn.disabled = false; btn.textContent = "บันทึกรายงาน"; return; }
+
+      const total = clean.reduce((s, l) => s + (Number(l.hours) || 0), 0);
+      const repErr = await saveReport(missionId, total, document.getElementById("remarks").value.trim());
+      btn.disabled = false; btn.textContent = "บันทึกรายงาน";
+      if (repErr) { msg.className = "msg err"; msg.textContent = "บันทึกรายงานไม่สำเร็จ: " + repErr.message; return; }
+      msg.className = "msg ok";
+      msg.textContent = `✓ บันทึกแล้ว · รวม ${fmt(total)} ชม. — กระจายไปลูกเรือและเครื่องอัตโนมัติ`;
+    });
+  }
 </script>
 </body>
 </html>
