@@ -6,7 +6,7 @@ import { signOut, canPlan, isAdmin } from "./auth.js";
 const LINKS = [
   { href: "home.html",      label: "หน้าหลัก" },
   { href: "dashboard.html", label: "ภารกิจ" },
-  { href: "crew.html",      label: "ทะเบียนลูกเรือ" },
+  { href: "crew.html",      label: "ทะเบียนนักบิน" },
   { href: "stats.html",     label: "สถิติ" },
   { href: "admin.html",     label: "ผู้ดูแล", adminOnly: true },
 ];

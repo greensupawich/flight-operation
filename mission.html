@@ -114,8 +114,9 @@
       <h3>🧑‍✈️ รายชื่อลูกเรือ</h3>
       <p class="hint">
         กด <b>+ เพิ่ม</b> เพื่อเพิ่มคน · กด <b>−</b> เพื่อลบแถว<br>
-เลือกชื่อจาก<b>ทะเบียนลูกเรือ</b> (พิมพ์ชื่อหรือรหัสก็ได้) — ชม.บินจะสะสมให้คนนั้นอัตโนมัติ<br>
-        ยังไม่มีชื่อในทะเบียน? <a href="crew.html">เพิ่มที่หน้าทะเบียนลูกเรือ</a> ก่อน<br>
+        <b>นักบิน (นบ.)</b> ต้องเลือกจาก<b>ทะเบียนนักบิน</b> (พิมพ์ชื่อหรือรหัสก็ได้) — ชม.บินสะสมให้อัตโนมัติ ·
+        ยังไม่มีชื่อ? <a href="crew.html">เพิ่มในทะเบียนนักบิน</a><br>
+        <b>FM / RO / LM / AH</b> พิมพ์ชื่อได้อิสระ (ลงกระดานอย่างเดียว ไม่เก็บทะเบียน/ไม่สะสม ชม.)<br>
         <b style="color:var(--crit)">AC และ N ไม่นับชั่วโมงบิน</b>
       </p>
       <div id="crewBox"></div>
@@ -189,7 +190,7 @@
 
     document.getElementById("crewBox").innerHTML = `
       <div class="crew-block">
-        <div class="crew-title"><span class="tag">นบ.</span> นักบิน
+        <div class="crew-title"><span class="tag">นบ.</span> นักบิน <span style="font-weight:400;color:var(--faint);font-size:11.5px">(จากทะเบียน)</span>
           <span class="nohr">AC · N ไม่นับ ชม.บิน</span></div>
         <div class="crew-dyn" id="pilotRows"></div>
       </div>
@@ -224,7 +225,7 @@
       const el = document.getElementById(`rows_${role}`);
       el.innerHTML = others[role].map((name, i) => `
         <div class="crew-dyn-row">
-          <input list="peopleList" data-i="${i}" value="${esc(name)}" placeholder="ชื่อ ${role}">
+          <input data-i="${i}" value="${esc(name)}" placeholder="ชื่อ ${role}">
           <button type="button" class="btn-mini" data-del="${i}">−</button>
         </div>`).join("") +
         `<button type="button" class="btn sm ghost btn-add" data-add>+ เพิ่ม ${role}</button>`;
@@ -302,20 +303,24 @@
       // รวบรวมลูกเรือ + ผูก profile ถ้าชื่อตรงกับผู้ใช้ในระบบ
       const crew = [];
       const unknown = [];
-      const push = (role, name) => {
-        name = (name || "").trim();
+      // นักบิน → ต้องอยู่ในทะเบียน (ผูก crew_member_id เพื่อสะสม ชม.)
+      pilots.forEach(p => {
+        const name = (p.name || "").trim();
         if (!name) return;
         const m = resolveCrew(name);
         if (!m) unknown.push(name);
-        crew.push({ position: role,
+        crew.push({ position: p.role,
                     crew_name: m ? m.full_name : name,
                     crew_member_id: m ? m.id : null });
-      };
-      pilots.forEach(p => push(p.role, p.name));
-      OTHER_ROLES.forEach(r => others[r].forEach(n => push(r, n)));
+      });
+      // FM/RO/LM/AH → ชื่อล้วน ไม่ผูกทะเบียน
+      OTHER_ROLES.forEach(r => others[r].forEach(n => {
+        const name = (n || "").trim();
+        if (name) crew.push({ position: r, crew_name: name, crew_member_id: null });
+      }));
 
       if (unknown.length &&
-          !confirm(`ชื่อเหล่านี้ไม่มีในทะเบียนลูกเรือ:\n\n${unknown.join(", ")}\n\n` +
+          !confirm(`ชื่อนักบินเหล่านี้ไม่มีในทะเบียนนักบิน:\n\n${unknown.join(", ")}\n\n` +
                    `จะบันทึกได้ แต่ระบบจะไม่สะสม ชม.บินให้\nกด OK เพื่อบันทึกต่อ / Cancel เพื่อกลับไปแก้`)) return;
 
       const btn = document.getElementById("save");

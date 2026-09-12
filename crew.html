@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Flight Operation · ทะเบียนลูกเรือ</title>
+<title>Flight Operation · ทะเบียนนักบิน</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bai+Jamjuree:wght@600;700&family=IBM+Plex+Sans+Thai:wght@400;500;600&family=IBM+Plex+Mono&display=swap">
@@ -30,24 +30,27 @@
 <main>
   <div class="wrap">
     <div class="page-head">
-      <h1>ทะเบียนลูกเรือ</h1>
-      <div class="sub">รายชื่อนักบินและเจ้าหน้าที่ — ใช้ตอนจัดลูกเรือเข้าภารกิจ</div>
+      <h1>ทะเบียนนักบิน</h1>
+      <div class="sub">เก็บเฉพาะนักบิน (AC · IP · P · CP · N) — ใช้ตอนจัดนักบินเข้าภารกิจและสะสม ชม.บิน</div>
     </div>
 
     <div class="note">
       🔑 <b>รหัสประจำตัว (ID) คือตัวระบุตัวตนถาวร</b> — ชั่วโมงบินสะสมผูกกับรหัส ไม่ใช่ชื่อ<br>
       ดังนั้นถ้า<b>เปลี่ยนยศหรือเปลี่ยนชื่อ ให้แก้ที่ช่อง "ชื่อ" โดยคงรหัสเดิมไว้</b> ระบบจะถือว่าเป็นคนเดิม ชม.บินไม่หาย<br>
-      ⚠️ อย่าสร้างรหัสใหม่ให้คนเดิม เพราะจะกลายเป็นคนละคนและ ชม.บินจะแยกกัน
+      ⚠️ อย่าสร้างรหัสใหม่ให้คนเดิม เพราะจะกลายเป็นคนละคนและ ชม.บินจะแยกกัน<br>
+      ✈️ <b>ทะเบียนนี้เก็บเฉพาะนักบิน</b> — FM / RO / LM / AH กรอกชื่อในหน้าภารกิจได้เลย ไม่ต้องลงทะเบียน
     </div>
 
     <!-- เพิ่มคนใหม่ -->
     <div class="addbox" id="addBox" hidden>
-      <h3>+ เพิ่มลูกเรือ</h3>
-      <p class="hint">รหัสกำหนดเองได้ เช่น เลขประจำตัว หรือ P001 · ห้ามซ้ำกับคนอื่น</p>
+      <h3>+ เพิ่มนักบิน</h3>
+      <p class="hint">รหัสกำหนดเองได้ เช่น เลขประจำตัว หรือ P001 · ห้ามซ้ำกับคนอื่น · เก็บเฉพาะนักบินเท่านั้น</p>
       <div class="grid4">
         <div><label>รหัสประจำตัว (ID)</label><input id="n_code" placeholder="เช่น P001"></div>
         <div><label>ชื่อ (พร้อมยศ)</label><input id="n_name" placeholder="เช่น น.อ.ฉัตรฤกษ์"></div>
-        <div><label>ตำแหน่งหลัก</label><input id="n_pos" placeholder="เช่น IP"></div>
+        <div><label>ตำแหน่งหลัก</label><select id="n_pos">
+          <option value="">—</option><option>AC</option><option>IP</option>
+          <option>P</option><option>CP</option><option>N</option></select></div>
         <button class="btn primary" id="addBtn">เพิ่ม</button>
       </div>
       <div class="msg" id="msg"></div>
@@ -63,7 +66,7 @@
       </table>
     </div>
     <p class="muted" style="margin-top:12px;font-size:12.5px">
-      💡 ปิด "ใช้งาน" สำหรับคนที่ย้าย/เกษียณ — ชื่อจะไม่ขึ้นให้เลือกตอนจัดภารกิจ แต่ ชม.บินเดิมยังอยู่
+      💡 ปิด "ใช้งาน" สำหรับนักบินที่ย้าย/เกษียณ — ชื่อจะไม่ขึ้นให้เลือกตอนจัดภารกิจ แต่ ชม.บินเดิมยังอยู่
     </p>
   </div>
 </main>
@@ -87,14 +90,16 @@
       const [list, hours] = await Promise.all([loadCrew(), loadCrewHours()]);
       const tb = document.getElementById("rows");
       if (!list.length) {
-        tb.innerHTML = `<tr><td colspan="6" class="empty">ยังไม่มีรายชื่อ${planner ? " · เพิ่มด้านบนได้เลย" : ""}</td></tr>`;
+        tb.innerHTML = `<tr><td colspan="6" class="empty">ยังไม่มีรายชื่อนักบิน${planner ? " · เพิ่มด้านบนได้เลย" : ""}</td></tr>`;
         return;
       }
       tb.innerHTML = list.map((c) => `
         <tr data-id="${c.id}" class="${c.active ? "" : "inactive"}">
           <td><input data-f="code" value="${esc(c.code)}" class="code" ${planner ? "" : "disabled"}></td>
           <td><input data-f="full_name" value="${esc(c.full_name)}" ${planner ? "" : "disabled"}></td>
-          <td><input data-f="position" value="${esc(c.position || "")}" ${planner ? "" : "disabled"}></td>
+          <td><select data-f="position" ${planner ? "" : "disabled"}>
+                ${["","AC","IP","P","CP","N"].map(r=>`<option value="${r}" ${r===(c.position||"")?"selected":""}>${r||"—"}</option>`).join("")}
+              </select></td>
           <td class="num hrs">${(hours[c.id] || 0).toFixed(1)}</td>
           <td><select data-f="active" ${planner ? "" : "disabled"}>
                 <option value="true" ${c.active ? "selected" : ""}>ใช้งาน</option>
@@ -124,7 +129,7 @@
       tb.querySelectorAll("[data-del]").forEach((b) =>
         b.addEventListener("click", async (e) => {
           const tr = e.target.closest("tr");
-          if (!confirm("ลบรายชื่อนี้? ชั่วโมงบินสะสมของคนนี้จะถูกลบไปด้วย\n(ถ้าแค่ย้าย/เกษียณ ให้ตั้งเป็น \"ปิด\" แทน)")) return;
+          if (!confirm("ลบรายชื่อนักบินนี้? ชั่วโมงบินสะสมของคนนี้จะถูกลบไปด้วย\n(ถ้าแค่ย้าย/เกษียณ ให้ตั้งเป็น \"ปิด\" แทน)")) return;
           b.disabled = true;
           const err = await deleteCrew(tr.dataset.id);
           if (err) { alert("ลบไม่สำเร็จ: " + err.message); b.disabled = false; }
