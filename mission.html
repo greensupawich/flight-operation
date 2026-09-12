@@ -36,6 +36,25 @@
             cursor:pointer;font-family:inherit;font-weight:700}
   .btn-mini:hover{background:var(--crit-soft)}
   .btn-add{align-self:flex-start;margin-top:4px}
+  /* ---- combobox นักบิน: พิมพ์ได้ + เลือกจากทะเบียน ---- */
+  .cb{position:relative;flex:1}
+  .cb-input{width:100%;padding-inline-end:30px}
+  .cb-input.linked{border-color:var(--good);background:var(--good-soft)}
+  .cb-input.unlinked{border-color:var(--crit);background:var(--crit-soft)}
+  .cb-badge{position:absolute;inset-inline-end:9px;top:50%;transform:translateY(-50%);
+            font-weight:800;font-size:13px;pointer-events:none}
+  .cb-input.linked ~ .cb-badge{color:var(--good)}
+  .cb-input.unlinked ~ .cb-badge{color:var(--crit)}
+  .cb-list{position:absolute;z-index:40;inset-inline:0;top:calc(100% + 4px);max-height:230px;
+           overflow-y:auto;background:var(--surface);border:1px solid var(--line-strong);
+           border-radius:10px;box-shadow:0 10px 30px -10px rgba(0,0,0,.35)}
+  .cb-opt{padding:8px 11px;cursor:pointer;display:flex;justify-content:space-between;gap:10px;
+          align-items:baseline;font-size:13px;border-bottom:1px solid var(--line)}
+  .cb-opt:last-child{border-bottom:0}
+  .cb-opt:hover,.cb-opt.on{background:var(--primary-soft)}
+  .cb-opt b{font-weight:600;color:var(--ink)}
+  .cb-opt span{font-family:"IBM Plex Mono",monospace;font-size:11.5px;color:var(--muted);white-space:nowrap}
+  .cb-empty{padding:10px 12px;font-size:12.5px;color:var(--muted)}
   .bar{position:sticky;bottom:0;background:var(--surface);border-top:1px solid var(--line);
        padding:14px 0;display:flex;gap:10px;margin-top:8px}
   .err{color:var(--crit);font-size:13px;align-self:center}
@@ -120,7 +139,6 @@
         <b style="color:var(--crit)">AC และ N ไม่นับชั่วโมงบิน</b>
       </p>
       <div id="crewBox"></div>
-      <datalist id="peopleList"></datalist>
     </div>
 
     <!-- หมายเหตุ -->
@@ -138,6 +156,7 @@
 </main>
 
 <script type="module">
+  import { attachCombo } from "./js/combobox.js";
   import { requireAuth, canPlan } from "./js/auth.js";
   import { renderTopbar } from "./js/ui.js";
   import { getMission, saveMission, loadAircraft, loadCrewRoster, acLabel,
@@ -177,8 +196,6 @@
       const k = (text || "").trim().toLowerCase();
       return byName.get(k) || byCode.get(k) || null;
     };
-    document.getElementById("peopleList").innerHTML =
-      roster.map(p => `<option value="${esc(p.full_name)}">${esc(p.code)}</option>`).join("");
 
     // =================================================================
     //  ลูกเรือ — แถวเพิ่ม/ลบได้ (แบบ flight-ops)
@@ -203,22 +220,44 @@
     function renderPilots() {
       const el = document.getElementById("pilotRows");
       el.innerHTML = pilots.map((p, i) => `
-        <div class="crew-dyn-row">
+        <div class="crew-dyn-row" data-row="${i}">
           <select data-i="${i}">${PILOT_ROLES.map(r =>
             `<option value="${r}" ${p.role === r ? "selected" : ""}>${r}</option>`).join("")}</select>
-          <input list="peopleList" data-i="${i}" value="${esc(p.name)}" placeholder="ชื่อ">
-          <button type="button" class="btn-mini" data-del="${i}">−</button>
+          <div class="cb">
+            <input class="cb-input" autocomplete="off"
+                   placeholder="พิมพ์ชื่อหรือรหัส แล้วเลือกจากรายชื่อ">
+            <span class="cb-badge"></span>
+            <div class="cb-list" hidden></div>
+          </div>
+          <button type="button" class="btn-mini" data-del="${i}">\u2212</button>
         </div>`).join("") +
         `<button type="button" class="btn sm ghost btn-add" data-add>+ เพิ่มนักบิน</button>`;
 
-      el.querySelectorAll("select[data-i]").forEach(s =>
-        s.addEventListener("change", e => { pilots[+e.target.dataset.i].role = e.target.value; }));
-      el.querySelectorAll("input[data-i]").forEach(s =>
-        s.addEventListener("input", e => { pilots[+e.target.dataset.i].name = e.target.value; }));
+      el.querySelectorAll("select[data-i]").forEach(sel =>
+        sel.addEventListener("change", e => { pilots[+e.target.dataset.i].role = e.target.value; }));
       el.querySelectorAll("[data-del]").forEach(b =>
         b.addEventListener("click", () => { pilots.splice(+b.dataset.del, 1); renderPilots(); }));
       el.querySelector("[data-add]").addEventListener("click",
-        () => { pilots.push({ role: "IP", name: "" }); renderPilots(); });
+        () => { pilots.push({ role: "IP", name: "", crew_member_id: null }); renderPilots(); });
+
+      el.querySelectorAll(".crew-dyn-row").forEach(row => wireCombo(row, +row.dataset.row));
+    }
+
+    // ใช้ combobox ที่แยกเป็นโมดูล (js/combobox.js) — ผูก crew_member_id ทันทีที่เลือก
+    const comboItems = () => roster.map(p => ({
+      id: p.id, label: p.full_name, hint: `${p.code}${p.position ? " · " + p.position : ""}`,
+    }));
+
+    function wireCombo(row, i) {
+      attachCombo(row.querySelector(".cb"), comboItems(), {
+        value: pilots[i].name || "",
+        id: pilots[i].crew_member_id,
+        emptyHtml: `ไม่พบในทะเบียน — <a href="crew.html" target="_blank">เปิดทะเบียนนักบินเพื่อเพิ่ม</a>`,
+        onChange: ({ text, item }) => {
+          pilots[i].name = text;
+          pilots[i].crew_member_id = item ? item.id : null;
+        },
+      });
     }
 
     function renderOther(role) {
@@ -262,7 +301,7 @@
         // เติมลูกเรือเดิมเข้า state
         (m.mission_crew || []).sort((a,b)=>(a.sort_order||0)-(b.sort_order||0)).forEach((c) => {
           const role = (c.position || "").toUpperCase();
-          if (PILOT_ROLES.includes(role)) pilots.push({ role, name: c.crew_name || "" });
+          if (PILOT_ROLES.includes(role)) pilots.push({ role, name: c.crew_name || "", crew_member_id: c.crew_member_id || null });
           else if (OTHER_ROLES.includes(role)) others[role].push(c.crew_name || "");
         });
       }
@@ -272,7 +311,7 @@
     }
 
     // ค่าเริ่มต้น: อย่างน้อยกลุ่มละ 1 แถวว่าง ให้พร้อมกรอก
-    if (!pilots.length) pilots = [{ role: "IP", name: "" }];
+    if (!pilots.length) pilots = [{ role: "IP", name: "", crew_member_id: null }];
     OTHER_ROLES.forEach(r => { if (!others[r].length) others[r] = [""]; });
     renderCrew();
 
@@ -303,15 +342,13 @@
       // รวบรวมลูกเรือ + ผูก profile ถ้าชื่อตรงกับผู้ใช้ในระบบ
       const crew = [];
       const unknown = [];
-      // นักบิน → ต้องอยู่ในทะเบียน (ผูก crew_member_id เพื่อสะสม ชม.)
+      // นักบิน → ใช้ crew_member_id ที่ผูกไว้จาก dropdown
       pilots.forEach(p => {
         const name = (p.name || "").trim();
         if (!name) return;
-        const m = resolveCrew(name);
-        if (!m) unknown.push(name);
-        crew.push({ position: p.role,
-                    crew_name: m ? m.full_name : name,
-                    crew_member_id: m ? m.id : null });
+        const m = p.crew_member_id ? roster.find(x => x.id === p.crew_member_id) : resolveCrew(name);
+        if (!m) { unknown.push(name); return; }
+        crew.push({ position: p.role, crew_name: m.full_name, crew_member_id: m.id });
       });
       // FM/RO/LM/AH → ชื่อล้วน ไม่ผูกทะเบียน
       OTHER_ROLES.forEach(r => others[r].forEach(n => {
@@ -319,9 +356,12 @@
         if (name) crew.push({ position: r, crew_name: name, crew_member_id: null });
       }));
 
-      if (unknown.length &&
-          !confirm(`ชื่อนักบินเหล่านี้ไม่มีในทะเบียนนักบิน:\n\n${unknown.join(", ")}\n\n` +
-                   `จะบันทึกได้ แต่ระบบจะไม่สะสม ชม.บินให้\nกด OK เพื่อบันทึกต่อ / Cancel เพื่อกลับไปแก้`)) return;
+      if (unknown.length) {
+        err.innerHTML = `นักบินเหล่านี้ยังไม่ได้เลือกจากทะเบียน: <b>${unknown.join(", ")}</b> — ` +
+          `เลือกจากรายการที่เลื่อนลงมา หรือ <a href="crew.html" target="_blank">เพิ่มเข้าทะเบียนก่อน</a> ` +
+          `(เปิดแท็บใหม่ ข้อมูลในฟอร์มไม่หาย)`;
+        return;
+      }
 
       const btn = document.getElementById("save");
       btn.disabled = true; btn.textContent = "กำลังบันทึก…";
