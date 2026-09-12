@@ -135,11 +135,28 @@
     document.getElementById("back").href = `day.html?date=${m.mission_date}`;
 
     // ---------- state ของขาการบิน ----------
-    let legs = (await loadLegs(missionId)).map(l => ({
-      from_point: l.from_point || "", to_point: l.to_point || "", hours: l.hours ?? 0,
+    const fromRoute = routeToLegs(m.route);          // ขาที่คิดจากเส้นทางบิน
+    const saved = (await loadLegs(missionId)).map(l => ({
+      from_point: (l.from_point || "").trim(),
+      to_point:   (l.to_point   || "").trim(),
+      hours: Number(l.hours) || 0,
     }));
-    // ยังไม่เคยบันทึกขา → แตกจากเส้นทางบินให้เลย
-    if (!legs.length) legs = routeToLegs(m.route);
+
+    // แถวที่บันทึกไว้ว่างทั้งหมด (ไม่มีทั้งจาก/ถึง/ชม.) → ถือว่ายังไม่ได้กรอก
+    const allBlank = saved.length > 0 &&
+      saved.every(l => !l.from_point && !l.to_point && !l.hours);
+
+    let legs;
+    if (!saved.length || allBlank) {
+      legs = fromRoute;                              // ใช้ค่าจากเส้นทางบินเป็น default
+    } else {
+      // มีข้อมูลเดิมอยู่ → คง ชม. ไว้ แต่เติมช่องจาก/ถึงที่ว่างด้วยค่าจากเส้นทางบิน
+      legs = saved.map((l, i) => ({
+        from_point: l.from_point || fromRoute[i]?.from_point || "",
+        to_point:   l.to_point   || fromRoute[i]?.to_point   || "",
+        hours: l.hours,
+      }));
+    }
     if (!legs.length) legs = [{ from_point: "", to_point: "", hours: 0 }];
 
     const box = document.getElementById("legsBox");
