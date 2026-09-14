@@ -31,14 +31,33 @@ export async function deleteCrew(id) {
   return error;
 }
 
-// ชม.บินสะสมของแต่ละคน (ไว้โชว์ในทะเบียน)
-export async function loadCrewHours() {
-  const { data } = await supabase.from("crew_hours")
-    .select("crew_member_id, aircraft_type, total_hours");
-  const by = {};
+// =====================================================================
+//  ชม.บินประจำเดือน — รวม ชม.จากรายงานหลังบินของภารกิจที่บินในเดือนนั้น
+//  นับเฉพาะ IP / P / CP (AC และ N ไม่นับ) · คนเดียวหลายตำแหน่งในภารกิจเดียวนับครั้งเดียว
+//  คืน { crew_member_id: ชม. }
+// =====================================================================
+export async function loadMonthlyHours(year, month /* 0-11 */) {
+  const pad = (n) => String(n).padStart(2, "0");
+  const first = `${year}-${pad(month + 1)}-01`;
+  const last  = `${year}-${pad(month + 1)}-${pad(new Date(year, month + 1, 0).getDate())}`;
+
+  const { data, error } = await supabase
+    .from("mission_crew")
+    .select("crew_member_id, position, mission_id, missions!inner(mission_date, post_flight_reports(total_hours))")
+    .not("crew_member_id", "is", null)
+    .gte("missions.mission_date", first)
+    .lte("missions.mission_date", last);
+  if (error) { console.error(error); return {}; }
+
+  const seen = new Set(), by = {};
   (data || []).forEach((r) => {
-    if (!r.crew_member_id) return;
-    by[r.crew_member_id] = (by[r.crew_member_id] || 0) + Number(r.total_hours || 0);
+    if (!["IP", "P", "CP"].includes(String(r.position || "").trim().toUpperCase())) return;
+    const key = `${r.crew_member_id}|${r.mission_id}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    const rep = r.missions?.post_flight_reports;          // 1 ภารกิจ = 1 รายงาน (อาจมาเป็น object หรือ array)
+    const h = Array.isArray(rep) ? rep[0]?.total_hours : rep?.total_hours;
+    by[r.crew_member_id] = (by[r.crew_member_id] || 0) + Number(h || 0);
   });
   return by;
 }
