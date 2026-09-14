@@ -1,24 +1,13 @@
 // =====================================================================
-//  availability.js — นักบินแจ้ง "ไม่ว่าง" ของตัวเอง
+//  availability.js — นักบินที่ไม่ว่าง (หน้าวัน)
 // =====================================================================
 import { supabase } from "./supabase.js";
 
-// ชื่อในทะเบียนที่ผูกกับบัญชีที่ล็อกอินอยู่ (null = ยังไม่ผูก)
-export async function getMyCrewMember(profileId) {
+// นักบินทุกคนในทะเบียน (ที่ใช้งานอยู่) — ไว้เลือกในช่องเพิ่มคนไม่ว่าง
+export async function loadRoster() {
   const { data } = await supabase.from("crew_members")
-    .select("id,code,full_name,position").eq("profile_id", profileId).maybeSingle();
-  return data || null;
-}
-
-export async function loadUnclaimedCrew() {
-  const { data } = await supabase.from("crew_members")
-    .select("id,code,full_name,position").eq("active", true).is("profile_id", null).order("code");
+    .select("id,code,full_name,position").eq("active", true).order("code");
   return data || [];
-}
-
-export async function claimCrew(crewId) {
-  const { error } = await supabase.rpc("claim_crew_member", { p_crew: crewId });
-  return error;
 }
 
 // ใครไม่ว่างวันนี้บ้าง
