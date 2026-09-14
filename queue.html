@@ -78,6 +78,30 @@
   .ed-actions .btn{flex:1;justify-content:center}
   .ed-note{font-size:11px;color:var(--faint);margin-top:8px;line-height:1.45}
 
+  /* ---- คิว ---- */
+  .qcheck{width:15px;height:15px;margin:0 7px 0 0;vertical-align:-2px;accent-color:var(--primary);cursor:pointer}
+  .qcheck:disabled{cursor:default}
+  table.q tr.noq td.name{opacity:.55}
+  table.q th.target{background:var(--primary);color:#fff}
+  table.q th.target small{color:#dfe8f1}
+  table.q td.target{box-shadow:inset 2px 0 0 var(--primary),inset -2px 0 0 var(--primary)}
+  .qno{display:inline-flex;align-items:center;justify-content:center;min-width:22px;height:20px;padding:0 5px;
+       border-radius:999px;font-family:"IBM Plex Mono",monospace;font-weight:700;font-size:11px;
+       background:var(--primary-soft);color:var(--primary);border:1px solid var(--primary)}
+  .qpanel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px 16px;margin-bottom:12px;
+          box-shadow:var(--shadow)}
+  .qpanel h3{font-family:"Bai Jamjuree",sans-serif;font-weight:600;font-size:15px;margin:0 0 2px}
+  .qpanel .rule{font-size:12px;color:var(--faint);margin:0 0 10px}
+  .qcols{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+  @media(max-width:760px){ .qcols{grid-template-columns:1fr} }
+  .qcol h4{margin:0 0 6px;font-size:13px;font-weight:700}
+  .qlist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:3px;max-height:230px;overflow:auto}
+  .qlist li{display:flex;align-items:center;gap:8px;font-size:12.5px;padding:3px 6px;border-radius:6px}
+  .qlist li:first-child{background:var(--primary-soft)}
+  .qlist .nm{font-weight:600;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;border-radius:4px;padding:0 5px}
+  .qlist .meta{font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--muted);white-space:nowrap}
+  .qskip{font-size:11.5px;color:var(--faint);margin-top:6px;line-height:1.5}
+
   details.af{margin-top:16px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 14px}
   details.af summary{cursor:pointer;font-weight:600;font-size:13.5px}
   .af-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px;margin-top:10px}
@@ -110,6 +134,7 @@
     <p class="hint" id="hint"></p>
     <div class="missing" id="missing" hidden></div>
 
+    <div class="qpanel" id="qpanel" hidden></div>
     <div class="qwrap" id="qwrap"><table class="q" id="q"><tbody><tr><td class="empty">กำลังโหลด…</td></tr></tbody></table></div>
 
     <details class="af" id="afBox">
@@ -124,7 +149,9 @@
   import { renderTopbar } from "./js/ui.js";
   import { KINDS, KIND_COLORS, qualStyle, esc } from "./js/missions.js";
   import { loadQueueMonth, loadEntries, saveEntry, deleteEntry, monthRange, secondPoint, airfieldKey,
-           PILOT_POSITIONS, setHoliday, clearHoliday, addUnavailable, removeUnavailable, saveAirfield } from "./js/queue.js";
+           PILOT_POSITIONS, setHoliday, clearHoliday, addUnavailable, removeUnavailable, saveAirfield,
+           setInQueue, loadHistory, loadHolidaysBetween } from "./js/queue.js";
+  import { rankQueue, nextWorkingDay, isWeekend, addDays } from "./js/queue-rank.js";
 
   const profile = await requireAuth();
   if (profile) {
@@ -143,6 +170,7 @@
     let mode = "edit";
     let sel = null;                       // { crew, date }
     let lastKind = "rtaf", lastAc = "600";
+    let target = null, aheadHol = new Set(), ranks = null;
 
     const table = document.getElementById("q");
     if (planner) {
@@ -185,8 +213,16 @@
     async function load() {
       const y = view.getFullYear(), m = view.getMonth();
       document.getElementById("title").textContent = `${TH_MONTH[m]} ${y + 543}`;
-      const [base, entries] = await Promise.all([loadQueueMonth(y, m), loadEntries(y, m)]);
-      data = { ...base, entries };
+      const { first } = monthRange(y, m);
+      const [base, entries, ahead] = await Promise.all([
+        loadQueueMonth(y, m), loadEntries(y, m), loadHolidaysBetween(todayStr, addDays(todayStr, 60)),
+      ]);
+      aheadHol = new Set(ahead.map(h => h.holiday_date));
+      target = nextWorkingDay(todayStr, d => isWeekend(d) || aheadHol.has(d));
+      // ข้อมูลย้อนหลัง 120 วันก่อนเดือนนี้ ไว้หา "บินจริงครั้งล่าสุด"
+      const hist = target.slice(0, 7) === first.slice(0, 7)
+        ? await loadHistory(addDays(target, -120), addDays(first, -1)) : { entries: [], missions: [] };
+      data = { ...base, entries, hist };
       render();
     }
 
@@ -194,12 +230,12 @@
     let maps = {};
     function buildMaps() {
       const codeMap = new Map(data.airfields.map(a => [a.name, a.code]));
-      const entryMap = new Map(data.entries.map(e => [`${e.crew_member_id}|${e.entry_date}`, e]));
+      const entryMap = new Map([...(data.hist?.entries || []), ...data.entries].map(e => [`${e.crew_member_id}|${e.entry_date}`, e]));
       const offMap = new Map(data.unavailable.map(u => [`${u.crew_member_id}|${u.off_date}`, u.note || ""]));
       const holidayMap = new Map(data.holidays.map(h => [h.holiday_date, h.name || "วันหยุด"]));
       const missionCell = new Map(), seen = new Set();
       const missingCodes = new Set();
-      data.missions.forEach(ms => {
+      [...(data.hist?.missions || []), ...data.missions].forEach(ms => {
         (ms.mission_crew || []).forEach(mc => {
           if (!mc.crew_member_id || !PILOT_POSITIONS.includes(String(mc.position || "").trim().toUpperCase())) return;
           const k = `${mc.crew_member_id}|${ms.id}`;
@@ -208,7 +244,9 @@
           if (!missionCell.has(ck)) missionCell.set(ck, []);
           missionCell.get(ck).push(ms);
         });
-        if (ms.kind !== "stby") { const p = secondPoint(ms.route); if (p && !codeMap.has(p)) missingCodes.add(p); }
+        if (ms.kind !== "stby" && ms.mission_date.slice(0, 7) === dates[0]?.slice(0, 7)) {
+          const p = secondPoint(ms.route); if (p && !codeMap.has(p)) missingCodes.add(p);
+        }
       });
       maps = { codeMap, entryMap, offMap, holidayMap, missionCell, missingCodes };
     }
@@ -268,27 +306,47 @@
       const { days } = monthRange(y, m);
       dates = Array.from({ length: days }, (_, i) => `${y}-${pad(m + 1)}-${pad(i + 1)}`);
       buildMaps();
+      ranks = dates.includes(target)
+        ? rankQueue({
+            crew: data.crew, monthDates: dates, target,
+            isOff: d => isWeekend(d) || maps.holidayMap.has(d) || aheadHol.has(d),
+            itemsFor: (id, d) => cellItems(id, d).items,
+            isUnavailable: (id, d) => maps.offMap.has(`${id}|${d}`),
+            historyStart: addDays(target, -120),
+          })
+        : null;
 
       let html = `<thead><tr><th class="name">NAME / DATE</th>` +
         dates.map((d, i) => {
           const w = new Date(d + "T00:00:00").getDay();
           const hol = w === 0 || w === 6 || maps.holidayMap.has(d);
-          const cls = [hol ? "hol" : "", planner ? "plan" : "", d === todayStr ? "today-col" : ""].join(" ");
+          const cls = [hol ? "hol" : "", planner ? "plan" : "", d === todayStr ? "today-col" : "", ranks && d === target ? "target" : ""].join(" ");
           const title = maps.holidayMap.has(d) ? ` title="${esc(maps.holidayMap.get(d))}"` : "";
           return `<th class="${cls}" data-date="${d}"${title}>${i + 1}<small>${TH_DOW[w]}</small></th>`;
         }).join("") + `<th class="cnt">บินจริง</th><th class="cnt">ST</th></tr></thead><tbody>`;
 
       if (!data.crew.length) html += `<tr><td class="name">ยังไม่มีนักบินในทะเบียน</td></tr>`;
       data.crew.forEach(p => {
-        html += `<tr data-crew="${p.id}"><td class="name" style="${qualStyle(p.position) || ""}" title="${esc(p.code)}">${esc(p.full_name)}</td>`;
+        const inQ = p.in_queue !== false;
+        html += `<tr data-crew="${p.id}" class="${inQ ? "" : "noq"}"><td class="name" style="${qualStyle(p.position) || ""}" title="${esc(p.code)}">` +
+          `<input type="checkbox" class="qcheck" data-q="${p.id}" ${inQ ? "checked" : ""} ${planner ? "" : "disabled"} title="นับคิว">${esc(p.full_name)}</td>`;
         dates.forEach(d => {
-          const t = cellTitle(p.id, d);
-          html += `<td class="${cellClass(p.id, d)}" data-date="${d}"${t ? ` title="${esc(t)}"` : ""}>${cellHTML(p.id, d)}</td>`;
+          let inner = cellHTML(p.id, d), t = cellTitle(p.id, d), cls = cellClass(p.id, d);
+          if (ranks && d === target) {
+            cls += " target";
+            const r = ranks.get(p.id);
+            if (!inner && r && r.rank) {
+              inner = `<span class="qno">${r.rank}</span>`;
+              t = `คิวที่ ${r.rank} (${r.group === "CP" ? "CP" : "IP/P"}) · บินจริง ${r.flights} เที่ยว (ไม่นับวันหยุด) · บินล่าสุด ${r.last ? thaiShort(r.last) : "ไม่มีข้อมูล"}` + (t ? "\n" + t : "");
+            }
+          }
+          html += `<td class="${cls}" data-date="${d}"${t ? ` title="${esc(t)}"` : ""}>${inner}</td>`;
         });
         const c = rowCounts(p.id);
         html += `<td class="cnt" data-cnt="fly">${c.fly}</td><td class="cnt" data-cnt="st">${c.st}</td></tr>`;
       });
       table.innerHTML = html + `</tbody>`;
+      renderQueuePanel();
 
       const miss = document.getElementById("missing");
       if (maps.missingCodes.size) {
@@ -300,16 +358,42 @@
     }
 
     // อัปเดตช่องเดียว (ไม่ต้องวาดทั้งตาราง)
-    function refreshCell(crewId, d) {
-      buildMaps();
-      const tr = table.querySelector(`tr[data-crew="${crewId}"]`); if (!tr) return;
-      const td = tr.querySelector(`td.day[data-date="${d}"]`); if (!td) return;
-      td.className = cellClass(crewId, d);
-      td.innerHTML = cellHTML(crewId, d);
-      const t = cellTitle(crewId, d); if (t) td.title = t; else td.removeAttribute("title");
-      const c = rowCounts(crewId);
-      tr.querySelector('[data-cnt="fly"]').textContent = c.fly;
-      tr.querySelector('[data-cnt="st"]').textContent = c.st;
+    function refreshCell() { render(); }      // แก้ช่องไหนก็อาจทำให้ลำดับคิวเปลี่ยน
+
+    // ---------- แผงสรุปคิว ----------
+    const TH_DOW_FULL = ["อาทิตย์","จันทร์","อังคาร","พุธ","พฤหัสบดี","ศุกร์","เสาร์"];
+    const TH_MON_S = ["ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."];
+    function thaiShort(s) { const [yy, mm, dd] = s.split("-").map(Number); return `${dd} ${TH_MON_S[mm - 1]}`; }
+    function thaiLong(s) {
+      const [yy, mm, dd] = s.split("-").map(Number);
+      return `วัน${TH_DOW_FULL[new Date(s + "T00:00:00").getDay()]}ที่ ${dd} ${TH_MON_S[mm - 1]} ${yy + 543}`;
+    }
+    function renderQueuePanel() {
+      const box = document.getElementById("qpanel");
+      box.hidden = false;
+      if (!ranks) {
+        const [ty, tm] = target.split("-").map(Number);
+        box.innerHTML = `<h3>คิวบิน · ${thaiLong(target)}</h3>
+          <p class="rule" style="margin:0">ลำดับคิวจะแสดงเมื่อเปิดเดือน ${TH_MONTH[tm - 1]} ${ty + 543} <button class="btn sm ghost" id="goTarget">ไปเดือนนั้น</button></p>`;
+        document.getElementById("goTarget").addEventListener("click", () => go(new Date(ty, tm - 1, 1)));
+        return;
+      }
+      const byId = new Map(data.crew.map(c => [c.id, c]));
+      const col = (group, title) => {
+        const rows = [...ranks.values()].filter(r => r.group === group);
+        const ranked = rows.filter(r => r.rank).sort((a, b) => a.rank - b.rank);
+        const skipped = rows.filter(r => !r.rank);
+        return `<div class="qcol"><h4>${title} <span class="muted" style="font-weight:400">(${ranked.length} คน)</span></h4>
+          <ol class="qlist">${ranked.map(r => {
+            const c = byId.get(r.id);
+            return `<li><span class="qno">${r.rank}</span><span class="nm" style="${qualStyle(c.position)}">${esc(c.full_name)}</span>
+              <span class="meta">บิน ${r.flights} · ล่าสุด ${r.last ? thaiShort(r.last) : "—"}</span></li>`;
+          }).join("") || `<li class="muted">ไม่มีผู้ที่นับคิวได้</li>`}</ol>
+          ${skipped.length ? `<div class="qskip">ไม่ได้คิว: ${skipped.map(r => `${esc(byId.get(r.id).full_name)} (${r.reason})`).join(", ")}</div>` : ""}</div>`;
+      };
+      box.innerHTML = `<h3>คิวบิน · ${thaiLong(target)}</h3>
+        <p class="rule">บินจริงน้อยสุดก่อน (ไม่นับ ST และเที่ยวที่บินในวันหยุด ในเดือนนี้) → บินล่าสุดนานกว่าก่อน → ชื่ออยู่บนก่อน · ติ๊กหน้าชื่อเพื่อนับคิว</p>
+        <div class="qcols">${col("IPP", "IP / P")}${col("CP", "CP")}</div>`;
     }
 
     // ---------- เลือกช่อง ----------
@@ -427,6 +511,19 @@
       const err = await deleteEntry(target.crew, target.date);
       if (err) { alert("ลบไม่สำเร็จ: " + err.message); load(); }
     }
+
+    // ---------- ช่องติ๊กนับคิว ----------
+    table.addEventListener("change", async (e) => {
+      const cb = e.target.closest(".qcheck"); if (!cb || !planner) return;
+      const crew = data.crew.find(c => c.id === cb.dataset.q);
+      const val = cb.checked;
+      crew.in_queue = val; render();
+      const err = await setInQueue(crew.id, val);
+      if (err) {
+        alert("บันทึกไม่สำเร็จ: " + err.message + (/in_queue/.test(err.message) ? "\n(ยังไม่ได้รัน migration_14_queue_rotation.sql)" : ""));
+        crew.in_queue = !val; render();
+      }
+    });
 
     // ---------- คลิก / ดับเบิลคลิก ----------
     table.addEventListener("click", async (e) => {

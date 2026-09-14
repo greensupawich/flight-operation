@@ -22,10 +22,42 @@ export function secondPoint(route) {
   return pts[1] || pts[0] || "";
 }
 
+// ทะเบียนนักบิน + ช่องติ๊กนับคิว (ถ้ายังไม่ได้รัน migration_14 จะถือว่าติ๊กทุกคน)
+async function loadCrewForQueue() {
+  let r = await supabase.from("crew_members").select("id,code,full_name,position,in_queue").eq("active", true).order("code");
+  if (r.error) r = await supabase.from("crew_members").select("id,code,full_name,position").eq("active", true).order("code");
+  if (r.error) console.error(r.error);
+  return r.data || [];
+}
+
+export async function setInQueue(crewId, value) {
+  const { error } = await supabase.from("crew_members").update({ in_queue: value }).eq("id", crewId);
+  return error;
+}
+
+// ข้อมูลย้อนหลัง (ไว้หา "บินจริงครั้งล่าสุด") และวันหยุดช่วงข้างหน้า (ไว้หาวันทำการถัดไป)
+export async function loadHistory(first, last) {
+  if (first > last) return { entries: [], missions: [] };
+  const [e, m] = await Promise.all([
+    supabase.from("queue_entries").select("crew_member_id,entry_date,code,kind,ac_type")
+      .gte("entry_date", first).lte("entry_date", last),
+    supabase.from("missions")
+      .select("id,mission_date,kind,route,callsign,mission_name,aircraft(type,tail_number),mission_crew(crew_member_id,position)")
+      .gte("mission_date", first).lte("mission_date", last),
+  ]);
+  return { entries: e.data || [], missions: m.data || [] };
+}
+
+export async function loadHolidaysBetween(first, last) {
+  const { data } = await supabase.from("holidays").select("holiday_date,name")
+    .gte("holiday_date", first).lte("holiday_date", last);
+  return data || [];
+}
+
 export async function loadQueueMonth(y, m) {
   const { first, last } = monthRange(y, m);
   const [crew, missions, holidays, unavailable, airfields] = await Promise.all([
-    supabase.from("crew_members").select("id,code,full_name,position").eq("active", true).order("code"),
+    loadCrewForQueue(),
     supabase.from("missions")
       .select("id,mission_date,kind,route,callsign,mission_name,aircraft(type,tail_number),mission_crew(crew_member_id,position)")
       .gte("mission_date", first).lte("mission_date", last),
@@ -33,9 +65,9 @@ export async function loadQueueMonth(y, m) {
     supabase.from("crew_unavailable").select("crew_member_id,off_date,note").gte("off_date", first).lte("off_date", last),
     supabase.from("airfields").select("name,code"),
   ]);
-  for (const r of [crew, missions, holidays, unavailable, airfields]) if (r.error) console.error(r.error);
+  for (const r of [missions, holidays, unavailable, airfields]) if (r.error) console.error(r.error);
   return {
-    crew: crew.data || [],
+    crew,
     missions: missions.data || [],
     holidays: holidays.data || [],
     unavailable: unavailable.data || [],
