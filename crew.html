@@ -69,9 +69,9 @@
       <table>
         <thead><tr>
           <th style="width:130px">รหัส (ID)</th><th>ชื่อ</th><th style="width:110px">คุณวุฒิ</th>
-          <th style="width:150px;text-align:end">ชม.บินประจำเดือน</th><th style="width:170px;text-align:end">จำนวนเที่ยวบินประจำเดือน</th><th style="width:120px">ใช้งาน</th><th style="width:130px"></th>
+          <th style="width:150px;text-align:end">ชม.บินประจำเดือน</th><th style="width:170px;text-align:end">จำนวนเที่ยวบินประจำเดือน</th><th style="width:210px">บัญชีผู้ใช้ (แจ้งไม่ว่างเอง)</th><th style="width:120px">ใช้งาน</th><th style="width:130px"></th>
         </tr></thead>
-        <tbody id="rows"><tr><td colspan="7" class="empty">กำลังโหลด…</td></tr></tbody>
+        <tbody id="rows"><tr><td colspan="8" class="empty">กำลังโหลด…</td></tr></tbody>
       </table>
     </div>
     <p class="muted" style="margin-top:12px;font-size:12.5px">
@@ -83,7 +83,7 @@
 <script type="module">
   import { requireAuth, canPlan } from "./js/auth.js";
   import { renderTopbar } from "./js/ui.js";
-  import { loadCrew, addCrew, updateCrew, deleteCrew, loadMonthlyStats } from "./js/crew.js";
+  import { loadCrew, addCrew, updateCrew, deleteCrew, loadMonthlyStats, loadActiveAccounts } from "./js/crew.js";
   import { QUALS, qualStyle } from "./js/missions.js";
 
   const profile = await requireAuth();
@@ -112,10 +112,11 @@
     async function refresh() {
       const [yy, mm] = (monthInp.value || monthInp.defaultValue).split("-").map(Number);
       document.getElementById("monthLabel").textContent = `(${TH_MONTH[mm - 1]} ${yy + 543})`;
-      const [list, stats] = await Promise.all([loadCrew(), loadMonthlyStats(yy, mm - 1)]);
+      const [list, stats, accounts] = await Promise.all([loadCrew(), loadMonthlyStats(yy, mm - 1), loadActiveAccounts()]);
+      const linkedTo = new Map(list.filter(c => c.profile_id).map(c => [c.profile_id, c.id]));
       const tb = document.getElementById("rows");
       if (!list.length) {
-        tb.innerHTML = `<tr><td colspan="7" class="empty">ยังไม่มีรายชื่อนักบิน${planner ? " · เพิ่มด้านบนได้เลย" : ""}</td></tr>`;
+        tb.innerHTML = `<tr><td colspan="8" class="empty">ยังไม่มีรายชื่อนักบิน${planner ? " · เพิ่มด้านบนได้เลย" : ""}</td></tr>`;
         return;
       }
       tb.innerHTML = list.map((c) => `
@@ -128,6 +129,13 @@
               </select></td>
           <td class="num hrs">${(stats[c.id]?.hours || 0).toFixed(1)}</td>
           <td class="num hrs">${stats[c.id]?.flights || 0}</td>
+          <td><select data-f="profile_id" ${planner ? "" : "disabled"} style="font-size:12px">
+                <option value="">— ยังไม่ผูก —</option>
+                ${accounts.map(a => {
+                  const taken = linkedTo.has(a.id) && linkedTo.get(a.id) !== c.id;
+                  return `<option value="${a.id}" ${a.id === c.profile_id ? "selected" : ""} ${taken ? "disabled" : ""}>${esc(a.email)}${taken ? " (ผูกคนอื่นแล้ว)" : ""}</option>`;
+                }).join("")}
+              </select></td>
           <td><select data-f="active" ${planner ? "" : "disabled"}>
                 <option value="true" ${c.active ? "selected" : ""}>ใช้งาน</option>
                 <option value="false" ${!c.active ? "selected" : ""}>ปิด</option>
@@ -154,6 +162,7 @@
             code, full_name,
             position: get("position").trim() || null,
             active: get("active") === "true",
+            profile_id: get("profile_id") || null,
           });
           b.disabled = false; b.textContent = err ? "บันทึก" : "✓";
           if (err) alert("บันทึกไม่สำเร็จ: " + (err.message.includes("duplicate") ? "รหัสนี้ซ้ำกับคนอื่น" : err.message));

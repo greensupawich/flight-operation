@@ -34,6 +34,8 @@
 }
 
 *{box-sizing:border-box}
+/* hidden ต้องชนะ display ของ .btn/.grid ฯลฯ ไม่งั้นปุ่มที่ซ่อนตามสิทธิ์จะยังโผล่ */
+[hidden]{display:none!important}
 body{
   margin:0;background:var(--ground);color:var(--ink);
   font-family:"IBM Plex Sans Thai","Segoe UI",system-ui,sans-serif;

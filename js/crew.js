@@ -75,3 +75,10 @@ export async function loadMonthlyStats(year, month /* 0-11 */) {
   });
   return by;
 }
+
+// บัญชีผู้ใช้ที่ใช้งานอยู่ (ไว้ผูกกับรายชื่อในทะเบียน)
+export async function loadActiveAccounts() {
+  const { data } = await supabase.from("profiles")
+    .select("id,email,full_name").eq("status", "active").order("email");
+  return data || [];
+}

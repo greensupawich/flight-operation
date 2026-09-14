@@ -13,7 +13,31 @@
   /* min() กัน grid item กว้างเกินคอนเทนเนอร์ (เหตุที่ตารางตกขอบ) */
   .sheets{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(430px,100%),1fr));gap:20px}
   @media(max-width:900px){ .sheets{grid-template-columns:1fr} }
-  .sheet-body{overflow-x:auto}          /* ตารางกว้างเกิน → เลื่อนในกรอบตัวเอง */
+  .sheet-body{overflow-x:auto}
+
+  /* ---- แจ้งไม่ว่าง ---- */
+  .avail{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+         padding:14px 18px;margin-bottom:18px;box-shadow:var(--shadow);display:grid;gap:14px;
+         grid-template-columns:minmax(0,1.2fr) minmax(0,1fr)}
+  @media(max-width:760px){ .avail{grid-template-columns:1fr} }
+  .avail h3{font-family:"Bai Jamjuree",sans-serif;font-weight:600;font-size:15px;margin:0 0 8px}
+  .me-line{font-size:13px;color:var(--muted);margin-bottom:10px}
+  .me-line b{color:var(--ink)}
+  .off-toggle{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:9px;
+              border:1px solid var(--line-strong);background:var(--surface-2);cursor:pointer;font-weight:600}
+  .off-toggle input{width:20px;height:20px;accent-color:#C0504D;flex:none}
+  .off-toggle.on{background:#F6D5D3;border-color:#C0504D;color:#7A1F1B}
+  :root[data-theme="dark"] .off-toggle.on{background:#4A2624;color:#F3C3C0}
+  @media(prefers-color-scheme:dark){:root:not([data-theme="light"]) .off-toggle.on{background:#4A2624;color:#F3C3C0}}
+  .note-row{display:flex;gap:8px;margin-top:8px}
+  .note-row input{flex:1}
+  .av-msg{font-size:12.5px;min-height:17px;margin-top:6px}
+  .av-msg.ok{color:var(--good)} .av-msg.err{color:var(--crit)}
+  .off-list{display:flex;flex-direction:column;gap:6px;max-height:190px;overflow:auto}
+  .off-item{display:flex;gap:8px;align-items:baseline;font-size:13px;padding:6px 9px;border-radius:7px;
+            background:var(--surface-2);border-inline-start:4px solid #C0504D}
+  .off-item b{font-weight:600;white-space:nowrap}
+  .off-item span{color:var(--muted);font-size:12.5px}          /* ตารางกว้างเกิน → เลื่อนในกรอบตัวเอง */
 
   /* ---- ฟอร์มภารกิจ (เลียนแบบกระดานจัดบิน) ---- */
   .sheet{background:var(--surface);border:2px solid var(--line-strong);border-radius:8px;overflow:hidden;
@@ -63,12 +87,22 @@
       </div>
     </div>
 
+    <div class="avail" id="avail" hidden>
+      <div id="mePanel"></div>
+      <div>
+        <h3>นักบินที่ไม่ว่างวันนี้ <span id="offCount" class="muted" style="font-weight:400"></span></h3>
+        <div class="off-list" id="offList"></div>
+      </div>
+    </div>
+
     <div class="sheets" id="sheets"><div class="empty">กำลังโหลด…</div></div>
   </div>
 </main>
 
 <script type="module">
   import { requireAuth, canPlan } from "./js/auth.js";
+  import { getMyCrewMember, loadUnclaimedCrew, claimCrew, loadUnavailableOn,
+           setUnavailable, clearUnavailable } from "./js/availability.js";
   import { renderTopbar } from "./js/ui.js";
   import { loadMissionsByDate, deleteMission, KINDS, DEFAULT_KIND, kindStyle, PILOT_ROLES, OTHER_ROLES, acLabel, esc } from "./js/missions.js";
 
@@ -98,6 +132,84 @@
       const a = document.getElementById("addBtn");
       a.hidden = false; a.href = `mission.html?new=1&date=${date}`;
     }
+
+    // =================================================================
+    //  แจ้งไม่ว่างของตัวเอง + รายชื่อคนที่ไม่ว่างวันนี้
+    // =================================================================
+    async function renderAvailability() {
+      const box = document.getElementById("avail");
+      box.hidden = false;
+      const [me, offs] = await Promise.all([getMyCrewMember(profile.id), loadUnavailableOn(date)]);
+
+      // รายชื่อคนไม่ว่าง
+      document.getElementById("offCount").textContent = offs.length ? `(${offs.length})` : "";
+      document.getElementById("offList").innerHTML = offs.length
+        ? offs.map(o => `<div class="off-item"><b>${esc(o.crew_members?.full_name || "-")}</b>
+                         <span>${esc(o.note || "")}</span></div>`).join("")
+        : `<div class="muted" style="font-size:13px">ไม่มี</div>`;
+
+      const panel = document.getElementById("mePanel");
+
+      // ยังไม่ได้ผูกบัญชีกับทะเบียนนักบิน → ให้เลือกชื่อตัวเองก่อน
+      if (!me) {
+        const list = await loadUnclaimedCrew();
+        panel.innerHTML = `
+          <h3>แจ้งไม่ว่าง</h3>
+          <div class="me-line">บัญชีนี้ยังไม่ได้ผูกกับชื่อในทะเบียนนักบิน — เลือกชื่อของคุณ (ทำครั้งเดียว)</div>
+          <div class="note-row">
+            <select id="claimSel"><option value="">— เลือกชื่อของคุณ —</option>
+              ${list.map(c => `<option value="${c.id}">${esc(c.full_name)} (${esc(c.code)}${c.position ? " · " + esc(c.position) : ""})</option>`).join("")}
+            </select>
+            <button class="btn primary" id="claimBtn" style="white-space:nowrap">นี่คือฉัน</button>
+          </div>
+          <div class="av-msg" id="avMsg">ไม่ใช่นักบิน? ไม่ต้องทำส่วนนี้</div>`;
+        document.getElementById("claimBtn").addEventListener("click", async () => {
+          const id = document.getElementById("claimSel").value;
+          const msg = document.getElementById("avMsg");
+          if (!id) { msg.className = "av-msg err"; msg.textContent = "เลือกชื่อก่อน"; return; }
+          const name = document.getElementById("claimSel").selectedOptions[0].textContent;
+          if (!confirm(`ยืนยันว่าคุณคือ ${name}?\nเปลี่ยนภายหลังต้องให้ admin แก้`)) return;
+          const err = await claimCrew(id);
+          if (err) { msg.className = "av-msg err"; msg.textContent = err.message; return; }
+          renderAvailability();
+        });
+        return;
+      }
+
+      // ผูกแล้ว → ติ๊กไม่ว่าง + หมายเหตุ
+      const mine = offs.find(o => o.crew_member_id === me.id);
+      panel.innerHTML = `
+        <h3>แจ้งไม่ว่าง</h3>
+        <div class="me-line">คุณคือ <b>${esc(me.full_name)}</b> (${esc(me.code)})</div>
+        <label class="off-toggle ${mine ? "on" : ""}" id="offLbl">
+          <input type="checkbox" id="offChk" ${mine ? "checked" : ""}> ฉันไม่ว่างวันนี้
+        </label>
+        <div class="note-row">
+          <input id="offNote" placeholder="หมายเหตุ เช่น ลาพักผ่อน / ไปราชการ / ตรวจสุขภาพ" value="${esc(mine?.note || "")}">
+          <button class="btn" id="noteBtn" style="white-space:nowrap">บันทึกหมายเหตุ</button>
+        </div>
+        <div class="av-msg" id="avMsg">จะแสดงเป็นช่องสีแดงในหน้าคิวบิน</div>`;
+
+      const chk = document.getElementById("offChk");
+      const msg = document.getElementById("avMsg");
+      const save = async (checked) => {
+        chk.disabled = true;
+        const note = document.getElementById("offNote").value;
+        const err = checked ? await setUnavailable(me.id, date, note) : await clearUnavailable(me.id, date);
+        chk.disabled = false;
+        if (err) { msg.className = "av-msg err"; msg.textContent = "บันทึกไม่สำเร็จ: " + err.message; chk.checked = !checked; return; }
+        await renderAvailability();
+        const m2 = document.getElementById("avMsg");
+        m2.className = "av-msg ok";
+        m2.textContent = checked ? "บันทึกแล้ว — แสดงเป็นไม่ว่างในหน้าคิวบิน" : "ยกเลิกแล้ว";
+      };
+      chk.addEventListener("change", () => save(chk.checked));
+      document.getElementById("noteBtn").addEventListener("click", () => {
+        if (!chk.checked) { chk.checked = true; }   // ใส่หมายเหตุ = แจ้งไม่ว่างด้วย
+        save(true);
+      });
+    }
+    renderAvailability();
 
     const [yy,mm,dd] = date.split("-").map(Number);
     const dObj = new Date(yy, mm-1, dd);

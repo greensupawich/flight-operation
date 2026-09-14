@@ -145,7 +145,7 @@
 
       const holidayMap = new Map(data.holidays.map((h) => [h.holiday_date, h.name || "วันหยุด"]));
       const codeMap = new Map(data.airfields.map((a) => [a.name, a.code]));
-      const offSet = new Set(data.unavailable.map((u) => `${u.crew_member_id}|${u.off_date}`));
+      const offMap = new Map(data.unavailable.map((u) => [`${u.crew_member_id}|${u.off_date}`, u.note || ""]));
 
       // จัดภารกิจเข้าช่อง (คน|วันที่) — คนเดียวหลายตำแหน่งในภารกิจเดียวนับครั้งเดียว
       const cell = new Map(), seen = new Set();
@@ -191,7 +191,8 @@
         html += `<tr data-crew="${p.id}"><td class="name" style="${qs || ""}" title="${esc(p.code)}">${esc(p.full_name)}</td>`;
         dates.forEach((d) => {
           const list = cell.get(`${p.id}|${d}`) || [];
-          const cls = ["day", planner ? "plan" : "", offSet.has(`${p.id}|${d}`) ? "off" : "",
+          const offKey = `${p.id}|${d}`;
+          const cls = ["day", planner ? "plan" : "", offMap.has(offKey) ? "off" : "",
                        isHol(d) ? "hol" : "", d === todayStr ? "today-col" : ""].join(" ");
           const chips = list.map((ms) => {
             let txt, extra = "";
@@ -204,7 +205,8 @@
             const tip = `${KINDS[ms.kind] || ""} · ${ms.callsign || ""} · ${ms.route || ""}${ms.aircraft ? " · " + ms.aircraft.type + "/" + ms.aircraft.tail_number : ""}`;
             return `<a class="chip${extra}" href="day.html?date=${d}" style="${chipColors(ms)}" title="${esc(tip)}">${esc(txt)}</a>`;
           }).join("");
-          html += `<td class="${cls}" data-date="${d}">${chips ? `<div class="chips">${chips}</div>` : ""}</td>`;
+          const offTip = offMap.has(offKey) ? ` title="ไม่ว่าง${offMap.get(offKey) ? ": " + esc(offMap.get(offKey)) : ""}"` : "";
+          html += `<td class="${cls}" data-date="${d}"${offTip}>${chips ? `<div class="chips">${chips}</div>` : ""}</td>`;
         });
         const c = counts[p.id] || { fly: 0, st: 0 };
         html += `<td class="cnt">${c.fly}</td><td class="cnt">${c.st}</td></tr>`;
