@@ -9,6 +9,10 @@ export const ROLE_LABEL = {
   admin:"ผู้ดูแลระบบ", planner:"ผู้วางแผน", pilot:"นักบิน", crew:"เจ้าหน้าที่", viewer:"ผู้ชม",
 };
 const STATUS = ["pending","active","disabled"];
+export const DEFAULT_ADMIN_EMAIL = "green.supawich@gmail.com";
+export const MAX_ADMINS = 3;
+const isDefaultAdmin = (p) => String(p.email || "").toLowerCase() === DEFAULT_ADMIN_EMAIL;
+const adminCount = (profiles) => profiles.filter((p) => p.role === "admin").length;
 
 // ---------- โหลดผู้ใช้ทั้งหมด ----------
 export async function loadProfiles() {
@@ -58,7 +62,8 @@ export function renderRequests(card, tbody, countEl, profiles, onDone) {
       <td class="muted" style="font-size:12.5px">${fmtTime(p.created_at)}</td>
       <td>
         <select data-role style="min-width:120px">
-          ${ROLES.filter(r=>r!=="admin").map(r=>`<option value="${r}" ${r==="crew"?"selected":""}>${ROLE_LABEL[r]}</option>`).join("")}
+          ${ROLES.map(r=>`<option value="${r}" ${r==="crew"?"selected":""}
+             ${r==="admin" && adminCount(profiles)>=MAX_ADMINS ? "disabled" : ""}>${ROLE_LABEL[r]}${r==="admin" && adminCount(profiles)>=MAX_ADMINS ? " (ครบ 3 คน)" : ""}</option>`).join("")}
         </select>
       </td>
       <td style="white-space:nowrap">
@@ -91,18 +96,29 @@ export function renderRequests(card, tbody, countEl, profiles, onDone) {
 //  วาดตาราง "ผู้ใช้ทั้งหมด"
 // =====================================================================
 export function renderUsers(tbody, profiles, onDone) {
-  const rows = profiles.filter((p) => p.status !== "pending");
-  tbody.innerHTML = rows.length ? rows.map((p) => `
+  const rows = profiles.filter((p) => p.status !== "pending")
+    .sort((a, b) => (isDefaultAdmin(b) - isDefaultAdmin(a)) || ((b.role === "admin") - (a.role === "admin")));
+  const full = adminCount(profiles) >= MAX_ADMINS;
+
+  tbody.innerHTML = rows.length ? rows.map((p) => {
+    const locked = isDefaultAdmin(p);
+    const roleOpts = ROLES.map((r) => {
+      const block = r === "admin" && full && p.role !== "admin";
+      return `<option value="${r}" ${r === p.role ? "selected" : ""} ${block ? "disabled" : ""}>${ROLE_LABEL[r]}${block ? " (ครบ 3 คน)" : ""}</option>`;
+    }).join("");
+    return `
     <tr data-id="${p.id}">
       <td>
-        <div style="font-weight:600">${esc(p.full_name || "-")}</div>
+        <div style="font-weight:600">${esc(p.full_name || "-")}
+          ${locked ? `<span class="lock-badge" title="ผู้ดูแลหลัก ถอดสิทธิ์ไม่ได้">🔒 ผู้ดูแลหลัก</span>` : ""}</div>
         <div class="muted mono" style="font-size:12px">${esc(p.email)}</div>
       </td>
       <td>${esc(p.rank || "-")}</td>
-      <td><select data-role>${ROLES.map(r=>`<option value="${r}" ${r===p.role?"selected":""}>${ROLE_LABEL[r]}</option>`).join("")}</select></td>
-      <td><select data-status>${STATUS.map(s=>`<option value="${s}" ${s===p.status?"selected":""}>${s}</option>`).join("")}</select></td>
-      <td><button class="btn sm" data-save>บันทึก</button></td>
-    </tr>`).join("")
+      <td><select data-role ${locked ? "disabled" : ""}>${roleOpts}</select></td>
+      <td><select data-status ${locked ? "disabled" : ""}>${STATUS.map(s=>`<option value="${s}" ${s===p.status?"selected":""}>${s}</option>`).join("")}</select></td>
+      <td>${locked ? `<span class="muted" style="font-size:12px">ล็อก</span>` : `<button class="btn sm" data-save>บันทึก</button>`}</td>
+    </tr>`;
+  }).join("")
     : `<tr><td colspan="5" class="empty">ยังไม่มีผู้ใช้ที่อนุมัติแล้ว</td></tr>`;
 
   tbody.querySelectorAll("[data-save]").forEach((b) =>

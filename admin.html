@@ -22,6 +22,11 @@
   @media(max-width:760px){ .invite-grid{grid-template-columns:1fr 1fr} }
   .iv-msg{font-size:13px;margin-top:10px;min-height:18px}
   .iv-msg.ok{color:var(--good)} .iv-msg.err{color:var(--crit)}
+  .admin-quota{font-family:"IBM Plex Mono",monospace;font-size:12px;font-weight:600;vertical-align:middle;
+               background:var(--primary-soft);color:var(--primary);border-radius:6px;padding:3px 9px;margin-inline-start:8px}
+  .admin-quota.full{background:var(--accent-soft);color:var(--warn)}
+  .lock-badge{font-size:11px;font-weight:600;background:var(--accent-soft);color:var(--warn);
+              border-radius:5px;padding:1px 7px;margin-inline-start:6px;white-space:nowrap}
 </style>
 </head>
 <body>
@@ -29,7 +34,7 @@
   <div class="wrap">
     <div class="page-head">
       <h1>ผู้ดูแลระบบ</h1>
-      <div class="sub">เพิ่มผู้ใช้ · อนุมัติคำขอใช้งาน · กำหนดตำแหน่งและสิทธิ์ — เฉพาะ admin เท่านั้น</div>
+      <div class="sub">เพิ่มผู้ใช้ · อนุมัติคำขอใช้งาน · กำหนดตำแหน่งและสิทธิ์ — เฉพาะ admin (สูงสุด 3 คน)</div>
     </div>
 
     <!-- ===== คำขอใช้งาน (ซ่อนถ้าไม่มี) ===== -->
@@ -67,7 +72,7 @@
     </div>
 
     <!-- ===== ผู้ใช้ทั้งหมด ===== -->
-    <h2 class="sec">ผู้ใช้ในระบบ</h2>
+    <h2 class="sec">ผู้ใช้ในระบบ <span class="admin-quota" id="adminQuota"></span></h2>
     <div class="tablewrap">
       <table>
         <thead><tr><th>ผู้ใช้</th><th>ตำแหน่ง</th><th>สิทธิ์</th><th>สถานะ</th><th></th></tr></thead>
@@ -83,7 +88,7 @@
 <script type="module">
   import { requireAuth } from "./js/auth.js";
   import { renderTopbar } from "./js/ui.js";
-  import { loadProfiles, renderRequests, renderUsers, loadInvites, addInvite, renderInvites, ROLES, ROLE_LABEL } from "./js/admin.js";
+  import { loadProfiles, renderRequests, renderUsers, loadInvites, addInvite, renderInvites, ROLES, ROLE_LABEL, MAX_ADMINS } from "./js/admin.js";
 
   const profile = await requireAuth(["admin"]);   // เข้าได้เฉพาะ admin
   if (profile) {
@@ -96,14 +101,18 @@
 
     const ivTb = document.getElementById("inviteRows");
     const ivMsg = document.getElementById("iv_msg");
-    document.getElementById("iv_role").innerHTML = ROLES.filter(r => r !== "admin")
+    document.getElementById("iv_role").innerHTML = ROLES
       .map(r => `<option value="${r}" ${r === "crew" ? "selected" : ""}>${ROLE_LABEL[r]}</option>`).join("");
 
     async function refresh() {
       const [profiles, invites] = await Promise.all([loadProfiles(), loadInvites()]);
       renderRequests(card, reqTb, cnt, profiles, refresh);
       renderInvites(ivTb, invites, profiles, refresh);
-      renderUsers(userTb, profiles, null);
+      renderUsers(userTb, profiles, refresh);
+      const n = profiles.filter(p => p.role === "admin").length;
+      const q = document.getElementById("adminQuota");
+      q.textContent = `ผู้ดูแลระบบ ${n}/${MAX_ADMINS}`;
+      q.classList.toggle("full", n >= MAX_ADMINS);
     }
 
     document.getElementById("iv_add").addEventListener("click", async () => {
