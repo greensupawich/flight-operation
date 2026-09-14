@@ -1,0 +1,75 @@
+// =====================================================================
+//  queue.js — ข้อมูลหน้า "คิวบิน"
+//  แถว = นักบินในทะเบียน · คอลัมน์ = วันที่ในเดือน
+// =====================================================================
+import { supabase } from "./supabase.js";
+
+export const PILOT_POSITIONS = ["AC", "IP", "P", "CP", "N"];
+
+const pad = (n) => String(n).padStart(2, "0");
+export const monthRange = (y, m /* 0-11 */) => ({
+  first: `${y}-${pad(m + 1)}-01`,
+  last:  `${y}-${pad(m + 1)}-${pad(new Date(y, m + 1, 0).getDate())}`,
+  days:  new Date(y, m + 1, 0).getDate(),
+});
+
+// ชื่อจุดในเส้นทาง → คีย์สำหรับค้นรหัส (ตัดวงเล็บเวลาและช่องว่างทั้งหมด)
+export const airfieldKey = (name) => String(name || "").replace(/\([^)]*\)/g, "").replace(/\s+/g, "");
+
+// จุดที่ 2 ของเส้นทาง "บน.6 - บน.41 - บน.6" → "บน.41"
+export function secondPoint(route) {
+  const pts = String(route || "").split(/[-–—>→]+/).map(airfieldKey).filter(Boolean);
+  return pts[1] || pts[0] || "";
+}
+
+export async function loadQueueMonth(y, m) {
+  const { first, last } = monthRange(y, m);
+  const [crew, missions, holidays, unavailable, airfields] = await Promise.all([
+    supabase.from("crew_members").select("id,code,full_name,position").eq("active", true).order("code"),
+    supabase.from("missions")
+      .select("id,mission_date,kind,route,callsign,mission_name,aircraft(type,tail_number),mission_crew(crew_member_id,position)")
+      .gte("mission_date", first).lte("mission_date", last),
+    supabase.from("holidays").select("holiday_date,name").gte("holiday_date", first).lte("holiday_date", last),
+    supabase.from("crew_unavailable").select("crew_member_id,off_date,note").gte("off_date", first).lte("off_date", last),
+    supabase.from("airfields").select("name,code"),
+  ]);
+  for (const r of [crew, missions, holidays, unavailable, airfields]) if (r.error) console.error(r.error);
+  return {
+    crew: crew.data || [],
+    missions: missions.data || [],
+    holidays: holidays.data || [],
+    unavailable: unavailable.data || [],
+    airfields: airfields.data || [],
+  };
+}
+
+// ---------- วันหยุด ----------
+export async function setHoliday(date, name) {
+  const { error } = await supabase.from("holidays").upsert({ holiday_date: date, name: name || null });
+  return error;
+}
+export async function clearHoliday(date) {
+  const { error } = await supabase.from("holidays").delete().eq("holiday_date", date);
+  return error;
+}
+
+// ---------- วันไม่ว่าง (ทำทีละหลายช่องจากการลาก) ----------
+export async function addUnavailable(crewId, dates) {
+  if (!dates.length) return null;
+  const { error } = await supabase.from("crew_unavailable")
+    .upsert(dates.map((d) => ({ crew_member_id: crewId, off_date: d })), { onConflict: "crew_member_id,off_date" });
+  return error;
+}
+export async function removeUnavailable(crewId, dates) {
+  if (!dates.length) return null;
+  const { error } = await supabase.from("crew_unavailable")
+    .delete().eq("crew_member_id", crewId).in("off_date", dates);
+  return error;
+}
+
+// ---------- รหัสสนามบิน ----------
+export async function saveAirfield(name, code) {
+  const { error } = await supabase.from("airfields")
+    .upsert({ name: airfieldKey(name), code: code.trim().toUpperCase(), updated_at: new Date().toISOString() });
+  return error;
+}

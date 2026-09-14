@@ -10,6 +10,7 @@ export const KINDS = {
   palace: "ภารกิจสำนักพระราชวัง",
   rtaf: "ภารกิจ ทอ.",
   training: "ฝึกบิน",
+  stby: "STBY (Standby)",
 };
 export const DEFAULT_KIND = "rtaf";
 // bg = สีพื้นตามกระดาน, fg = สีตัวอักษรที่อ่านออกบนพื้นนั้น
@@ -19,6 +20,7 @@ export const KIND_COLORS = {
   palace:    { bg: "#A5D46A", fg: "#16240A" },
   rtaf:      { bg: "#4DA3E8", fg: "#08202F" },
   training:  { bg: "#FFFFFF", fg: "#16202E" },
+  stby:      { bg: "#FFFFFF", fg: "#16202E" },   // ช่อง ST ในกระดานคิวบินเป็นพื้นขาว
 };
 export const kindStyle = (k) => {
   const c = KIND_COLORS[k] || KIND_COLORS[DEFAULT_KIND];

@@ -1,0 +1,326 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Flight Operation · คิวบิน</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bai+Jamjuree:wght@600;700&family=IBM+Plex+Sans+Thai:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<link rel="stylesheet" href="css/style.css">
+<style>
+  :root{ --q-hol:#C9CCD1; --q-off:#E8A7A2; --q-off-strong:#C0504D; --q-grid:#D5DBE3; --q-600:#111418; --q-500:#C00000; }
+  @media (prefers-color-scheme:dark){ :root:not([data-theme="light"]){
+    --q-hol:#3A414C; --q-off:#7A3F3B; --q-off-strong:#E07B7B; --q-grid:#2A3544; }}
+  :root[data-theme="dark"]{ --q-hol:#3A414C; --q-off:#7A3F3B; --q-off-strong:#E07B7B; --q-grid:#2A3544; }
+
+  main .wrap{max-width:1500px}
+  .q-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:6px 0 12px}
+  .q-title{font-family:"Bai Jamjuree",sans-serif;font-weight:700;font-size:20px;min-width:170px;text-align:center}
+  .legend{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;font-size:12px;color:var(--muted);margin-bottom:12px}
+  .legend .sw{display:inline-block;min-width:34px;padding:1px 6px;border-radius:4px;text-align:center;
+              font-family:"IBM Plex Mono",monospace;font-weight:600;font-size:11px;border:1px solid var(--line-strong);
+              margin-inline-end:4px}
+  .hint{font-size:12.5px;color:var(--faint);margin:0 0 10px}
+
+  .qwrap{overflow:auto;max-height:calc(100vh - 250px);border:1px solid var(--line-strong);border-radius:10px;background:var(--surface)}
+  table.q{border-collapse:separate;border-spacing:0;font-size:12px;user-select:none}
+  table.q th, table.q td{border-right:1px solid var(--q-grid);border-bottom:1px solid var(--q-grid);
+                         padding:0;height:27px;text-align:center;vertical-align:middle}
+  table.q thead th{position:sticky;top:0;z-index:3;background:var(--surface-2);font-family:"IBM Plex Mono",monospace;
+                   font-size:11px;font-weight:600;color:var(--muted);min-width:42px;height:38px;line-height:1.15}
+  table.q thead th small{display:block;font-family:"IBM Plex Sans Thai",sans-serif;font-weight:500;font-size:10px;color:var(--faint)}
+  table.q th.name, table.q td.name{position:sticky;left:0;z-index:2;min-width:150px;text-align:start;
+                   padding:0 9px;white-space:nowrap;font-weight:600;background:var(--surface);color:var(--ink)}
+  table.q thead th.name{z-index:4;background:var(--surface-2)}
+  table.q th.cnt, table.q td.cnt{min-width:58px;font-variant-numeric:tabular-nums;font-weight:700;background:var(--surface-2)}
+  table.q th.cnt{color:var(--ink)}
+  table.q th.hol, table.q td.hol{background:var(--q-hol)}
+  table.q td.off{background:var(--q-off)}
+  table.q th.plan{cursor:pointer}
+  table.q th.plan:hover{outline:2px solid var(--primary);outline-offset:-2px}
+  table.q td.day.plan{cursor:cell}
+  table.q td.today-col, table.q th.today-col{box-shadow:inset 0 0 0 2px var(--accent)}
+
+  .chips{display:flex;flex-direction:column;height:100%;min-height:26px}
+  .chip{flex:1;display:flex;align-items:center;justify-content:center;padding:0 3px;min-height:26px;
+        font-family:"IBM Plex Mono",monospace;font-weight:600;font-size:11px;text-decoration:none;
+        border-bottom:1px solid rgba(0,0,0,.08)}
+  .chip:last-child{border-bottom:0}
+  .chip:hover{filter:brightness(.93)}
+  .chip.nocode{text-decoration:underline dotted;font-size:9.5px}
+  td.off .chip{box-shadow:inset 4px 0 0 var(--q-off-strong)}
+
+  details.af{margin-top:16px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 14px}
+  details.af summary{cursor:pointer;font-weight:600;font-size:13.5px}
+  .af-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px;margin-top:10px}
+  .af-row{display:flex;gap:6px;align-items:center}
+  .af-row span{flex:1;font-size:13px}
+  .af-row input{width:80px;font-family:"IBM Plex Mono",monospace;text-transform:uppercase;padding:6px 8px}
+  .missing{background:var(--accent-soft);color:var(--warn);border-radius:9px;padding:10px 13px;font-size:12.5px;margin-bottom:12px}
+</style>
+</head>
+<body>
+<main>
+  <div class="wrap">
+    <div class="page-head">
+      <h1>คิวบิน</h1>
+      <div class="sub">ตารางการบินรายเดือนของนักบิน · นับบินจริงและ Standby แยกกัน</div>
+    </div>
+
+    <div class="q-head">
+      <button class="btn sm" id="prev">←</button>
+      <div class="q-title" id="title">—</div>
+      <button class="btn sm" id="next">→</button>
+      <button class="btn sm ghost" id="thisMonth">เดือนนี้</button>
+    </div>
+
+    <div class="legend" id="legend"></div>
+    <p class="hint" id="hint"></p>
+    <div class="missing" id="missing" hidden></div>
+
+    <div class="qwrap"><table class="q" id="q"><tbody><tr><td class="empty">กำลังโหลด…</td></tr></tbody></table></div>
+
+    <details class="af" id="afBox">
+      <summary>รหัสสนามบิน (ชื่อจุดในเส้นทางบิน → รหัสที่แสดงในคิวบิน)</summary>
+      <div class="af-grid" id="afGrid"></div>
+    </details>
+  </div>
+</main>
+
+<script type="module">
+  import { requireAuth, canPlan } from "./js/auth.js";
+  import { renderTopbar } from "./js/ui.js";
+  import { KINDS, KIND_COLORS, qualStyle, esc } from "./js/missions.js";
+  import { loadQueueMonth, monthRange, secondPoint, airfieldKey, PILOT_POSITIONS,
+           setHoliday, clearHoliday, addUnavailable, removeUnavailable, saveAirfield } from "./js/queue.js";
+
+  const profile = await requireAuth();
+  if (profile) {
+    renderTopbar(profile);
+    const planner = canPlan(profile);
+
+    const TH_MONTH = ["มกราคม","กุมภาพันธ์","มีนาคม","เมษายน","พฤษภาคม","มิถุนายน",
+                      "กรกฎาคม","สิงหาคม","กันยายน","ตุลาคม","พฤศจิกายน","ธันวาคม"];
+    const TH_DOW = ["อา","จ","อ","พ","พฤ","ศ","ส"];
+    const pad = (n) => String(n).padStart(2, "0");
+    const now = new Date();
+    const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+    let view = new Date(now.getFullYear(), now.getMonth(), 1);
+    let data = null;
+
+    // ---------- คำอธิบายสี ----------
+    document.getElementById("legend").innerHTML =
+      Object.entries(KINDS).filter(([k]) => k !== "stby").map(([k, l]) =>
+        `<span><i class="sw" style="background:${KIND_COLORS[k].bg};color:${KIND_COLORS[k].fg}">&nbsp;</i>${esc(l)}</span>`).join("") +
+      `<span><i class="sw" style="background:#fff;color:#111">ST</i>Standby</span>
+       <span><i class="sw" style="background:#fff;color:var(--q-600)">CMA</i>ATR72-600</span>
+       <span><i class="sw" style="background:#fff;color:var(--q-500)">CMA</i>ATR72-500</span>
+       <span><i class="sw" style="background:var(--q-hol)">&nbsp;</i>วันหยุด</span>
+       <span><i class="sw" style="background:var(--q-off)">&nbsp;</i>ไม่ว่าง</span>`;
+    document.getElementById("hint").innerHTML = planner
+      ? "กดรหัสในช่องเพื่อเปิดภารกิจวันนั้น · <b>กด/ลากบนช่องว่าง</b> เพื่อระบายว่านักบินไม่ว่าง (ทำซ้ำเพื่อลบ) · <b>กดหัววันที่</b> เพื่อตั้ง/ยกเลิกวันหยุดราชการ"
+      : "กดรหัสในช่องเพื่อเปิดภารกิจวันนั้น";
+
+    // ---------- สีตัวอักษรตามแบบเครื่อง ----------
+    function chipColors(m) {
+      const k = KIND_COLORS[m.kind] || KIND_COLORS.rtaf;
+      const is500 = /500/.test(m.aircraft?.type || "");
+      const onRed = m.kind === "dechochai";
+      const fg = is500 ? (onRed ? "#FFE34D" : "var(--q-500)") : (onRed ? "#FFFFFF" : "var(--q-600)");
+      return `background:${k.bg};color:${fg}`;
+    }
+
+    async function load() {
+      const y = view.getFullYear(), m = view.getMonth();
+      document.getElementById("title").textContent = `${TH_MONTH[m]} ${y + 543}`;
+      data = await loadQueueMonth(y, m);
+      render();
+    }
+
+    function render() {
+      const y = view.getFullYear(), m = view.getMonth();
+      const { days } = monthRange(y, m);
+      const dates = Array.from({ length: days }, (_, i) => `${y}-${pad(m + 1)}-${pad(i + 1)}`);
+
+      const holidayMap = new Map(data.holidays.map((h) => [h.holiday_date, h.name || "วันหยุด"]));
+      const codeMap = new Map(data.airfields.map((a) => [a.name, a.code]));
+      const offSet = new Set(data.unavailable.map((u) => `${u.crew_member_id}|${u.off_date}`));
+
+      // จัดภารกิจเข้าช่อง (คน|วันที่) — คนเดียวหลายตำแหน่งในภารกิจเดียวนับครั้งเดียว
+      const cell = new Map(), seen = new Set();
+      const counts = {};
+      const missingCodes = new Set();
+      data.missions.forEach((ms) => {
+        (ms.mission_crew || []).forEach((mc) => {
+          if (!mc.crew_member_id) return;
+          if (!PILOT_POSITIONS.includes(String(mc.position || "").trim().toUpperCase())) return;
+          const key = `${mc.crew_member_id}|${ms.id}`;
+          if (seen.has(key)) return;
+          seen.add(key);
+          const ck = `${mc.crew_member_id}|${ms.mission_date}`;
+          if (!cell.has(ck)) cell.set(ck, []);
+          cell.get(ck).push(ms);
+          const c = counts[mc.crew_member_id] || (counts[mc.crew_member_id] = { fly: 0, st: 0 });
+          if (ms.kind === "stby") c.st += 1; else c.fly += 1;
+        });
+        if (ms.kind !== "stby") {
+          const k = secondPoint(ms.route);
+          if (k && !codeMap.has(k)) missingCodes.add(k);
+        }
+      });
+
+      const isHol = (d) => { const w = new Date(d + "T00:00:00").getDay(); return w === 0 || w === 6 || holidayMap.has(d); };
+
+      // ---------- หัวตาราง ----------
+      let html = `<thead><tr><th class="name">NAME / DATE</th>` +
+        dates.map((d, i) => {
+          const w = new Date(d + "T00:00:00").getDay();
+          const cls = [isHol(d) ? "hol" : "", planner ? "plan" : "", d === todayStr ? "today-col" : ""].join(" ");
+          const title = holidayMap.has(d) ? ` title="${esc(holidayMap.get(d))}"` : "";
+          return `<th class="${cls}" data-date="${d}"${title}>${i + 1}<small>${TH_DOW[w]}</small></th>`;
+        }).join("") +
+        `<th class="cnt">บินจริง</th><th class="cnt">ST</th></tr></thead><tbody>`;
+
+      // ---------- แถวนักบิน ----------
+      if (!data.crew.length) {
+        html += `<tr><td class="name">ยังไม่มีนักบินในทะเบียน</td></tr>`;
+      }
+      data.crew.forEach((p) => {
+        const qs = qualStyle(p.position);
+        html += `<tr data-crew="${p.id}"><td class="name" style="${qs || ""}" title="${esc(p.code)}">${esc(p.full_name)}</td>`;
+        dates.forEach((d) => {
+          const list = cell.get(`${p.id}|${d}`) || [];
+          const cls = ["day", planner ? "plan" : "", offSet.has(`${p.id}|${d}`) ? "off" : "",
+                       isHol(d) ? "hol" : "", d === todayStr ? "today-col" : ""].join(" ");
+          const chips = list.map((ms) => {
+            let txt, extra = "";
+            if (ms.kind === "stby") txt = "ST";
+            else {
+              const k = secondPoint(ms.route);
+              txt = codeMap.get(k) || k || "?";
+              if (!codeMap.has(k)) extra = " nocode";
+            }
+            const tip = `${KINDS[ms.kind] || ""} · ${ms.callsign || ""} · ${ms.route || ""}${ms.aircraft ? " · " + ms.aircraft.type + "/" + ms.aircraft.tail_number : ""}`;
+            return `<a class="chip${extra}" href="day.html?date=${d}" style="${chipColors(ms)}" title="${esc(tip)}">${esc(txt)}</a>`;
+          }).join("");
+          html += `<td class="${cls}" data-date="${d}">${chips ? `<div class="chips">${chips}</div>` : ""}</td>`;
+        });
+        const c = counts[p.id] || { fly: 0, st: 0 };
+        html += `<td class="cnt">${c.fly}</td><td class="cnt">${c.st}</td></tr>`;
+      });
+      html += `</tbody>`;
+      document.getElementById("q").innerHTML = html;
+
+      // ---------- รหัสสนามบินที่ยังขาด ----------
+      const miss = document.getElementById("missing");
+      if (missingCodes.size) {
+        miss.hidden = false;
+        miss.innerHTML = `ยังไม่มีรหัสสนามบินของ <b>${[...missingCodes].map(esc).join(", ")}</b> — ในตารางจะแสดงชื่อจุดแทน` +
+          (planner ? ` · กรอกรหัสได้ที่กล่อง "รหัสสนามบิน" ด้านล่าง` : "");
+      } else miss.hidden = true;
+      renderAirfields([...missingCodes]);
+    }
+
+    // ---------- กล่องรหัสสนามบิน ----------
+    function renderAirfields(missing) {
+      const rows = [...missing.map((n) => ({ name: n, code: "" })), ...data.airfields]
+        .sort((a, b) => a.name.localeCompare(b.name, "th"));
+      const grid = document.getElementById("afGrid");
+      grid.innerHTML = rows.map((a) => `
+        <div class="af-row" data-name="${esc(a.name)}">
+          <span>${esc(a.name)}</span>
+          <input value="${esc(a.code)}" placeholder="รหัส" maxlength="6" ${planner ? "" : "disabled"}>
+          ${planner ? `<button class="btn sm" data-save>บันทึก</button>` : ""}
+        </div>`).join("") +
+        (planner ? `<div class="af-row"><input id="afNewName" placeholder="ชื่อจุด เช่น บน.46" style="width:auto;flex:1;text-transform:none">
+                     <input id="afNewCode" placeholder="รหัส" maxlength="6"><button class="btn sm" id="afAdd">เพิ่ม</button></div>` : "");
+      if (missing.length) document.getElementById("afBox").open = true;
+
+      grid.querySelectorAll("[data-save]").forEach((b) => b.addEventListener("click", async (e) => {
+        const row = e.target.closest(".af-row");
+        const code = row.querySelector("input").value.trim();
+        if (!code) { alert("กรอกรหัสก่อน"); return; }
+        const err = await saveAirfield(row.dataset.name, code);
+        if (err) alert("บันทึกไม่สำเร็จ: " + err.message); else load();
+      }));
+      document.getElementById("afAdd")?.addEventListener("click", async () => {
+        const name = document.getElementById("afNewName").value.trim();
+        const code = document.getElementById("afNewCode").value.trim();
+        if (!airfieldKey(name) || !code) { alert("กรอกชื่อจุดและรหัส"); return; }
+        const err = await saveAirfield(name, code);
+        if (err) alert("บันทึกไม่สำเร็จ: " + err.message); else load();
+      });
+    }
+
+    // ---------- วันหยุด: กดหัววันที่ ----------
+    document.getElementById("q").addEventListener("click", async (e) => {
+      if (!planner) return;
+      const th = e.target.closest("thead th[data-date]");
+      if (!th) return;
+      const d = th.dataset.date;
+      const existing = data.holidays.find((h) => h.holiday_date === d);
+      if (existing) {
+        if (!confirm(`ยกเลิกวันหยุด ${d}${existing.name ? " (" + existing.name + ")" : ""}?`)) return;
+        const err = await clearHoliday(d); if (err) alert(err.message);
+      } else {
+        const name = prompt(`ตั้ง ${d} เป็นวันหยุดราชการ\nชื่อวันหยุด (เว้นว่างได้):`, "");
+        if (name === null) return;
+        const err = await setHoliday(d, name.trim()); if (err) alert(err.message);
+      }
+      load();
+    });
+
+    // ---------- ไม่ว่าง: กด/ลากระบายช่อง (เฉพาะแถวเดียวกัน) ----------
+    let paint = null;   // { crew, mode:'add'|'remove', dates:Set }
+    const tableEl = document.getElementById("q");
+
+    function touch(td) {
+      if (!paint || !td || !td.classList.contains("day")) return;
+      if (td.closest("tr").dataset.crew !== paint.crew) return;
+      if (paint.dates.has(td.dataset.date)) return;
+      paint.dates.add(td.dataset.date);
+      td.classList.toggle("off", paint.mode === "add");
+    }
+    let tap = null;     // จอสัมผัส: แตะ = สลับ 1 ช่อง (ลากนิ้ว = เลื่อนตารางตามปกติ)
+    tableEl.addEventListener("pointerdown", (e) => {
+      if (!planner) return;
+      const td = e.target.closest("td.day");
+      if (!td || e.target.closest(".chip")) return;
+      if (e.pointerType === "touch") { tap = { td, x: e.clientX, y: e.clientY }; return; }
+      if (e.button !== 0) return;
+      e.preventDefault();
+      paint = { crew: td.closest("tr").dataset.crew, mode: td.classList.contains("off") ? "remove" : "add", dates: new Set() };
+      touch(td);
+    });
+    tableEl.addEventListener("pointermove", (e) => {
+      if (!paint) return;
+      const el = document.elementFromPoint(e.clientX, e.clientY);
+      touch(el && el.closest("td.day"));
+    });
+    window.addEventListener("pointerup", async (e) => {
+      if (tap) {
+        const moved = Math.hypot(e.clientX - tap.x, e.clientY - tap.y) > 10;
+        const td = tap.td; tap = null;
+        if (moved) return;
+        paint = { crew: td.closest("tr").dataset.crew, mode: td.classList.contains("off") ? "remove" : "add", dates: new Set() };
+        touch(td);
+      }
+      if (!paint) return;
+      const { crew, mode, dates } = paint;
+      paint = null;
+      const list = [...dates];
+      const err = mode === "add" ? await addUnavailable(crew, list) : await removeUnavailable(crew, list);
+      if (err) alert("บันทึกไม่สำเร็จ: " + err.message);
+      load();
+    });
+
+    // ---------- เปลี่ยนเดือน ----------
+    document.getElementById("prev").addEventListener("click", () => { view.setMonth(view.getMonth() - 1); load(); });
+    document.getElementById("next").addEventListener("click", () => { view.setMonth(view.getMonth() + 1); load(); });
+    document.getElementById("thisMonth").addEventListener("click", () => { view = new Date(now.getFullYear(), now.getMonth(), 1); load(); });
+    load();
+  }
+</script>
+</body>
+</html>
