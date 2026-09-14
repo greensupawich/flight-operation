@@ -101,6 +101,8 @@
 
 <script type="module">
   import { requireAuth, canPlan } from "./js/auth.js";
+  import { attachCombo, comboHTML } from "./js/combobox.js";
+  import { qualStyle } from "./js/missions.js";
   import { getMyCrewMember, loadUnclaimedCrew, claimCrew, loadUnavailableOn,
            setUnavailable, clearUnavailable } from "./js/availability.js";
   import { renderTopbar } from "./js/ui.js";
@@ -157,17 +159,21 @@
           <h3>แจ้งไม่ว่าง</h3>
           <div class="me-line">บัญชีนี้ยังไม่ได้ผูกกับชื่อในทะเบียนนักบิน — เลือกชื่อของคุณ (ทำครั้งเดียว)</div>
           <div class="note-row">
-            <select id="claimSel"><option value="">— เลือกชื่อของคุณ —</option>
-              ${list.map(c => `<option value="${c.id}">${esc(c.full_name)} (${esc(c.code)}${c.position ? " · " + esc(c.position) : ""})</option>`).join("")}
-            </select>
+            <div id="claimBox" style="flex:1">${comboHTML("พิมพ์ชื่อหรือรหัส แล้วเลือกจากรายการ")}</div>
             <button class="btn primary" id="claimBtn" style="white-space:nowrap">นี่คือฉัน</button>
           </div>
           <div class="av-msg" id="avMsg">ไม่ใช่นักบิน? ไม่ต้องทำส่วนนี้</div>`;
+        let picked = null;
+        attachCombo(document.getElementById("claimBox").querySelector(".cb"),
+          list.map(c => ({ id: c.id, label: c.full_name, hint: c.code,
+                           tag: c.position ? { text: c.position, style: qualStyle(c.position) } : null })),
+          { emptyHtml: "ไม่พบชื่อนี้ในทะเบียน (หรือมีคนผูกไปแล้ว) — แจ้ง admin",
+            onChange: ({ item }) => { picked = item; } });
         document.getElementById("claimBtn").addEventListener("click", async () => {
-          const id = document.getElementById("claimSel").value;
           const msg = document.getElementById("avMsg");
-          if (!id) { msg.className = "av-msg err"; msg.textContent = "เลือกชื่อก่อน"; return; }
-          const name = document.getElementById("claimSel").selectedOptions[0].textContent;
+          if (!picked) { msg.className = "av-msg err"; msg.textContent = "พิมพ์แล้วเลือกชื่อจากรายการก่อน (ช่องต้องขึ้น ✓ เขียว)"; return; }
+          const id = picked.id;
+          const name = `${picked.label} (${picked.hint})`;
           if (!confirm(`ยืนยันว่าคุณคือ ${name}?\nเปลี่ยนภายหลังต้องให้ admin แก้`)) return;
           const err = await claimCrew(id);
           if (err) { msg.className = "av-msg err"; msg.textContent = err.message; return; }

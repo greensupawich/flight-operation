@@ -9,21 +9,27 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bai+Jamjuree:wght@600;700&family=IBM+Plex+Sans+Thai:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap">
 <link rel="stylesheet" href="css/style.css">
 <style>
-  :root{ --q-hol:#C9CCD1; --q-off:#E8A7A2; --q-off-strong:#C0504D; --q-grid:#D5DBE3; --q-600:#111418; --q-500:#C00000; }
+  :root{ --q-hol:#C9CCD1; --q-off:#E8A7A2; --q-off-strong:#C0504D; --q-grid:#D5DBE3; --q-600:#111418; --q-500:#C00000; --q-ovr:#7C3AED; }
   @media (prefers-color-scheme:dark){ :root:not([data-theme="light"]){
-    --q-hol:#3A414C; --q-off:#7A3F3B; --q-off-strong:#E07B7B; --q-grid:#2A3544; }}
-  :root[data-theme="dark"]{ --q-hol:#3A414C; --q-off:#7A3F3B; --q-off-strong:#E07B7B; --q-grid:#2A3544; }
+    --q-hol:#3A414C; --q-off:#7A3F3B; --q-off-strong:#E07B7B; --q-grid:#2A3544; --q-ovr:#A78BFA; }}
+  :root[data-theme="dark"]{ --q-hol:#3A414C; --q-off:#7A3F3B; --q-off-strong:#E07B7B; --q-grid:#2A3544; --q-ovr:#A78BFA; }
 
   main .wrap{max-width:1500px}
   .q-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:6px 0 12px}
   .q-title{font-family:"Bai Jamjuree",sans-serif;font-weight:700;font-size:20px;min-width:170px;text-align:center}
-  .legend{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;font-size:12px;color:var(--muted);margin-bottom:12px}
+  .modes{display:inline-flex;border:1px solid var(--line-strong);border-radius:9px;overflow:hidden;margin-inline-start:auto}
+  .modes button{font:inherit;font-size:13px;font-weight:600;border:0;background:var(--surface);color:var(--muted);
+                padding:7px 12px;cursor:pointer}
+  .modes button.on{background:var(--primary);color:#fff}
+  .legend{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;font-size:12px;color:var(--muted);margin-bottom:10px}
   .legend .sw{display:inline-block;min-width:34px;padding:1px 6px;border-radius:4px;text-align:center;
               font-family:"IBM Plex Mono",monospace;font-weight:600;font-size:11px;border:1px solid var(--line-strong);
-              margin-inline-end:4px}
+              margin-inline-end:4px;font-style:normal}
   .hint{font-size:12.5px;color:var(--faint);margin:0 0 10px}
+  .hint kbd{font-family:"IBM Plex Mono",monospace;font-size:11px;background:var(--surface-2);border:1px solid var(--line-strong);
+            border-radius:4px;padding:0 5px;color:var(--ink)}
 
-  .qwrap{overflow:auto;max-height:calc(100vh - 250px);border:1px solid var(--line-strong);border-radius:10px;background:var(--surface)}
+  .qwrap{overflow:auto;max-height:calc(100vh - 260px);border:1px solid var(--line-strong);border-radius:10px;background:var(--surface)}
   table.q{border-collapse:separate;border-spacing:0;font-size:12px;user-select:none}
   table.q th, table.q td{border-right:1px solid var(--q-grid);border-bottom:1px solid var(--q-grid);
                          padding:0;height:27px;text-align:center;vertical-align:middle}
@@ -39,17 +45,38 @@
   table.q td.off{background:var(--q-off)}
   table.q th.plan{cursor:pointer}
   table.q th.plan:hover{outline:2px solid var(--primary);outline-offset:-2px}
-  table.q td.day.plan{cursor:cell}
+  table.q td.day{position:relative}
+  table.q.can-edit td.day{cursor:cell}
   table.q td.today-col, table.q th.today-col{box-shadow:inset 0 0 0 2px var(--accent)}
+  table.q td.sel{outline:3px solid var(--primary);outline-offset:-3px;z-index:1}
+  table.q td.ovr::after{content:"";position:absolute;top:0;right:0;border-style:solid;border-width:0 8px 8px 0;
+                        border-color:transparent var(--q-ovr) transparent transparent}
+  table.q td.link{cursor:pointer}
 
   .chips{display:flex;flex-direction:column;height:100%;min-height:26px}
   .chip{flex:1;display:flex;align-items:center;justify-content:center;padding:0 3px;min-height:26px;
-        font-family:"IBM Plex Mono",monospace;font-weight:600;font-size:11px;text-decoration:none;
-        border-bottom:1px solid rgba(0,0,0,.08)}
+        font-family:"IBM Plex Mono",monospace;font-weight:600;font-size:11px;border-bottom:1px solid rgba(0,0,0,.08)}
   .chip:last-child{border-bottom:0}
-  .chip:hover{filter:brightness(.93)}
-  .chip.nocode{text-decoration:underline dotted;font-size:9.5px}
   td.off .chip{box-shadow:inset 4px 0 0 var(--q-off-strong)}
+
+  /* ---- กล่องแก้ช่อง ---- */
+  .ed{position:absolute;z-index:60;width:292px;background:var(--surface);border:1px solid var(--line-strong);
+      border-radius:12px;box-shadow:0 18px 40px -12px rgba(0,0,0,.35);padding:12px}
+  .ed-top{font-size:12px;color:var(--muted);margin-bottom:8px;line-height:1.4}
+  .ed-top b{color:var(--ink)}
+  .ed input.ed-code{font-family:"IBM Plex Mono",monospace;font-weight:600;font-size:16px;text-transform:uppercase;
+                    padding:8px 10px}
+  .ed-row{display:flex;flex-wrap:wrap;gap:5px;margin-top:9px}
+  .ed-lbl{font-size:11px;color:var(--faint);margin:9px 0 -3px;width:100%}
+  .ed-kind{font:inherit;font-size:11.5px;font-weight:600;border:2px solid var(--line-strong);border-radius:7px;
+           padding:4px 7px;cursor:pointer}
+  .ed-kind.on{outline:2px solid var(--primary);outline-offset:1px;border-color:var(--ink)}
+  .ed-ac{font:inherit;font-family:"IBM Plex Mono",monospace;font-weight:700;font-size:12px;border:1px solid var(--line-strong);
+         background:var(--surface);border-radius:7px;padding:5px 12px;cursor:pointer}
+  .ed-ac.on{background:var(--primary-soft);border-color:var(--primary)}
+  .ed-actions{display:flex;gap:6px;margin-top:12px}
+  .ed-actions .btn{flex:1;justify-content:center}
+  .ed-note{font-size:11px;color:var(--faint);margin-top:8px;line-height:1.45}
 
   details.af{margin-top:16px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 14px}
   details.af summary{cursor:pointer;font-weight:600;font-size:13.5px}
@@ -73,13 +100,17 @@
       <div class="q-title" id="title">—</div>
       <button class="btn sm" id="next">→</button>
       <button class="btn sm ghost" id="thisMonth">เดือนนี้</button>
+      <div class="modes" id="modes" hidden>
+        <button data-mode="edit" class="on">✏️ แก้ไขช่อง</button>
+        <button data-mode="paint">🟥 ระบายไม่ว่าง</button>
+      </div>
     </div>
 
     <div class="legend" id="legend"></div>
     <p class="hint" id="hint"></p>
     <div class="missing" id="missing" hidden></div>
 
-    <div class="qwrap"><table class="q" id="q"><tbody><tr><td class="empty">กำลังโหลด…</td></tr></tbody></table></div>
+    <div class="qwrap" id="qwrap"><table class="q" id="q"><tbody><tr><td class="empty">กำลังโหลด…</td></tr></tbody></table></div>
 
     <details class="af" id="afBox">
       <summary>รหัสสนามบิน (ชื่อจุดในเส้นทางบิน → รหัสที่แสดงในคิวบิน)</summary>
@@ -92,8 +123,8 @@
   import { requireAuth, canPlan } from "./js/auth.js";
   import { renderTopbar } from "./js/ui.js";
   import { KINDS, KIND_COLORS, qualStyle, esc } from "./js/missions.js";
-  import { loadQueueMonth, monthRange, secondPoint, airfieldKey, PILOT_POSITIONS,
-           setHoliday, clearHoliday, addUnavailable, removeUnavailable, saveAirfield } from "./js/queue.js";
+  import { loadQueueMonth, loadEntries, saveEntry, deleteEntry, monthRange, secondPoint, airfieldKey,
+           PILOT_POSITIONS, setHoliday, clearHoliday, addUnavailable, removeUnavailable, saveAirfield } from "./js/queue.js";
 
   const profile = await requireAuth();
   if (profile) {
@@ -103,13 +134,23 @@
     const TH_MONTH = ["มกราคม","กุมภาพันธ์","มีนาคม","เมษายน","พฤษภาคม","มิถุนายน",
                       "กรกฎาคม","สิงหาคม","กันยายน","ตุลาคม","พฤศจิกายน","ธันวาคม"];
     const TH_DOW = ["อา","จ","อ","พ","พฤ","ศ","ส"];
+    const KIND_SHORT = { fcf:"F.C.F", dechochai:"เดโชชัย", palace:"พระราชวัง", rtaf:"ทอ.", training:"ฝึกบิน", stby:"ST" };
     const pad = (n) => String(n).padStart(2, "0");
     const now = new Date();
     const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
     let view = new Date(now.getFullYear(), now.getMonth(), 1);
-    let data = null;
+    let data = null, dates = [];
+    let mode = "edit";
+    let sel = null;                       // { crew, date }
+    let lastKind = "rtaf", lastAc = "600";
 
-    // ---------- คำอธิบายสี ----------
+    const table = document.getElementById("q");
+    if (planner) {
+      document.getElementById("modes").hidden = false;
+      table.classList.add("can-edit");
+    }
+
+    // ---------- คำอธิบาย ----------
     document.getElementById("legend").innerHTML =
       Object.entries(KINDS).filter(([k]) => k !== "stby").map(([k, l]) =>
         `<span><i class="sw" style="background:${KIND_COLORS[k].bg};color:${KIND_COLORS[k].fg}">&nbsp;</i>${esc(l)}</span>`).join("") +
@@ -117,119 +158,372 @@
        <span><i class="sw" style="background:#fff;color:var(--q-600)">CNX</i>ATR72-600</span>
        <span><i class="sw" style="background:#fff;color:var(--q-500)">CNX</i>ATR72-500</span>
        <span><i class="sw" style="background:var(--q-hol)">&nbsp;</i>วันหยุด</span>
-       <span><i class="sw" style="background:var(--q-off)">&nbsp;</i>ไม่ว่าง</span>`;
-    document.getElementById("hint").innerHTML = planner
-      ? "กดรหัสในช่องเพื่อเปิดภารกิจวันนั้น · <b>กด/ลากบนช่องว่าง</b> เพื่อระบายว่านักบินไม่ว่าง (ทำซ้ำเพื่อลบ) · <b>กดหัววันที่</b> เพื่อตั้ง/ยกเลิกวันหยุดราชการ"
-      : "กดรหัสในช่องเพื่อเปิดภารกิจวันนั้น";
+       <span><i class="sw" style="background:var(--q-off)">&nbsp;</i>ไม่ว่าง</span>` +
+      (planner ? `<span><i class="sw" style="position:relative;background:#fff">&nbsp;<b style="position:absolute;top:0;right:0;border-style:solid;border-width:0 7px 7px 0;border-color:transparent var(--q-ovr) transparent transparent"></b></i>แก้เองทับข้อมูลภารกิจ</span>` : "");
 
-    // ---------- สีตัวอักษรตามแบบเครื่อง ----------
-    function chipColors(m) {
-      const k = KIND_COLORS[m.kind] || KIND_COLORS.rtaf;
-      const is500 = /500/.test(m.aircraft?.type || "");
-      const onRed = m.kind === "dechochai";
-      const fg = is500 ? (onRed ? "#FFE34D" : "var(--q-500)") : (onRed ? "#FFFFFF" : "var(--q-600)");
-      return `background:${k.bg};color:${fg}`;
+    function setHint() {
+      const h = document.getElementById("hint");
+      if (!planner) { h.innerHTML = "กดช่องที่มีภารกิจเพื่อเปิดภารกิจวันนั้น"; return; }
+      h.innerHTML = mode === "edit"
+        ? `คลิกช่องแล้ว<b>พิมพ์รหัสได้เลย</b> หรือดับเบิลคลิกเพื่อเลือกสี/แบบเครื่อง · <kbd>Enter</kbd> บันทึก · <kbd>←↑↓→</kbd> เลื่อนช่อง · <kbd>Delete</kbd> ลบข้อมูลในช่อง · กดหัววันที่เพื่อตั้งวันหยุด`
+        : `<b>กดหรือลาก</b>บนแถวเพื่อระบายว่านักบินไม่ว่าง · ลากทับช่องแดงเพื่อลบ`;
     }
+    setHint();
+    document.getElementById("modes").addEventListener("click", (e) => {
+      const b = e.target.closest("button[data-mode]"); if (!b) return;
+      mode = b.dataset.mode;
+      document.querySelectorAll("#modes button").forEach(x => x.classList.toggle("on", x === b));
+      closeEditor(); setSel(null); setHint();
+    });
+
+    const textColor = (kind, ac) => {
+      const onRed = kind === "dechochai";
+      return ac === "500" ? (onRed ? "#FFE34D" : "var(--q-500)") : (onRed ? "#FFFFFF" : "var(--q-600)");
+    };
+    const chipStyle = (kind, ac) => `background:${(KIND_COLORS[kind] || KIND_COLORS.rtaf).bg};color:${textColor(kind, ac)}`;
 
     async function load() {
       const y = view.getFullYear(), m = view.getMonth();
       document.getElementById("title").textContent = `${TH_MONTH[m]} ${y + 543}`;
-      data = await loadQueueMonth(y, m);
+      const [base, entries] = await Promise.all([loadQueueMonth(y, m), loadEntries(y, m)]);
+      data = { ...base, entries };
       render();
+    }
+
+    // ---------- สิ่งที่แสดงในแต่ละช่อง ----------
+    let maps = {};
+    function buildMaps() {
+      const codeMap = new Map(data.airfields.map(a => [a.name, a.code]));
+      const entryMap = new Map(data.entries.map(e => [`${e.crew_member_id}|${e.entry_date}`, e]));
+      const offMap = new Map(data.unavailable.map(u => [`${u.crew_member_id}|${u.off_date}`, u.note || ""]));
+      const holidayMap = new Map(data.holidays.map(h => [h.holiday_date, h.name || "วันหยุด"]));
+      const missionCell = new Map(), seen = new Set();
+      const missingCodes = new Set();
+      data.missions.forEach(ms => {
+        (ms.mission_crew || []).forEach(mc => {
+          if (!mc.crew_member_id || !PILOT_POSITIONS.includes(String(mc.position || "").trim().toUpperCase())) return;
+          const k = `${mc.crew_member_id}|${ms.id}`;
+          if (seen.has(k)) return; seen.add(k);
+          const ck = `${mc.crew_member_id}|${ms.mission_date}`;
+          if (!missionCell.has(ck)) missionCell.set(ck, []);
+          missionCell.get(ck).push(ms);
+        });
+        if (ms.kind !== "stby") { const p = secondPoint(ms.route); if (p && !codeMap.has(p)) missingCodes.add(p); }
+      });
+      maps = { codeMap, entryMap, offMap, holidayMap, missionCell, missingCodes };
+    }
+
+    // ช่องที่พิมพ์เอง > ข้อมูลจากภารกิจ
+    function cellItems(crewId, d) {
+      const k = `${crewId}|${d}`;
+      const e = maps.entryMap.get(k);
+      const ms = maps.missionCell.get(k) || [];
+      if (e) return { manual: true, override: ms.length > 0, missions: ms,
+        items: [{ text: e.code || "", kind: e.kind, ac: e.ac_type || "600",
+                  st: String(e.code || "").trim().toUpperCase() === "ST" || e.kind === "stby" && !e.code }] };
+      return { manual: false, override: false, missions: ms,
+        items: ms.map(m => {
+          const p = secondPoint(m.route);
+          return { text: m.kind === "stby" ? "ST" : (maps.codeMap.get(p) || ""),   // ไม่มีรหัส → แสดงแต่สี
+                   kind: m.kind, ac: /500/.test(m.aircraft?.type || "") ? "500" : "600",
+                   st: m.kind === "stby",
+                   tip: `${KINDS[m.kind] || ""} · ${m.callsign || ""} · ${m.route || ""}` };
+        }) };
+    }
+
+    function cellHTML(crewId, d) {
+      const c = cellItems(crewId, d);
+      if (!c.items.length) return "";
+      return `<div class="chips">${c.items.map(it =>
+        `<span class="chip" style="${chipStyle(it.kind, it.ac)}">${esc(it.text)}</span>`).join("")}</div>`;
+    }
+
+    function cellClass(crewId, d) {
+      const k = `${crewId}|${d}`;
+      const w = new Date(d + "T00:00:00").getDay();
+      const c = cellItems(crewId, d);
+      return ["day", maps.offMap.has(k) ? "off" : "",
+              (w === 0 || w === 6 || maps.holidayMap.has(d)) ? "hol" : "",
+              d === todayStr ? "today-col" : "", c.override ? "ovr" : "",
+              !planner && c.missions.length ? "link" : "",
+              sel && sel.crew === crewId && sel.date === d ? "sel" : ""].filter(Boolean).join(" ");
+    }
+
+    function cellTitle(crewId, d) {
+      const k = `${crewId}|${d}`, c = cellItems(crewId, d), parts = [];
+      if (maps.offMap.has(k)) parts.push("ไม่ว่าง" + (maps.offMap.get(k) ? ": " + maps.offMap.get(k) : ""));
+      if (c.manual) parts.push(`แก้เอง: ${c.items[0].text || "(สีอย่างเดียว)"} · ${KINDS[c.items[0].kind] || ""} · ATR72-${c.items[0].ac}`);
+      c.missions.forEach(m => parts.push(`ภารกิจ: ${KINDS[m.kind] || ""} · ${m.callsign || ""} · ${m.route || ""}`));
+      return parts.join("\n");
+    }
+
+    function rowCounts(crewId) {
+      let fly = 0, st = 0;
+      dates.forEach(d => cellItems(crewId, d).items.forEach(it => it.st ? st++ : fly++));
+      return { fly, st };
     }
 
     function render() {
       const y = view.getFullYear(), m = view.getMonth();
       const { days } = monthRange(y, m);
-      const dates = Array.from({ length: days }, (_, i) => `${y}-${pad(m + 1)}-${pad(i + 1)}`);
+      dates = Array.from({ length: days }, (_, i) => `${y}-${pad(m + 1)}-${pad(i + 1)}`);
+      buildMaps();
 
-      const holidayMap = new Map(data.holidays.map((h) => [h.holiday_date, h.name || "วันหยุด"]));
-      const codeMap = new Map(data.airfields.map((a) => [a.name, a.code]));
-      const offMap = new Map(data.unavailable.map((u) => [`${u.crew_member_id}|${u.off_date}`, u.note || ""]));
-
-      // จัดภารกิจเข้าช่อง (คน|วันที่) — คนเดียวหลายตำแหน่งในภารกิจเดียวนับครั้งเดียว
-      const cell = new Map(), seen = new Set();
-      const counts = {};
-      const missingCodes = new Set();
-      data.missions.forEach((ms) => {
-        (ms.mission_crew || []).forEach((mc) => {
-          if (!mc.crew_member_id) return;
-          if (!PILOT_POSITIONS.includes(String(mc.position || "").trim().toUpperCase())) return;
-          const key = `${mc.crew_member_id}|${ms.id}`;
-          if (seen.has(key)) return;
-          seen.add(key);
-          const ck = `${mc.crew_member_id}|${ms.mission_date}`;
-          if (!cell.has(ck)) cell.set(ck, []);
-          cell.get(ck).push(ms);
-          const c = counts[mc.crew_member_id] || (counts[mc.crew_member_id] = { fly: 0, st: 0 });
-          if (ms.kind === "stby") c.st += 1; else c.fly += 1;
-        });
-        if (ms.kind !== "stby") {
-          const k = secondPoint(ms.route);
-          if (k && !codeMap.has(k)) missingCodes.add(k);
-        }
-      });
-
-      const isHol = (d) => { const w = new Date(d + "T00:00:00").getDay(); return w === 0 || w === 6 || holidayMap.has(d); };
-
-      // ---------- หัวตาราง ----------
       let html = `<thead><tr><th class="name">NAME / DATE</th>` +
         dates.map((d, i) => {
           const w = new Date(d + "T00:00:00").getDay();
-          const cls = [isHol(d) ? "hol" : "", planner ? "plan" : "", d === todayStr ? "today-col" : ""].join(" ");
-          const title = holidayMap.has(d) ? ` title="${esc(holidayMap.get(d))}"` : "";
+          const hol = w === 0 || w === 6 || maps.holidayMap.has(d);
+          const cls = [hol ? "hol" : "", planner ? "plan" : "", d === todayStr ? "today-col" : ""].join(" ");
+          const title = maps.holidayMap.has(d) ? ` title="${esc(maps.holidayMap.get(d))}"` : "";
           return `<th class="${cls}" data-date="${d}"${title}>${i + 1}<small>${TH_DOW[w]}</small></th>`;
-        }).join("") +
-        `<th class="cnt">บินจริง</th><th class="cnt">ST</th></tr></thead><tbody>`;
+        }).join("") + `<th class="cnt">บินจริง</th><th class="cnt">ST</th></tr></thead><tbody>`;
 
-      // ---------- แถวนักบิน ----------
-      if (!data.crew.length) {
-        html += `<tr><td class="name">ยังไม่มีนักบินในทะเบียน</td></tr>`;
-      }
-      data.crew.forEach((p) => {
-        const qs = qualStyle(p.position);
-        html += `<tr data-crew="${p.id}"><td class="name" style="${qs || ""}" title="${esc(p.code)}">${esc(p.full_name)}</td>`;
-        dates.forEach((d) => {
-          const list = cell.get(`${p.id}|${d}`) || [];
-          const offKey = `${p.id}|${d}`;
-          const cls = ["day", planner ? "plan" : "", offMap.has(offKey) ? "off" : "",
-                       isHol(d) ? "hol" : "", d === todayStr ? "today-col" : ""].join(" ");
-          const chips = list.map((ms) => {
-            let txt, extra = "";
-            if (ms.kind === "stby") txt = "ST";
-            else {
-              const k = secondPoint(ms.route);
-              txt = codeMap.get(k) || k || "?";
-              if (!codeMap.has(k)) extra = " nocode";
-            }
-            const tip = `${KINDS[ms.kind] || ""} · ${ms.callsign || ""} · ${ms.route || ""}${ms.aircraft ? " · " + ms.aircraft.type + "/" + ms.aircraft.tail_number : ""}`;
-            return `<a class="chip${extra}" href="day.html?date=${d}" style="${chipColors(ms)}" title="${esc(tip)}">${esc(txt)}</a>`;
-          }).join("");
-          const offTip = offMap.has(offKey) ? ` title="ไม่ว่าง${offMap.get(offKey) ? ": " + esc(offMap.get(offKey)) : ""}"` : "";
-          html += `<td class="${cls}" data-date="${d}"${offTip}>${chips ? `<div class="chips">${chips}</div>` : ""}</td>`;
+      if (!data.crew.length) html += `<tr><td class="name">ยังไม่มีนักบินในทะเบียน</td></tr>`;
+      data.crew.forEach(p => {
+        html += `<tr data-crew="${p.id}"><td class="name" style="${qualStyle(p.position) || ""}" title="${esc(p.code)}">${esc(p.full_name)}</td>`;
+        dates.forEach(d => {
+          const t = cellTitle(p.id, d);
+          html += `<td class="${cellClass(p.id, d)}" data-date="${d}"${t ? ` title="${esc(t)}"` : ""}>${cellHTML(p.id, d)}</td>`;
         });
-        const c = counts[p.id] || { fly: 0, st: 0 };
-        html += `<td class="cnt">${c.fly}</td><td class="cnt">${c.st}</td></tr>`;
+        const c = rowCounts(p.id);
+        html += `<td class="cnt" data-cnt="fly">${c.fly}</td><td class="cnt" data-cnt="st">${c.st}</td></tr>`;
       });
-      html += `</tbody>`;
-      document.getElementById("q").innerHTML = html;
+      table.innerHTML = html + `</tbody>`;
 
-      // ---------- รหัสสนามบินที่ยังขาด ----------
       const miss = document.getElementById("missing");
-      if (missingCodes.size) {
+      if (maps.missingCodes.size) {
         miss.hidden = false;
-        miss.innerHTML = `ยังไม่มีรหัสสนามบินของ <b>${[...missingCodes].map(esc).join(", ")}</b> — ในตารางจะแสดงชื่อจุดแทน` +
+        miss.innerHTML = `ยังไม่มีรหัสสนามบินของ <b>${[...maps.missingCodes].map(esc).join(", ")}</b> — ในตารางจะแสดงแต่สี` +
           (planner ? ` · กรอกรหัสได้ที่กล่อง "รหัสสนามบิน" ด้านล่าง` : "");
       } else miss.hidden = true;
-      renderAirfields([...missingCodes]);
+      renderAirfields([...maps.missingCodes]);
     }
 
-    // ---------- กล่องรหัสสนามบิน ----------
+    // อัปเดตช่องเดียว (ไม่ต้องวาดทั้งตาราง)
+    function refreshCell(crewId, d) {
+      buildMaps();
+      const tr = table.querySelector(`tr[data-crew="${crewId}"]`); if (!tr) return;
+      const td = tr.querySelector(`td.day[data-date="${d}"]`); if (!td) return;
+      td.className = cellClass(crewId, d);
+      td.innerHTML = cellHTML(crewId, d);
+      const t = cellTitle(crewId, d); if (t) td.title = t; else td.removeAttribute("title");
+      const c = rowCounts(crewId);
+      tr.querySelector('[data-cnt="fly"]').textContent = c.fly;
+      tr.querySelector('[data-cnt="st"]').textContent = c.st;
+    }
+
+    // ---------- เลือกช่อง ----------
+    function tdOf(s) {
+      return s && table.querySelector(`tr[data-crew="${s.crew}"] td.day[data-date="${s.date}"]`);
+    }
+    function setSel(s) {
+      const old = tdOf(sel); if (old) old.classList.remove("sel");
+      sel = s;
+      const td = tdOf(sel);
+      if (td) { td.classList.add("sel"); td.scrollIntoView({ block: "nearest", inline: "nearest" }); }
+    }
+    function moveSel(dr, dc) {
+      if (!sel) return;
+      const ri = data.crew.findIndex(c => c.id === sel.crew);
+      const ci = dates.indexOf(sel.date);
+      const r = Math.max(0, Math.min(data.crew.length - 1, ri + dr));
+      const c = Math.max(0, Math.min(dates.length - 1, ci + dc));
+      setSel({ crew: data.crew[r].id, date: dates[c] });
+    }
+
+    // ---------- กล่องแก้ช่อง ----------
+    let ed = null;
+    function closeEditor() { if (ed) { ed.remove(); ed = null; } }
+
+    function openEditor(initialText) {
+      if (!planner || !sel) return;
+      closeEditor();
+      const td = tdOf(sel); if (!td) return;
+      const crew = data.crew.find(c => c.id === sel.crew);
+      const c = cellItems(sel.crew, sel.date);
+      const cur = c.items[0];
+      let kind = cur ? cur.kind : lastKind;
+      let ac = cur ? cur.ac : lastAc;
+      const [yy, mm, dd] = sel.date.split("-").map(Number);
+
+      ed = document.createElement("div");
+      ed.className = "ed";
+      ed.innerHTML = `
+        <div class="ed-top"><b>${esc(crew.full_name)}</b> · ${dd} ${TH_MONTH[mm - 1]} ${yy + 543}</div>
+        <input class="ed-code" maxlength="10" list="edCodes" autocomplete="off"
+               placeholder="รหัส เช่น CNX / ST (เว้นว่าง = สีอย่างเดียว)">
+        <datalist id="edCodes">${[...new Set(["ST", ...data.airfields.map(a => a.code), ...data.entries.map(e => e.code).filter(Boolean)])]
+          .map(x => `<option value="${esc(x)}">`).join("")}</datalist>
+        <div class="ed-row">
+          <div class="ed-lbl">สีชนิดภารกิจ</div>
+          ${Object.keys(KINDS).map(k => `<button type="button" class="ed-kind" data-kind="${k}"
+               style="background:${KIND_COLORS[k].bg};color:${KIND_COLORS[k].fg}">${KIND_SHORT[k]}</button>`).join("")}
+        </div>
+        <div class="ed-row">
+          <div class="ed-lbl">แบบเครื่อง</div>
+          <button type="button" class="ed-ac" data-ac="600" style="color:var(--q-600)">600 ตัวดำ</button>
+          <button type="button" class="ed-ac" data-ac="500" style="color:var(--q-500)">500 ตัวแดง</button>
+        </div>
+        <div class="ed-actions">
+          <button class="btn sm primary" data-act="save">บันทึก ⏎</button>
+          <button class="btn sm" data-act="clear" style="color:var(--crit)" ${c.manual ? "" : "disabled"}>ลบข้อมูล</button>
+          <button class="btn sm ghost" data-act="cancel">ยกเลิก</button>
+        </div>
+        ${c.override || (!c.manual && c.missions.length)
+          ? `<div class="ed-note">ช่องนี้มีข้อมูลจากภารกิจ — ที่บันทึกตรงนี้จะแสดงแทนในคิวบินเท่านั้น ข้อมูลภารกิจไม่เปลี่ยน · กด "ลบข้อมูล" เพื่อกลับไปแสดงตามภารกิจ</div>` : ""}`;
+      document.body.appendChild(ed);
+
+      const input = ed.querySelector(".ed-code");
+      input.value = initialText !== undefined ? initialText : (cur && c.manual ? cur.text : (cur ? cur.text : ""));
+      const paintBtns = () => {
+        ed.querySelectorAll(".ed-kind").forEach(b => b.classList.toggle("on", b.dataset.kind === kind));
+        ed.querySelectorAll(".ed-ac").forEach(b => b.classList.toggle("on", b.dataset.ac === ac));
+        input.style.background = KIND_COLORS[kind].bg;
+        input.style.color = textColor(kind, ac);
+      };
+      paintBtns();
+      ed.querySelectorAll(".ed-kind").forEach(b => b.addEventListener("click", () => { kind = b.dataset.kind; paintBtns(); input.focus(); }));
+      ed.querySelectorAll(".ed-ac").forEach(b => b.addEventListener("click", () => { ac = b.dataset.ac; paintBtns(); input.focus(); }));
+
+      // วางกล่องใต้ช่อง (ไม่ให้ล้นจอ)
+      const r = td.getBoundingClientRect();
+      const W = 292, H = ed.offsetHeight;
+      let left = window.scrollX + r.left;
+      let top = window.scrollY + r.bottom + 6;
+      if (left + W > window.scrollX + innerWidth - 10) left = window.scrollX + innerWidth - W - 10;
+      if (r.bottom + H + 10 > innerHeight) top = window.scrollY + r.top - H - 6;
+      ed.style.left = Math.max(window.scrollX + 10, left) + "px";
+      ed.style.top = top + "px";
+
+      input.focus();
+      if (initialText !== undefined) input.setSelectionRange(input.value.length, input.value.length); else input.select();
+
+      const target = { ...sel };
+      const save = async (moveDown) => {
+        lastKind = kind; lastAc = ac;
+        const code = input.value.trim().toUpperCase();
+        // อัปเดตบนจอทันที แล้วค่อยบันทึก
+        data.entries = data.entries.filter(e => !(e.crew_member_id === target.crew && e.entry_date === target.date));
+        data.entries.push({ crew_member_id: target.crew, entry_date: target.date, code: code || null, kind, ac_type: ac });
+        closeEditor(); refreshCell(target.crew, target.date);
+        if (moveDown) moveSel(1, 0);
+        const err = await saveEntry(target.crew, target.date, { code, kind, ac_type: ac });
+        if (err) { alert("บันทึกไม่สำเร็จ: " + err.message); load(); }
+      };
+      ed.querySelector('[data-act="save"]').addEventListener("click", () => save(false));
+      ed.querySelector('[data-act="cancel"]').addEventListener("click", () => { closeEditor(); });
+      ed.querySelector('[data-act="clear"]').addEventListener("click", () => { closeEditor(); clearCell(target); });
+      input.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") { e.preventDefault(); save(true); }
+        if (e.key === "Escape") { e.preventDefault(); closeEditor(); }
+        e.stopPropagation();
+      });
+    }
+
+    async function clearCell(target) {
+      if (!maps.entryMap.has(`${target.crew}|${target.date}`)) return;
+      data.entries = data.entries.filter(e => !(e.crew_member_id === target.crew && e.entry_date === target.date));
+      refreshCell(target.crew, target.date);
+      const err = await deleteEntry(target.crew, target.date);
+      if (err) { alert("ลบไม่สำเร็จ: " + err.message); load(); }
+    }
+
+    // ---------- คลิก / ดับเบิลคลิก ----------
+    table.addEventListener("click", async (e) => {
+      const th = e.target.closest("thead th[data-date]");
+      if (th && planner) { await toggleHoliday(th.dataset.date); return; }
+      const td = e.target.closest("td.day"); if (!td) return;
+      const crew = td.closest("tr").dataset.crew, date = td.dataset.date;
+      if (!planner || (e.metaKey || e.ctrlKey)) {
+        if (cellItems(crew, date).missions.length) location.href = `day.html?date=${date}`;
+        return;
+      }
+      if (mode !== "edit") return;
+      closeEditor();
+      setSel({ crew, date });
+    });
+    table.addEventListener("dblclick", (e) => {
+      if (!planner || mode !== "edit") return;
+      const td = e.target.closest("td.day"); if (!td) return;
+      setSel({ crew: td.closest("tr").dataset.crew, date: td.dataset.date });
+      openEditor();
+    });
+    document.addEventListener("mousedown", (e) => {
+      if (ed && !ed.contains(e.target) && !e.target.closest("td.day")) closeEditor();
+    });
+
+    // ---------- คีย์บอร์ดแบบ Excel ----------
+    document.addEventListener("keydown", (e) => {
+      if (!planner || mode !== "edit" || !sel || ed) return;
+      if (e.target instanceof Element && e.target.closest("input,select,textarea,[contenteditable]")) return;
+      const k = e.key;
+      if (k === "ArrowUp")    { e.preventDefault(); moveSel(-1, 0); }
+      else if (k === "ArrowDown")  { e.preventDefault(); moveSel(1, 0); }
+      else if (k === "ArrowLeft")  { e.preventDefault(); moveSel(0, -1); }
+      else if (k === "ArrowRight" || k === "Tab") { e.preventDefault(); moveSel(0, e.shiftKey ? -1 : 1); }
+      else if (k === "Enter" || k === "F2") { e.preventDefault(); openEditor(); }
+      else if (k === "Delete" || k === "Backspace") { e.preventDefault(); clearCell({ ...sel }); }
+      else if (k === "Escape") { setSel(null); }
+      else if (k.length === 1 && !e.metaKey && !e.ctrlKey && !e.altKey) { e.preventDefault(); openEditor(k.toUpperCase()); }
+    });
+
+    // ---------- วันหยุด ----------
+    async function toggleHoliday(d) {
+      const existing = data.holidays.find(h => h.holiday_date === d);
+      if (existing) {
+        if (!confirm(`ยกเลิกวันหยุด ${d}${existing.name ? " (" + existing.name + ")" : ""}?`)) return;
+        const err = await clearHoliday(d); if (err) alert(err.message);
+      } else {
+        const name = prompt(`ตั้ง ${d} เป็นวันหยุดราชการ\nชื่อวันหยุด (เว้นว่างได้):`, "");
+        if (name === null) return;
+        const err = await setHoliday(d, name.trim()); if (err) alert(err.message);
+      }
+      load();
+    }
+
+    // ---------- ระบายไม่ว่าง ----------
+    let paint = null, tap = null;
+    function touch(td) {
+      if (!paint || !td || !td.classList.contains("day")) return;
+      if (td.closest("tr").dataset.crew !== paint.crew || paint.dates.has(td.dataset.date)) return;
+      paint.dates.add(td.dataset.date);
+      td.classList.toggle("off", paint.mode === "add");
+    }
+    table.addEventListener("pointerdown", (e) => {
+      if (!planner || mode !== "paint") return;
+      const td = e.target.closest("td.day"); if (!td) return;
+      if (e.pointerType === "touch") { tap = { td, x: e.clientX, y: e.clientY }; return; }
+      if (e.button !== 0) return;
+      e.preventDefault();
+      paint = { crew: td.closest("tr").dataset.crew, mode: td.classList.contains("off") ? "remove" : "add", dates: new Set() };
+      touch(td);
+    });
+    table.addEventListener("pointermove", (e) => {
+      if (!paint) return;
+      const el = document.elementFromPoint(e.clientX, e.clientY);
+      touch(el && el.closest("td.day"));
+    });
+    window.addEventListener("pointerup", async (e) => {
+      if (tap) {
+        const moved = Math.hypot(e.clientX - tap.x, e.clientY - tap.y) > 10;
+        const td = tap.td; tap = null;
+        if (moved) return;
+        paint = { crew: td.closest("tr").dataset.crew, mode: td.classList.contains("off") ? "remove" : "add", dates: new Set() };
+        touch(td);
+      }
+      if (!paint) return;
+      const { crew, mode: pm, dates: ds } = paint; paint = null;
+      const list = [...ds];
+      const err = pm === "add" ? await addUnavailable(crew, list) : await removeUnavailable(crew, list);
+      if (err) alert("บันทึกไม่สำเร็จ: " + err.message);
+      load();
+    });
+
+    // ---------- รหัสสนามบิน ----------
     function renderAirfields(missing) {
-      const rows = [...missing.map((n) => ({ name: n, code: "" })), ...data.airfields]
-        .sort((a, b) => a.name.localeCompare(b.name, "th"));
+      const rows = [...missing.map(n => ({ name: n, code: "" })), ...data.airfields].sort((a, b) => a.name.localeCompare(b.name, "th"));
       const grid = document.getElementById("afGrid");
-      grid.innerHTML = rows.map((a) => `
+      grid.innerHTML = rows.map(a => `
         <div class="af-row" data-name="${esc(a.name)}">
           <span>${esc(a.name)}</span>
           <input value="${esc(a.code)}" placeholder="รหัส" maxlength="6" ${planner ? "" : "disabled"}>
@@ -237,9 +531,7 @@
         </div>`).join("") +
         (planner ? `<div class="af-row"><input id="afNewName" placeholder="ชื่อจุด เช่น บน.46" style="width:auto;flex:1;text-transform:none">
                      <input id="afNewCode" placeholder="รหัส" maxlength="6"><button class="btn sm" id="afAdd">เพิ่ม</button></div>` : "");
-      if (missing.length) document.getElementById("afBox").open = true;
-
-      grid.querySelectorAll("[data-save]").forEach((b) => b.addEventListener("click", async (e) => {
+      grid.querySelectorAll("[data-save]").forEach(b => b.addEventListener("click", async (e) => {
         const row = e.target.closest(".af-row");
         const code = row.querySelector("input").value.trim();
         if (!code) { alert("กรอกรหัสก่อน"); return; }
@@ -255,72 +547,11 @@
       });
     }
 
-    // ---------- วันหยุด: กดหัววันที่ ----------
-    document.getElementById("q").addEventListener("click", async (e) => {
-      if (!planner) return;
-      const th = e.target.closest("thead th[data-date]");
-      if (!th) return;
-      const d = th.dataset.date;
-      const existing = data.holidays.find((h) => h.holiday_date === d);
-      if (existing) {
-        if (!confirm(`ยกเลิกวันหยุด ${d}${existing.name ? " (" + existing.name + ")" : ""}?`)) return;
-        const err = await clearHoliday(d); if (err) alert(err.message);
-      } else {
-        const name = prompt(`ตั้ง ${d} เป็นวันหยุดราชการ\nชื่อวันหยุด (เว้นว่างได้):`, "");
-        if (name === null) return;
-        const err = await setHoliday(d, name.trim()); if (err) alert(err.message);
-      }
-      load();
-    });
-
-    // ---------- ไม่ว่าง: กด/ลากระบายช่อง (เฉพาะแถวเดียวกัน) ----------
-    let paint = null;   // { crew, mode:'add'|'remove', dates:Set }
-    const tableEl = document.getElementById("q");
-
-    function touch(td) {
-      if (!paint || !td || !td.classList.contains("day")) return;
-      if (td.closest("tr").dataset.crew !== paint.crew) return;
-      if (paint.dates.has(td.dataset.date)) return;
-      paint.dates.add(td.dataset.date);
-      td.classList.toggle("off", paint.mode === "add");
-    }
-    let tap = null;     // จอสัมผัส: แตะ = สลับ 1 ช่อง (ลากนิ้ว = เลื่อนตารางตามปกติ)
-    tableEl.addEventListener("pointerdown", (e) => {
-      if (!planner) return;
-      const td = e.target.closest("td.day");
-      if (!td || e.target.closest(".chip")) return;
-      if (e.pointerType === "touch") { tap = { td, x: e.clientX, y: e.clientY }; return; }
-      if (e.button !== 0) return;
-      e.preventDefault();
-      paint = { crew: td.closest("tr").dataset.crew, mode: td.classList.contains("off") ? "remove" : "add", dates: new Set() };
-      touch(td);
-    });
-    tableEl.addEventListener("pointermove", (e) => {
-      if (!paint) return;
-      const el = document.elementFromPoint(e.clientX, e.clientY);
-      touch(el && el.closest("td.day"));
-    });
-    window.addEventListener("pointerup", async (e) => {
-      if (tap) {
-        const moved = Math.hypot(e.clientX - tap.x, e.clientY - tap.y) > 10;
-        const td = tap.td; tap = null;
-        if (moved) return;
-        paint = { crew: td.closest("tr").dataset.crew, mode: td.classList.contains("off") ? "remove" : "add", dates: new Set() };
-        touch(td);
-      }
-      if (!paint) return;
-      const { crew, mode, dates } = paint;
-      paint = null;
-      const list = [...dates];
-      const err = mode === "add" ? await addUnavailable(crew, list) : await removeUnavailable(crew, list);
-      if (err) alert("บันทึกไม่สำเร็จ: " + err.message);
-      load();
-    });
-
     // ---------- เปลี่ยนเดือน ----------
-    document.getElementById("prev").addEventListener("click", () => { view.setMonth(view.getMonth() - 1); load(); });
-    document.getElementById("next").addEventListener("click", () => { view.setMonth(view.getMonth() + 1); load(); });
-    document.getElementById("thisMonth").addEventListener("click", () => { view = new Date(now.getFullYear(), now.getMonth(), 1); load(); });
+    const go = (d) => { closeEditor(); setSel(null); view = d; load(); };
+    document.getElementById("prev").addEventListener("click", () => go(new Date(view.getFullYear(), view.getMonth() - 1, 1)));
+    document.getElementById("next").addEventListener("click", () => go(new Date(view.getFullYear(), view.getMonth() + 1, 1)));
+    document.getElementById("thisMonth").addEventListener("click", () => go(new Date(now.getFullYear(), now.getMonth(), 1)));
     load();
   }
 </script>

@@ -73,3 +73,30 @@ export async function saveAirfield(name, code) {
     .upsert({ name: airfieldKey(name), code: code.trim().toUpperCase(), updated_at: new Date().toISOString() });
   return error;
 }
+
+// ---------- ช่องที่พิมพ์แก้เอง ----------
+export async function loadEntries(y, m) {
+  const { first, last } = monthRange(y, m);
+  const { data, error } = await supabase.from("queue_entries")
+    .select("crew_member_id,entry_date,code,kind,ac_type")
+    .gte("entry_date", first).lte("entry_date", last);
+  if (error) console.error(error);
+  return data || [];
+}
+
+export async function saveEntry(crewId, date, { code, kind, ac_type }) {
+  const { data: { session } } = await supabase.auth.getSession();
+  const { error } = await supabase.from("queue_entries").upsert({
+    crew_member_id: crewId, entry_date: date,
+    code: (code || "").trim().toUpperCase() || null,
+    kind, ac_type: ac_type || null,
+    updated_by: session?.user?.id, updated_at: new Date().toISOString(),
+  }, { onConflict: "crew_member_id,entry_date" });
+  return error;
+}
+
+export async function deleteEntry(crewId, date) {
+  const { error } = await supabase.from("queue_entries")
+    .delete().eq("crew_member_id", crewId).eq("entry_date", date);
+  return error;
+}
