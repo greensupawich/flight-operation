@@ -41,6 +41,11 @@
       ✈️ <b>ทะเบียนนี้เก็บเฉพาะนักบิน</b> — FM / RO / LM / AH กรอกชื่อในหน้าภารกิจได้เลย ไม่ต้องลงทะเบียน
     </div>
 
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:-6px 0 18px;font-size:12.5px;color:var(--muted)">
+      คุณวุฒิ:
+      <span id="lgIP"></span><span id="lgP"></span><span id="lgCP"></span>
+    </div>
+
     <!-- เพิ่มคนใหม่ -->
     <div class="addbox" id="addBox" hidden>
       <h3>+ เพิ่มนักบิน</h3>
@@ -48,9 +53,8 @@
       <div class="grid4">
         <div><label>รหัสประจำตัว (ID)</label><input id="n_code" placeholder="เช่น P001"></div>
         <div><label>ชื่อ (พร้อมยศ)</label><input id="n_name" placeholder="เช่น น.อ.ฉัตรฤกษ์"></div>
-        <div><label>ตำแหน่งหลัก</label><select id="n_pos">
-          <option value="">—</option><option>AC</option><option>IP</option>
-          <option>P</option><option>CP</option><option>N</option></select></div>
+        <div><label>คุณวุฒิ</label><select id="n_pos">
+          <option value="">—</option><option>IP</option><option>P</option><option>CP</option></select></div>
         <button class="btn primary" id="addBtn">เพิ่ม</button>
       </div>
       <div class="msg" id="msg"></div>
@@ -59,7 +63,7 @@
     <div class="tablewrap">
       <table>
         <thead><tr>
-          <th style="width:130px">รหัส (ID)</th><th>ชื่อ</th><th style="width:110px">ตำแหน่ง</th>
+          <th style="width:130px">รหัส (ID)</th><th>ชื่อ</th><th style="width:110px">คุณวุฒิ</th>
           <th style="width:90px;text-align:end">ชม.บิน</th><th style="width:90px">ใช้งาน</th><th style="width:130px"></th>
         </tr></thead>
         <tbody id="rows"><tr><td colspan="6" class="empty">กำลังโหลด…</td></tr></tbody>
@@ -75,6 +79,7 @@
   import { requireAuth, canPlan } from "./js/auth.js";
   import { renderTopbar } from "./js/ui.js";
   import { loadCrew, addCrew, updateCrew, deleteCrew, loadCrewHours } from "./js/crew.js";
+  import { QUALS, qualStyle } from "./js/missions.js";
 
   const profile = await requireAuth();
   if (profile) {
@@ -83,6 +88,11 @@
     if (planner) document.getElementById("addBox").hidden = false;
 
     const msg = document.getElementById("msg");
+    ["IP","P","CP"].forEach(q => {
+      const el = document.getElementById("lg" + q);
+      el.textContent = q;
+      el.setAttribute("style", `${qualStyle(q)};font-weight:700;font-family:'IBM Plex Mono',monospace;border-radius:5px;padding:2px 10px`);
+    });
     const esc = (s) => String(s ?? "").replace(/[&<>"]/g,
       (c) => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;" }[c]));
 
@@ -96,9 +106,10 @@
       tb.innerHTML = list.map((c) => `
         <tr data-id="${c.id}" class="${c.active ? "" : "inactive"}">
           <td><input data-f="code" value="${esc(c.code)}" class="code" ${planner ? "" : "disabled"}></td>
-          <td><input data-f="full_name" value="${esc(c.full_name)}" ${planner ? "" : "disabled"}></td>
-          <td><select data-f="position" ${planner ? "" : "disabled"}>
-                ${["","AC","IP","P","CP","N"].map(r=>`<option value="${r}" ${r===(c.position||"")?"selected":""}>${r||"—"}</option>`).join("")}
+          <td><input data-f="full_name" value="${esc(c.full_name)}" style="${qualStyle(c.position)};font-weight:600" ${planner ? "" : "disabled"}></td>
+          <td><select data-f="position" data-qual style="${qualStyle(c.position)};font-weight:700" ${planner ? "" : "disabled"}>
+                ${["", ...QUALS, ...(c.position && !QUALS.includes(c.position) ? [c.position] : [])]
+                  .map(r=>`<option value="${r}" ${r===(c.position||"")?"selected":""}>${r||"—"}</option>`).join("")}
               </select></td>
           <td class="num hrs">${(hours[c.id] || 0).toFixed(1)}</td>
           <td><select data-f="active" ${planner ? "" : "disabled"}>
@@ -108,6 +119,13 @@
           <td>${planner ? `<button class="btn sm" data-save>บันทึก</button>
                            <button class="btn sm" data-del style="color:var(--crit)">ลบ</button>` : ""}</td>
         </tr>`).join("");
+
+      tb.querySelectorAll("[data-qual]").forEach((sel) =>
+        sel.addEventListener("change", () => {
+          const st = qualStyle(sel.value);
+          sel.setAttribute("style", `${st};font-weight:700`);
+          sel.closest("tr").querySelector('[data-f="full_name"]').setAttribute("style", `${st};font-weight:600`);
+        }));
 
       tb.querySelectorAll("[data-save]").forEach((b) =>
         b.addEventListener("click", async (e) => {

@@ -5,7 +5,7 @@
 import { supabase } from "./supabase.js";
 
 export async function loadCrew(includeInactive = true) {
-  let q = supabase.from("crew_members").select("*").order("full_name");
+  let q = supabase.from("crew_members").select("*").order("code");
   if (!includeInactive) q = q.eq("active", true);
   const { data, error } = await q;
   if (error) { console.error(error); return []; }

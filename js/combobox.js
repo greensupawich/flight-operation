@@ -1,7 +1,7 @@
 // =====================================================================
 //  combobox.js — ช่องพิมพ์ได้ + dropdown ที่ "ผูกกับรายการจริง" เท่านั้น
 //  ต่างจาก <input list=datalist> ตรงที่บอกสถานะชัดว่าผูกสำเร็จหรือยัง
-//  items = [{ id, label, hint }]
+//  items = [{ id, label, hint, tag?: { text, style } }]
 // =====================================================================
 export function attachCombo(root, items, { value = "", id = null, onChange, emptyHtml = "" } = {}) {
   const input = root.querySelector(".cb-input");
@@ -33,9 +33,12 @@ export function attachCombo(root, items, { value = "", id = null, onChange, empt
     const k = input.value.trim().toLowerCase();
     const hits = items.filter((it) => !k
       || it.label.toLowerCase().includes(k)
-      || String(it.hint || "").toLowerCase().includes(k)).slice(0, 60);
+      || String(it.hint || "").toLowerCase().includes(k)
+      || String(it.tag?.text || "").toLowerCase() === k).slice(0, 60);
     list.innerHTML = hits.length
-      ? hits.map((it) => `<div class="cb-opt" data-id="${it.id}"><b>${esc(it.label)}</b><span>${esc(it.hint || "")}</span></div>`).join("")
+      ? hits.map((it) => `<div class="cb-opt" data-id="${it.id}">
+           <b>${it.tag ? `<i class="cb-tag" style="${it.tag.style}">${esc(it.tag.text)}</i>` : ""}${esc(it.label)}</b>
+           <span>${esc(it.hint || "")}</span></div>`).join("")
       : `<div class="cb-empty">${emptyHtml || "ไม่พบในรายการ"}</div>`;
     list.hidden = false;
     list.querySelectorAll(".cb-opt").forEach((o) =>

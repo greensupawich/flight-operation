@@ -25,6 +25,18 @@ export const kindStyle = (k) => {
   return `background:${c.bg};color:${c.fg}`;
 };
 
+// ---------- คุณวุฒินักบิน (สีตามตารางรายชื่อนักบิน) ----------
+export const QUALS = ["IP", "P", "CP"];
+export const QUAL_COLORS = {
+  IP: { bg: "#F8CBAD", fg: "#4A2410" },   // ส้ม
+  P:  { bg: "#BDD7EE", fg: "#0F2C45" },   // ฟ้า
+  CP: { bg: "#D9D2E9", fg: "#2E2346" },   // ม่วง
+};
+export const qualStyle = (q) => {
+  const c = QUAL_COLORS[q];
+  return c ? `background:${c.bg};color:${c.fg}` : "";
+};
+
 // ---------- ตำแหน่งลูกเรือ (เรียงตามฟอร์ม) ----------
 export const PILOT_ROLES = ["AC", "IP", "P", "CP", "N"];
 export const OTHER_ROLES = ["FM", "RO", "LM", "AH"];
