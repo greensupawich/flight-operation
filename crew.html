@@ -61,7 +61,7 @@
     </div>
 
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px">
-      <label for="month" style="margin:0;font-size:13px">ชม.บินประจำเดือน:</label>
+      <label for="month" style="margin:0;font-size:13px">ข้อมูลประจำเดือน:</label>
       <input type="month" id="month" style="width:auto">
       <span class="muted" id="monthLabel" style="font-size:13px"></span>
     </div>
@@ -69,9 +69,9 @@
       <table>
         <thead><tr>
           <th style="width:130px">รหัส (ID)</th><th>ชื่อ</th><th style="width:110px">คุณวุฒิ</th>
-          <th style="width:150px;text-align:end">ชม.บินประจำเดือน</th><th style="width:120px">ใช้งาน</th><th style="width:130px"></th>
+          <th style="width:150px;text-align:end">ชม.บินประจำเดือน</th><th style="width:170px;text-align:end">จำนวนเที่ยวบินประจำเดือน</th><th style="width:120px">ใช้งาน</th><th style="width:130px"></th>
         </tr></thead>
-        <tbody id="rows"><tr><td colspan="6" class="empty">กำลังโหลด…</td></tr></tbody>
+        <tbody id="rows"><tr><td colspan="7" class="empty">กำลังโหลด…</td></tr></tbody>
       </table>
     </div>
     <p class="muted" style="margin-top:12px;font-size:12.5px">
@@ -83,7 +83,7 @@
 <script type="module">
   import { requireAuth, canPlan } from "./js/auth.js";
   import { renderTopbar } from "./js/ui.js";
-  import { loadCrew, addCrew, updateCrew, deleteCrew, loadMonthlyHours } from "./js/crew.js";
+  import { loadCrew, addCrew, updateCrew, deleteCrew, loadMonthlyStats } from "./js/crew.js";
   import { QUALS, qualStyle } from "./js/missions.js";
 
   const profile = await requireAuth();
@@ -112,10 +112,10 @@
     async function refresh() {
       const [yy, mm] = (monthInp.value || monthInp.defaultValue).split("-").map(Number);
       document.getElementById("monthLabel").textContent = `(${TH_MONTH[mm - 1]} ${yy + 543})`;
-      const [list, hours] = await Promise.all([loadCrew(), loadMonthlyHours(yy, mm - 1)]);
+      const [list, stats] = await Promise.all([loadCrew(), loadMonthlyStats(yy, mm - 1)]);
       const tb = document.getElementById("rows");
       if (!list.length) {
-        tb.innerHTML = `<tr><td colspan="6" class="empty">ยังไม่มีรายชื่อนักบิน${planner ? " · เพิ่มด้านบนได้เลย" : ""}</td></tr>`;
+        tb.innerHTML = `<tr><td colspan="7" class="empty">ยังไม่มีรายชื่อนักบิน${planner ? " · เพิ่มด้านบนได้เลย" : ""}</td></tr>`;
         return;
       }
       tb.innerHTML = list.map((c) => `
@@ -126,7 +126,8 @@
                 ${["", ...QUALS, ...(c.position && !QUALS.includes(c.position) ? [c.position] : [])]
                   .map(r=>`<option value="${r}" ${r===(c.position||"")?"selected":""}>${r||"—"}</option>`).join("")}
               </select></td>
-          <td class="num hrs">${(hours[c.id] || 0).toFixed(1)}</td>
+          <td class="num hrs">${(stats[c.id]?.hours || 0).toFixed(1)}</td>
+          <td class="num hrs">${stats[c.id]?.flights || 0}</td>
           <td><select data-f="active" ${planner ? "" : "disabled"}>
                 <option value="true" ${c.active ? "selected" : ""}>ใช้งาน</option>
                 <option value="false" ${!c.active ? "selected" : ""}>ปิด</option>

@@ -32,11 +32,16 @@ export async function deleteCrew(id) {
 }
 
 // =====================================================================
-//  ชม.บินประจำเดือน — รวม ชม.จากรายงานหลังบินของภารกิจที่บินในเดือนนั้น
-//  นับเฉพาะ IP / P / CP (AC และ N ไม่นับ) · คนเดียวหลายตำแหน่งในภารกิจเดียวนับครั้งเดียว
-//  คืน { crew_member_id: ชม. }
+//  สถิติประจำเดือนของนักบิน — จากภารกิจที่บินในเดือนนั้น (ภารกิจที่มีรายงานหลังบินแล้ว)
+//   • flights = จำนวนเที่ยวบิน: นับทุกตำแหน่งนักบิน (AC / IP / P / CP / N)
+//   • hours   = ชม.บิน: นับเฉพาะ IP / P / CP (AC และ N ไม่นับ ชม.)
+//   คนเดียวหลายตำแหน่งในภารกิจเดียว นับเป็น 1 เที่ยว
+//  คืน { crew_member_id: { hours, flights } }
 // =====================================================================
-export async function loadMonthlyHours(year, month /* 0-11 */) {
+const PILOT_POSITIONS = ["AC", "IP", "P", "CP", "N"];
+const HOUR_POSITIONS  = ["IP", "P", "CP"];
+
+export async function loadMonthlyStats(year, month /* 0-11 */) {
   const pad = (n) => String(n).padStart(2, "0");
   const first = `${year}-${pad(month + 1)}-01`;
   const last  = `${year}-${pad(month + 1)}-${pad(new Date(year, month + 1, 0).getDate())}`;
@@ -49,15 +54,24 @@ export async function loadMonthlyHours(year, month /* 0-11 */) {
     .lte("missions.mission_date", last);
   if (error) { console.error(error); return {}; }
 
-  const seen = new Set(), by = {};
+  // รวมตำแหน่งของแต่ละคนต่อภารกิจก่อน (กันนับซ้ำ)
+  const perMission = new Map();   // "member|mission" -> { member, positions:Set, report }
   (data || []).forEach((r) => {
-    if (!["IP", "P", "CP"].includes(String(r.position || "").trim().toUpperCase())) return;
+    const pos = String(r.position || "").trim().toUpperCase();
+    if (!PILOT_POSITIONS.includes(pos)) return;
+    const rep = r.missions?.post_flight_reports;            // 1 ภารกิจ = 1 รายงาน (object หรือ array)
+    const report = Array.isArray(rep) ? rep[0] : rep;
+    if (!report) return;                                     // ยังไม่มีรายงาน = ยังไม่ถือว่าบินแล้ว
     const key = `${r.crew_member_id}|${r.mission_id}`;
-    if (seen.has(key)) return;
-    seen.add(key);
-    const rep = r.missions?.post_flight_reports;          // 1 ภารกิจ = 1 รายงาน (อาจมาเป็น object หรือ array)
-    const h = Array.isArray(rep) ? rep[0]?.total_hours : rep?.total_hours;
-    by[r.crew_member_id] = (by[r.crew_member_id] || 0) + Number(h || 0);
+    if (!perMission.has(key)) perMission.set(key, { member: r.crew_member_id, positions: new Set(), report });
+    perMission.get(key).positions.add(pos);
+  });
+
+  const by = {};
+  perMission.forEach(({ member, positions, report }) => {
+    const st = by[member] || (by[member] = { hours: 0, flights: 0 });
+    st.flights += 1;
+    if ([...positions].some((p) => HOUR_POSITIONS.includes(p))) st.hours += Number(report.total_hours || 0);
   });
   return by;
 }
