@@ -122,3 +122,64 @@ function fmtTime(iso){
   catch { return iso; }
 }
 function esc(s){return String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
+
+// =====================================================================
+//  เพิ่มผู้ใช้แบบ manual (อีเมลที่อนุญาตล่วงหน้า)
+// =====================================================================
+export async function loadInvites() {
+  const { data, error } = await supabase
+    .from("user_invites").select("*").order("created_at", { ascending: false });
+  if (error) { console.error(error); return []; }
+  return data || [];
+}
+
+export async function addInvite({ email, full_name, rank, role }) {
+  const { data: { session } } = await supabase.auth.getSession();
+  const { error } = await supabase.from("user_invites").upsert({
+    email: (email || "").trim().toLowerCase(),
+    full_name: (full_name || "").trim() || null,
+    rank: (rank || "").trim() || null,
+    role,
+    invited_by: session?.user?.id,
+  }, { onConflict: "email" });
+  return error;
+}
+
+export async function deleteInvite(email) {
+  const { error } = await supabase.from("user_invites").delete().eq("email", email);
+  return error;
+}
+
+export function renderInvites(tbody, invites, profiles, onDone) {
+  const byEmail = new Map(profiles.map((p) => [String(p.email || "").toLowerCase(), p]));
+  tbody.innerHTML = invites.length ? invites.map((iv) => {
+    const p = byEmail.get(iv.email);
+    const state = !p
+      ? `<span style="color:var(--warn);font-weight:600">รอเข้าสู่ระบบครั้งแรก</span>`
+      : p.status === "active"
+        ? `<span style="color:var(--good);font-weight:600">✓ ใช้งานแล้ว</span>`
+        : `<span style="color:var(--muted);font-weight:600">มีบัญชีแล้ว · ${esc(p.status)}</span>`;
+    return `
+    <tr data-email="${esc(iv.email)}">
+      <td>
+        <div style="font-weight:600">${esc(iv.full_name || "-")}</div>
+        <div class="muted mono" style="font-size:12px">${esc(iv.email)}</div>
+      </td>
+      <td>${esc(iv.rank || "-")}</td>
+      <td>${esc(ROLE_LABEL[iv.role] || iv.role)}</td>
+      <td style="font-size:12.5px">${state}</td>
+      <td><button class="btn sm" data-del style="color:var(--crit)">ลบ</button></td>
+    </tr>`;
+  }).join("")
+  : `<tr><td colspan="5" class="empty">ยังไม่มีอีเมลที่เพิ่มไว้</td></tr>`;
+
+  tbody.querySelectorAll("[data-del]").forEach((b) =>
+    b.addEventListener("click", async (e) => {
+      const email = e.target.closest("tr").dataset.email;
+      if (!confirm(`ลบ ${email} ออกจากรายชื่อที่อนุญาต?\n(ถ้าเจ้าของอีเมลเข้าใช้งานแล้ว บัญชียังอยู่ — ปิดสิทธิ์ได้ที่ตาราง "ผู้ใช้ในระบบ")`)) return;
+      b.disabled = true;
+      const err = await deleteInvite(email);
+      if (err) { alert("ลบไม่สำเร็จ: " + err.message); b.disabled = false; }
+      else onDone();
+    }));
+}

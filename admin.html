@@ -14,6 +14,14 @@
             font-family:"Bai Jamjuree",sans-serif;display:flex;align-items:center;gap:8px}
   .req-card .tablewrap{border:0;border-radius:0}
   h2.sec{font-family:"Bai Jamjuree",sans-serif;font-weight:600;font-size:18px;margin:0 0 10px}
+  .invite-box{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+              padding:16px 18px;margin-bottom:12px;box-shadow:var(--shadow)}
+  .invite-box .hint{font-size:12.5px;color:var(--faint);margin:0 0 12px;line-height:1.6}
+  .invite-grid{display:grid;grid-template-columns:1.4fr 1.2fr 1fr 130px auto;gap:10px;align-items:end}
+  .invite-grid label{margin:0 0 5px}
+  @media(max-width:760px){ .invite-grid{grid-template-columns:1fr 1fr} }
+  .iv-msg{font-size:13px;margin-top:10px;min-height:18px}
+  .iv-msg.ok{color:var(--good)} .iv-msg.err{color:var(--crit)}
 </style>
 </head>
 <body>
@@ -21,7 +29,7 @@
   <div class="wrap">
     <div class="page-head">
       <h1>ผู้ดูแลระบบ</h1>
-      <div class="sub">อนุมัติคำขอใช้งาน · กำหนดตำแหน่งและสิทธิ์ — เฉพาะ admin เท่านั้น</div>
+      <div class="sub">เพิ่มผู้ใช้ · อนุมัติคำขอใช้งาน · กำหนดตำแหน่งและสิทธิ์ — เฉพาะ admin เท่านั้น</div>
     </div>
 
     <!-- ===== คำขอใช้งาน (ซ่อนถ้าไม่มี) ===== -->
@@ -35,6 +43,29 @@
       </div>
     </div>
 
+    <!-- ===== เพิ่มผู้ใช้แบบ manual ===== -->
+    <h2 class="sec">เพิ่มผู้ใช้ (ล่วงหน้า)</h2>
+    <div class="invite-box">
+      <p class="hint">
+        ใส่อีเมล Gmail ของคนที่ต้องการให้ใช้งาน — เมื่อเขาล็อกอิน Google ครั้งแรก จะเข้าใช้งานได้ทันทีตามสิทธิ์ที่ตั้งไว้
+        ไม่ต้องกรอกคำขอหรือรออนุมัติ · ถ้าเขาล็อกอินไว้แล้วและรออนุมัติอยู่ จะเปิดใช้งานทันที
+      </p>
+      <div class="invite-grid">
+        <div><label>อีเมล (Gmail)</label><input id="iv_email" type="email" placeholder="name@gmail.com" autocomplete="off"></div>
+        <div><label>ชื่อ</label><input id="iv_name" placeholder="เช่น น.ท.สมชาย ใจดี"></div>
+        <div><label>ตำแหน่ง</label><input id="iv_rank" placeholder="เช่น นักบิน"></div>
+        <div><label>สิทธิ์</label><select id="iv_role"></select></div>
+        <button class="btn primary" id="iv_add">+ เพิ่มผู้ใช้</button>
+      </div>
+      <div class="iv-msg" id="iv_msg"></div>
+    </div>
+    <div class="tablewrap" style="margin-bottom:26px">
+      <table>
+        <thead><tr><th>อีเมล</th><th>ตำแหน่ง</th><th>สิทธิ์</th><th>สถานะ</th><th></th></tr></thead>
+        <tbody id="inviteRows"><tr><td colspan="5" class="empty">กำลังโหลด…</td></tr></tbody>
+      </table>
+    </div>
+
     <!-- ===== ผู้ใช้ทั้งหมด ===== -->
     <h2 class="sec">ผู้ใช้ในระบบ</h2>
     <div class="tablewrap">
@@ -44,7 +75,7 @@
       </table>
     </div>
     <p class="muted" style="margin-top:14px;font-size:12.5px">
-      💡 ผู้ใช้ใหม่ที่ล็อกอิน Google แล้วกรอกคำขอ จะโผล่ในกล่อง "คำขอใช้งาน" ด้านบน · กด <b>✓ อนุมัติ</b> พร้อมเลือกสิทธิ์เพื่อเปิดใช้งาน
+      💡 มี 2 ทางให้คนเข้าใช้งาน: (1) admin เพิ่มอีเมลล่วงหน้าในกล่อง "เพิ่มผู้ใช้" หรือ (2) ผู้ใช้ล็อกอิน Google แล้วกรอกคำขอ จะโผล่ในกล่อง "คำขอใช้งาน" ให้กด <b>✓ อนุมัติ</b>
     </p>
   </div>
 </main>
@@ -52,7 +83,7 @@
 <script type="module">
   import { requireAuth } from "./js/auth.js";
   import { renderTopbar } from "./js/ui.js";
-  import { loadProfiles, renderRequests, renderUsers } from "./js/admin.js";
+  import { loadProfiles, renderRequests, renderUsers, loadInvites, addInvite, renderInvites, ROLES, ROLE_LABEL } from "./js/admin.js";
 
   const profile = await requireAuth(["admin"]);   // เข้าได้เฉพาะ admin
   if (profile) {
@@ -63,11 +94,40 @@
     const cnt   = document.getElementById("reqCount");
     const userTb= document.getElementById("userRows");
 
+    const ivTb = document.getElementById("inviteRows");
+    const ivMsg = document.getElementById("iv_msg");
+    document.getElementById("iv_role").innerHTML = ROLES.filter(r => r !== "admin")
+      .map(r => `<option value="${r}" ${r === "crew" ? "selected" : ""}>${ROLE_LABEL[r]}</option>`).join("");
+
     async function refresh() {
-      const profiles = await loadProfiles();
+      const [profiles, invites] = await Promise.all([loadProfiles(), loadInvites()]);
       renderRequests(card, reqTb, cnt, profiles, refresh);
+      renderInvites(ivTb, invites, profiles, refresh);
       renderUsers(userTb, profiles, null);
     }
+
+    document.getElementById("iv_add").addEventListener("click", async () => {
+      const email = document.getElementById("iv_email").value.trim().toLowerCase();
+      ivMsg.className = "iv-msg";
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+        ivMsg.className = "iv-msg err"; ivMsg.textContent = "กรุณากรอกอีเมลให้ถูกต้อง"; return;
+      }
+      const btn = document.getElementById("iv_add");
+      btn.disabled = true;
+      const err = await addInvite({
+        email,
+        full_name: document.getElementById("iv_name").value,
+        rank: document.getElementById("iv_rank").value,
+        role: document.getElementById("iv_role").value,
+      });
+      btn.disabled = false;
+      if (err) { ivMsg.className = "iv-msg err"; ivMsg.textContent = "เพิ่มไม่สำเร็จ: " + err.message; return; }
+      ivMsg.className = "iv-msg ok";
+      ivMsg.textContent = `เพิ่ม ${email} แล้ว — เข้าใช้งานได้ทันทีเมื่อล็อกอินด้วย Google`;
+      ["iv_email", "iv_name", "iv_rank"].forEach(id => document.getElementById(id).value = "");
+      refresh();
+    });
+
     refresh();
   }
 </script>
