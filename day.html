@@ -20,14 +20,10 @@
          box-shadow:var(--shadow)}
   .sheet-top{display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--surface-2);
              border-bottom:2px solid var(--line-strong)}
-  .kind{font-size:11px;font-weight:700;border-radius:5px;padding:3px 9px;letter-spacing:.02em}
-  .kind.rtaf{background:var(--primary-soft);color:var(--primary)}
-  .kind.mod{background:var(--good-soft);color:var(--good)}
-  .kind.palace{background:#f3e6f5;color:#7b3f86}
-  .kind.training{background:var(--accent-soft);color:var(--warn)}
-  .kind.other{background:var(--surface);color:var(--muted);border:1px solid var(--line)}
-  :root[data-theme="dark"] .kind.palace{background:#2d1c30;color:#d8a6df}
-  @media(prefers-color-scheme:dark){:root:not([data-theme="light"]) .kind.palace{background:#2d1c30;color:#d8a6df}}
+  /* ชนิดภารกิจ: สีมาจาก KIND_COLORS (inline) — แถบหัวการ์ดทาสีตามชนิดเหมือนกระดาน */
+  .sheet-top{border-bottom:2px solid var(--line-strong)}
+  .kind{font-size:12px;font-weight:700;letter-spacing:.01em}
+  .sheet-top .btn{background:var(--surface);color:var(--ink)}
   .sheet-actions{margin-inline-start:auto;display:flex;gap:6px}
 
   table.fm{border-collapse:collapse;width:100%;font-size:12.5px;table-layout:fixed}
@@ -74,7 +70,7 @@
 <script type="module">
   import { requireAuth, canPlan } from "./js/auth.js";
   import { renderTopbar } from "./js/ui.js";
-  import { loadMissionsByDate, deleteMission, KINDS, PILOT_ROLES, OTHER_ROLES, acLabel, esc } from "./js/missions.js";
+  import { loadMissionsByDate, deleteMission, KINDS, DEFAULT_KIND, kindStyle, PILOT_ROLES, OTHER_ROLES, acLabel, esc } from "./js/missions.js";
 
   const profile = await requireAuth();
   if (profile) {
@@ -130,8 +126,8 @@
 
       return `
       <div class="sheet" data-id="${m.id}">
-        <div class="sheet-top">
-          <span class="kind ${m.kind||'other'}">${KINDS[m.kind] || "อื่นๆ"}</span>
+        <div class="sheet-top" style="${kindStyle(m.kind)}">
+          <span class="kind">${esc(KINDS[m.kind] || KINDS[DEFAULT_KIND])}</span>
           <span style="font-weight:700;font-size:13px">${esc(m.callsign || "-")}</span>
           <div class="sheet-actions">
             ${planner ? `<a class="btn sm" href="mission.html?id=${m.id}">แก้ไข</a>

@@ -3,9 +3,26 @@
 // =====================================================================
 import { supabase } from "./supabase.js";
 
-// ---------- ชนิดภารกิจ ----------
+// ---------- ชนิดภารกิจ (สีตามกระดานจัดบินจริง) ----------
 export const KINDS = {
-  rtaf: "ทอ.", mod: "กห.", palace: "วัง", training: "ฝึกบิน", other: "อื่นๆ",
+  fcf: "F.C.F",
+  dechochai: "เดโชชัย",
+  palace: "ภารกิจสำนักพระราชวัง",
+  rtaf: "ภารกิจ ทอ.",
+  training: "ฝึกบิน",
+};
+export const DEFAULT_KIND = "rtaf";
+// bg = สีพื้นตามกระดาน, fg = สีตัวอักษรที่อ่านออกบนพื้นนั้น
+export const KIND_COLORS = {
+  fcf:       { bg: "#D9783A", fg: "#1F1206" },
+  dechochai: { bg: "#E53935", fg: "#FFFFFF" },
+  palace:    { bg: "#A5D46A", fg: "#16240A" },
+  rtaf:      { bg: "#4DA3E8", fg: "#08202F" },
+  training:  { bg: "#FFFFFF", fg: "#16202E" },
+};
+export const kindStyle = (k) => {
+  const c = KIND_COLORS[k] || KIND_COLORS[DEFAULT_KIND];
+  return `background:${c.bg};color:${c.fg}`;
 };
 
 // ---------- ตำแหน่งลูกเรือ (เรียงตามฟอร์ม) ----------

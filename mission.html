@@ -160,7 +160,7 @@
   import { requireAuth, canPlan } from "./js/auth.js";
   import { renderTopbar } from "./js/ui.js";
   import { getMission, saveMission, loadAircraft, loadCrewRoster, acLabel,
-           KINDS, PILOT_ROLES, OTHER_ROLES, esc } from "./js/missions.js";
+           KINDS, DEFAULT_KIND, KIND_COLORS, PILOT_ROLES, OTHER_ROLES, esc } from "./js/missions.js";
 
   const profile = await requireAuth();
   if (profile) {
@@ -174,6 +174,14 @@
     // ---- ชนิดภารกิจ ----
     document.getElementById("f_kind").innerHTML =
       Object.entries(KINDS).map(([k,l]) => `<option value="${k}">${l}</option>`).join("");
+    const kindSel = document.getElementById("f_kind");
+    kindSel.value = DEFAULT_KIND;
+    // ทาสี select ตามชนิดที่เลือก ให้เห็นเหมือนกระดาน
+    const paintKind = () => {
+      const c = KIND_COLORS[kindSel.value];
+      kindSel.style.background = c.bg; kindSel.style.color = c.fg; kindSel.style.fontWeight = "600";
+    };
+    kindSel.addEventListener("change", paintKind);
 
     // ---- เครื่องบิน (รายการตายตัว 6 ลำ) ----
     const aircraft = await loadAircraft();
@@ -286,7 +294,7 @@
       const m = await getMission(missionId);
       if (m) {
         $("f_date").value = m.mission_date || ""; fillAircraft(m.aircraft_id);
-        $("f_callsign").value = m.callsign || ""; $("f_kind").value = m.kind || "other";
+        $("f_callsign").value = m.callsign || ""; $("f_kind").value = KINDS[m.kind] ? m.kind : DEFAULT_KIND;
         $("f_name").value = m.mission_name || "";
         $("f_showtime").value = m.showtime || ""; $("f_brief").value = m.brief_time || "";
         $("f_step").value = m.step_time || ""; $("f_taxi").value = m.taxi_time || "";
@@ -313,6 +321,7 @@
     // ค่าเริ่มต้น: อย่างน้อยกลุ่มละ 1 แถวว่าง ให้พร้อมกรอก
     if (!pilots.length) pilots = [{ role: "IP", name: "", crew_member_id: null }];
     OTHER_ROLES.forEach(r => { if (!others[r].length) others[r] = [""]; });
+    paintKind();
     renderCrew();
 
     // ---- บันทึก ----
