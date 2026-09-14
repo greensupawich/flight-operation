@@ -2,7 +2,7 @@
 --  Flight Operation · migration_09_flight_queue.sql
 --  สำหรับหน้า "คิวบิน"
 --    1) ชนิดภารกิจ STBY (Standby — จัดชื่อไว้ แต่ไม่มีบินจริง)
---    2) airfields          — รหัสสนามบิน (ชื่อจุดในเส้นทาง → รหัส เช่น บน.41 → CMA)
+--    2) airfields          — รหัสสนามบิน (ชื่อจุดในเส้นทาง → รหัส เช่น บน.41 → CNX)
 --    3) holidays           — วันหยุดราชการ (เสาร์-อาทิตย์ระบบทำสีเทาให้เองอยู่แล้ว)
 --    4) crew_unavailable   — วันที่นักบินไม่ว่าง (ช่องสีแดง)
 --  รันใน Supabase → SQL Editor  (รันซ้ำได้ ปลอดภัย)
@@ -20,8 +20,10 @@ create table if not exists public.airfields (
   code        text not null,
   updated_at  timestamptz not null default now()
 );
-insert into public.airfields (name, code) values ('บน.41', 'CMA')
-on conflict (name) do nothing;
+-- บน.41 = CNX (ถ้าเคยรันไฟล์รุ่นก่อนที่ใส่ CMA ไว้ จะแก้เป็น CNX ให้)
+insert into public.airfields (name, code) values ('บน.41', 'CNX')
+on conflict (name) do update set code = 'CNX', updated_at = now()
+  where public.airfields.code = 'CMA';
 
 alter table public.airfields enable row level security;
 drop policy if exists p_airfields_read on public.airfields;

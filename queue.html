@@ -114,8 +114,8 @@
       Object.entries(KINDS).filter(([k]) => k !== "stby").map(([k, l]) =>
         `<span><i class="sw" style="background:${KIND_COLORS[k].bg};color:${KIND_COLORS[k].fg}">&nbsp;</i>${esc(l)}</span>`).join("") +
       `<span><i class="sw" style="background:#fff;color:#111">ST</i>Standby</span>
-       <span><i class="sw" style="background:#fff;color:var(--q-600)">CMA</i>ATR72-600</span>
-       <span><i class="sw" style="background:#fff;color:var(--q-500)">CMA</i>ATR72-500</span>
+       <span><i class="sw" style="background:#fff;color:var(--q-600)">CNX</i>ATR72-600</span>
+       <span><i class="sw" style="background:#fff;color:var(--q-500)">CNX</i>ATR72-500</span>
        <span><i class="sw" style="background:var(--q-hol)">&nbsp;</i>วันหยุด</span>
        <span><i class="sw" style="background:var(--q-off)">&nbsp;</i>ไม่ว่าง</span>`;
     document.getElementById("hint").innerHTML = planner
