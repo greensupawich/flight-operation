@@ -8,12 +8,12 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bai+Jamjuree:wght@600;700&family=IBM+Plex+Sans+Thai:wght@400;500;600&family=IBM+Plex+Mono&display=swap">
 <link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/sheet.css">
 <style>
   .day-head{display:flex;align-items:end;gap:14px;flex-wrap:wrap;margin-bottom:18px}
   /* min() กัน grid item กว้างเกินคอนเทนเนอร์ (เหตุที่ตารางตกขอบ) */
   .sheets{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(430px,100%),1fr));gap:20px}
   @media(max-width:900px){ .sheets{grid-template-columns:1fr} }
-  .sheet-body{overflow-x:auto}
 
   /* ---- แจ้งไม่ว่าง ---- */
   .avail{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
@@ -40,42 +40,8 @@
   .off-item span{color:var(--muted);font-size:12.5px;flex:1}
   .off-item .off-del{margin-inline-start:auto;padding:3px 10px;font-size:12px;color:var(--crit)}
   .off-item{align-items:center}
-  .off-list{max-height:260px}          /* ตารางกว้างเกิน → เลื่อนในกรอบตัวเอง */
+  .off-list{max-height:260px}
 
-  /* ---- ฟอร์มภารกิจ (เลียนแบบกระดานจัดบิน) ---- */
-  .sheet{background:var(--surface);border:2px solid var(--line-strong);border-radius:8px;overflow:hidden;
-         box-shadow:var(--shadow)}
-  .sheet-top{display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--surface-2);
-             border-bottom:2px solid var(--line-strong)}
-  /* ชนิดภารกิจ: สีมาจาก KIND_COLORS (inline) — แถบหัวการ์ดทาสีตามชนิดเหมือนกระดาน */
-  .sheet-top{border-bottom:2px solid var(--line-strong)}
-  .kind{font-size:12px;font-weight:700;letter-spacing:.01em}
-  .sheet-top .btn{background:var(--surface);color:var(--ink)}
-  .sheet-actions{margin-inline-start:auto;display:flex;gap:6px}
-
-  table.fm{border-collapse:collapse;width:100%;font-size:12.5px;table-layout:fixed}
-  table.fm td{border:1px solid var(--line-strong);padding:5px 7px;vertical-align:middle;
-              word-break:break-word;line-height:1.45}
-  /* ภารกิจที่รายงานผลแล้ว: พื้นเขียวอ่อน ไม่เด่น */
-  .sheet.reported{background:color-mix(in srgb, var(--good-soft) 55%, var(--surface))}
-  .sheet.reported table.fm td.lb{background:color-mix(in srgb, var(--good-soft) 80%, var(--surface-2))}
-  .sheet .rep-done{background:var(--surface);color:var(--good);border-color:var(--line-strong)}
-  table.fm td.lb{background:var(--surface-2);font-weight:600;text-align:center;color:var(--muted);
-                 white-space:nowrap;font-size:11.5px}
-  table.fm td.v{font-weight:600;color:var(--ink)}
-  table.fm td.c{text-align:center}
-  .hot{color:var(--crit);font-weight:700}          /* ตัวเลขสำคัญ: ชพ./PAX/จุดจอด */
-  .mono{font-family:"IBM Plex Mono",monospace}
-  .crewgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:0}
-  .crewgrid span{padding:1px 4px;border-inline-end:1px dashed var(--line);min-height:18px}
-  .crewgrid span:last-child{border-inline-end:0}
-  .muted-cell{color:var(--faint);font-weight:400}
-  /* จอแคบ: ย่อตัวอักษร/ระยะขอบ ให้ตารางพอดีไม่ตกขอบ */
-  @media(max-width:520px){
-    table.fm{font-size:11px}
-    table.fm td{padding:4px 4px}
-    table.fm td.lb{font-size:10px}
-  }
 </style>
 </head>
 <body>
@@ -112,7 +78,8 @@
   import { qualStyle } from "./js/missions.js";
   import { loadRoster, loadUnavailableOn, setUnavailable, clearUnavailable } from "./js/availability.js";
   import { renderTopbar } from "./js/ui.js";
-  import { loadMissionsByDate, deleteMission, KINDS, DEFAULT_KIND, kindStyle, PILOT_ROLES, OTHER_ROLES, acLabel, esc, reportOf } from "./js/missions.js";
+  import { loadMissionsByDate, esc } from "./js/missions.js";
+  import { sheetHTML, wireSheetDelete } from "./js/mission-sheet.js";
 
   const profile = await requireAuth();
   if (profile) {
@@ -215,84 +182,15 @@
     document.getElementById("title").textContent =
       `วัน${TH_DOW[dObj.getDay()]}ที่ ${dd} ${TH_MONTH[mm-1]} ${yy+543}`;
 
-    // ---------- แถวลูกเรือ ----------
-    // ตำแหน่งที่ไม่มีคน → ไม่แสดงแถวเลย
-    function crewRow(role, crew) {
-      const names = crew.filter(c => (c.position||"").toUpperCase() === role)
-                        .sort((a,b)=>(a.sort_order||0)-(b.sort_order||0))
-                        .map(c => (c.crew_name || "").trim())
-                        .filter(Boolean);
-      if (!names.length) return "";
-      const slots = Math.max(3, names.length);          // อย่างน้อย 3 ช่องให้ตรงกับกระดาน
-      const cells = Array.from({length: slots}, (_, i) => `<span>${esc(names[i] || "")}</span>`).join("");
-      return `<tr><td class="lb">${role}</td><td colspan="5" class="v">
-                <div class="crewgrid">${cells}</div></td></tr>`;
-    }
-
-    function sheet(m) {
-      const crew = m.mission_crew || [];
-      const ac = m.aircraft ? acLabel(m.aircraft) : "";
-      const poc = [m.poc_name, m.poc_phone].filter(Boolean).join("  ");
-      const v = (x) => esc(x || "") || `<span class="muted-cell">-</span>`;
-
-      return `
-      <div class="sheet ${reportOf(m) ? "reported" : ""}" data-id="${m.id}">
-        <div class="sheet-top" style="${kindStyle(m.kind)}">
-          <span class="kind">${esc(KINDS[m.kind] || KINDS[DEFAULT_KIND])}</span>
-          <span style="font-weight:700;font-size:13px">${esc(m.callsign || "-")}</span>
-          <div class="sheet-actions">
-            ${planner ? `<a class="btn sm" href="mission.html?id=${m.id}">แก้ไข</a>
-                         <button class="btn sm" data-del style="color:var(--crit)">ลบ</button>` : ``}
-            ${reportOf(m)
-              ? `<a class="btn sm rep-done" href="report.html?mission=${m.id}" title="ดู/แก้รายงาน">✓ รายงานแล้ว</a>`
-              : `<a class="btn sm accent" href="report.html?mission=${m.id}">รายงาน</a>`}
-          </div>
-        </div>
-        <div class="sheet-body">
-        <table class="fm">
-          <colgroup><col style="width:17%"><col style="width:16%"><col style="width:17%">
-                    <col style="width:16%"><col style="width:17%"><col style="width:17%"></colgroup>
-          <tr><td class="lb">A/C No.</td><td colspan="2" class="v c mono">${v(ac)}</td>
-              <td class="lb">COWBOY</td><td colspan="2" class="v c mono">${v(m.callsign)}</td></tr>
-          <tr><td class="lb">SHOWTIME</td><td colspan="2" class="v c mono">${v(m.showtime)}</td>
-              <td class="lb">BRIEF</td><td colspan="2" class="v c mono">${v(m.brief_time)}</td></tr>
-          <tr><td class="lb">STEP</td><td class="v c mono">${v(m.step_time)}</td>
-              <td class="lb">TAXI</td><td class="v c mono">${v(m.taxi_time)}</td>
-              <td class="lb">T/O</td><td class="v c mono">${v(m.takeoff_time)}</td></tr>
-          <tr><td class="lb">ชพ.</td><td class="v c hot">${v(m.fuel)}</td>
-              <td class="lb">จัดรับรอง</td><td class="v c hot">${v(m.catering)}</td>
-              <td class="lb">PAX.</td><td class="v c hot">${v(m.pax)}</td></tr>
-          <tr><td class="lb">ภารกิจ</td><td colspan="5" class="v c">${v(m.mission_name)}</td></tr>
-          <tr><td class="lb">เส้นทางบิน</td><td colspan="5" class="v c">${v(m.route)}</td></tr>
-          <tr><td class="lb">หน.คณะ</td><td colspan="5" class="v">${v(m.head_delegation)}</td></tr>
-          ${[...PILOT_ROLES, ...OTHER_ROLES].map(r => crewRow(r, crew)).join("")}
-          <tr><td class="lb">POCคณะ</td><td colspan="5" class="v">${v(poc)}</td></tr>
-          <tr><td class="lb" rowspan="2">หมายเหตุ</td><td colspan="3" rowspan="2" class="v">${v(m.remark)}</td>
-              <td class="lb">ไป</td><td class="v c hot">${v(m.parking_out)}</td></tr>
-          <tr><td class="lb">กลับ</td><td class="v c hot">${v(m.parking_in)}</td></tr>
-        </table>
-        </div>
-      </div>`;
-    }
-
     async function refresh() {
       const box = document.getElementById("sheets");
       box.innerHTML = `<div class="empty">กำลังโหลด…</div>`;
       const list = await loadMissionsByDate(date);
       document.getElementById("sub").textContent =
         list.length ? `${list.length} ภารกิจ` : "ยังไม่มีภารกิจในวันนี้";
-      box.innerHTML = list.length ? list.map(sheet).join("")
+      box.innerHTML = list.length ? list.map(m => sheetHTML(m, { planner })).join("")
         : `<div class="empty">ยังไม่มีภารกิจในวันนี้${planner ? ' · กด "+ เพิ่มภารกิจ" เพื่อสร้าง' : ""}</div>`;
-
-      box.querySelectorAll("[data-del]").forEach((b) =>
-        b.addEventListener("click", async (e) => {
-          const id = e.target.closest(".sheet").dataset.id;
-          if (!confirm("ลบภารกิจนี้? (ลบลูกเรือและรายงานที่ผูกอยู่ด้วย)")) return;
-          b.disabled = true;
-          const err = await deleteMission(id);
-          if (err) { alert("ลบไม่สำเร็จ: " + err.message); b.disabled = false; }
-          else refresh();
-        }));
+      wireSheetDelete(box, refresh);
     }
     refresh();
   }

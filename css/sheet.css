@@ -1,0 +1,42 @@
+/* =====================================================================
+   sheet.css — การ์ดภารกิจแบบกระดานจัดบิน (ใช้ร่วม: หน้าหลัก + หน้าภารกิจรายวัน)
+   ===================================================================== */
+.sheet-body{overflow-x:auto}          /* ตารางกว้างเกิน → เลื่อนในกรอบตัวเอง */
+/* ---- ฟอร์มภารกิจ (เลียนแบบกระดานจัดบิน) ---- */
+.sheet{background:var(--surface);border:2px solid var(--line-strong);border-radius:8px;overflow:hidden;
+       box-shadow:var(--shadow)}
+.sheet-top{display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--surface-2);
+           border-bottom:2px solid var(--line-strong)}
+/* ชนิดภารกิจ: สีมาจาก KIND_COLORS (inline) — แถบหัวการ์ดทาสีตามชนิดเหมือนกระดาน */
+.sheet-top{border-bottom:2px solid var(--line-strong)}
+.kind{font-size:12px;font-weight:700;letter-spacing:.01em}
+.sheet-top .btn{background:var(--surface);color:var(--ink)}
+.sheet-actions{margin-inline-start:auto;display:flex;gap:6px}
+
+table.fm{border-collapse:collapse;width:100%;font-size:12.5px;table-layout:fixed}
+table.fm td{border:1px solid var(--line-strong);padding:5px 7px;vertical-align:middle;
+            word-break:break-word;line-height:1.45}
+/* ภารกิจที่รายงานผลแล้ว: พื้นเขียวอ่อน ไม่เด่น */
+.sheet.reported{background:color-mix(in srgb, var(--good-soft) 55%, var(--surface))}
+.sheet.reported table.fm td.lb{background:color-mix(in srgb, var(--good-soft) 80%, var(--surface-2))}
+.sheet .rep-done{background:var(--surface);color:var(--good);border-color:var(--line-strong)}
+/* ภารกิจที่ยกเลิก: พื้นแดงอ่อน ไม่เด่น (ชนะสีเขียวของ "รายงานแล้ว") */
+.sheet.cancelled{background:color-mix(in srgb, var(--crit-soft) 60%, var(--surface))}
+.sheet.cancelled table.fm td.lb{background:color-mix(in srgb, var(--crit-soft) 85%, var(--surface-2))}
+.sheet .rep-cancel{background:var(--surface);color:var(--crit);border-color:var(--line-strong)}
+table.fm td.lb{background:var(--surface-2);font-weight:600;text-align:center;color:var(--muted);
+               white-space:nowrap;font-size:11.5px}
+table.fm td.v{font-weight:600;color:var(--ink)}
+table.fm td.c{text-align:center}
+.hot{color:var(--crit);font-weight:700}          /* ตัวเลขสำคัญ: ชพ./PAX/จุดจอด */
+.mono{font-family:"IBM Plex Mono",monospace}
+.crewgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:0}
+.crewgrid span{padding:1px 4px;border-inline-end:1px dashed var(--line);min-height:18px}
+.crewgrid span:last-child{border-inline-end:0}
+.muted-cell{color:var(--faint);font-weight:400}
+/* จอแคบ: ย่อตัวอักษร/ระยะขอบ ให้ตารางพอดีไม่ตกขอบ */
+@media(max-width:520px){
+  table.fm{font-size:11px}
+  table.fm td{padding:4px 4px}
+  table.fm td.lb{font-size:10px}
+}

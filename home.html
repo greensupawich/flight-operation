@@ -8,20 +8,40 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bai+Jamjuree:wght@600;700&family=IBM+Plex+Sans+Thai:wght@400;500;600&family=IBM+Plex+Mono&display=swap">
 <link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/sheet.css">
+<style>
+  main .wrap{max-width:1560px}
+  .home-head{display:flex;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:18px}
+  .home-head .links{margin-inline-start:auto;display:flex;gap:8px;flex-wrap:wrap}
+  /* แถวละ 3 ภารกิจ · จอเล็กลดเป็น 2 และ 1 */
+  .sheets.three{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;align-items:start}
+  @media(max-width:1180px){ .sheets.three{grid-template-columns:repeat(2,minmax(0,1fr))} }
+  @media(max-width:760px){  .sheets.three{grid-template-columns:1fr} }
+</style>
 </head>
 <body>
 <main>
   <div class="wrap">
-    <div class="empty" style="margin-top:80px" id="body">
-      <div style="font-size:40px">🛩️</div>
-      <p style="font-size:16px;color:var(--muted);margin-top:12px">กำลังตรวจสอบสิทธิ์…</p>
+    <div class="page-head home-head">
+      <div>
+        <h1 id="title">ภารกิจวันนี้</h1>
+        <div class="sub" id="sub">กำลังโหลด…</div>
+      </div>
+      <div class="links">
+        <a class="btn sm ghost" id="dayLink" href="day.html">เปิดหน้าภารกิจวันนี้</a>
+        <a class="btn sm ghost" href="dashboard.html">ปฏิทิน</a>
+        <a class="btn sm primary" id="addBtn" href="#" hidden>+ เพิ่มภารกิจ</a>
+      </div>
     </div>
+    <div class="sheets three" id="sheets"><div class="empty">กำลังโหลด…</div></div>
   </div>
 </main>
 
 <script type="module">
-  import { getCurrentProfile } from "./js/auth.js";
+  import { getCurrentProfile, canPlan } from "./js/auth.js";
   import { renderTopbar } from "./js/ui.js";
+  import { loadMissionsByDate, reportOf } from "./js/missions.js";
+  import { sheetHTML, sortByTakeoff, wireSheetDelete } from "./js/mission-sheet.js";
 
   const profile = await getCurrentProfile();
 
@@ -31,12 +51,36 @@
     location.href = "pending.html";
   } else {
     renderTopbar(profile);
+    const planner = canPlan(profile);
 
-    // ---- หน้าหลัก (ว่างไว้ก่อน) ----
-    document.getElementById("body").innerHTML = `
-      <div style="font-size:40px">🛩️</div>
-      <p style="font-size:16px;color:var(--muted);margin-top:12px">หน้าหลัก — ว่างไว้ก่อน</p>
-      <p style="font-size:13px">เข้าสู่ระบบสำเร็จ · ส่วนภารกิจ/รายงาน/สถิติ จะเพิ่มในขั้นถัดไป</p>`;
+    const TH_MONTH = ["มกราคม","กุมภาพันธ์","มีนาคม","เมษายน","พฤษภาคม","มิถุนายน",
+                      "กรกฎาคม","สิงหาคม","กันยายน","ตุลาคม","พฤศจิกายน","ธันวาคม"];
+    const TH_DOW = ["อาทิตย์","จันทร์","อังคาร","พุธ","พฤหัสบดี","ศุกร์","เสาร์"];
+    const n = new Date();
+    const date = `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, "0")}-${String(n.getDate()).padStart(2, "0")}`;
+
+    document.getElementById("title").textContent =
+      `ภารกิจวัน${TH_DOW[n.getDay()]}ที่ ${n.getDate()} ${TH_MONTH[n.getMonth()]} ${n.getFullYear() + 543}`;
+    document.getElementById("dayLink").href = `day.html?date=${date}`;
+    if (planner) {
+      const a = document.getElementById("addBtn");
+      a.hidden = false; a.href = `mission.html?new=1&date=${date}`;
+    }
+
+    async function refresh() {
+      const box = document.getElementById("sheets");
+      const list = sortByTakeoff(await loadMissionsByDate(date));
+      const done = list.filter(m => m.status !== "cancelled" && reportOf(m)).length;
+      const cancelled = list.filter(m => m.status === "cancelled").length;
+      document.getElementById("sub").textContent = list.length
+        ? `${list.length} ภารกิจ · เรียงตามเวลา T/O · รายงานแล้ว ${done}${cancelled ? ` · ยกเลิก ${cancelled}` : ""}`
+        : "ยังไม่มีภารกิจในวันนี้";
+      box.innerHTML = list.length
+        ? list.map(m => sheetHTML(m, { planner })).join("")
+        : `<div class="empty" style="grid-column:1/-1">ยังไม่มีภารกิจในวันนี้${planner ? ' · กด "+ เพิ่มภารกิจ" เพื่อสร้าง' : ""}</div>`;
+      wireSheetDelete(box, refresh);
+    }
+    refresh();
   }
 </script>
 </body>
