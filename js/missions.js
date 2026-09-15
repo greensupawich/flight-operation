@@ -47,7 +47,13 @@ export const CREW_ROLES  = [...PILOT_ROLES, ...OTHER_ROLES];
 export const NO_HOURS_ROLES = ["AC", "N"];
 
 const MISSION_SELECT =
-  "*, aircraft(id,tail_number,type), mission_crew(id,position,crew_name,crew_member_id,sort_order)";
+  "*, aircraft(id,tail_number,type), mission_crew(id,position,crew_name,crew_member_id,sort_order), post_flight_reports(id,total_hours)";
+
+// ภารกิจนี้มีรายงานหลังบินแล้วหรือยัง (1 ภารกิจ = 1 รายงาน — อาจมาเป็น object หรือ array)
+export const reportOf = (m) => {
+  const r = m?.post_flight_reports;
+  return Array.isArray(r) ? (r[0] || null) : (r || null);
+};
 
 // =====================================================================
 //  ปฏิทิน — นับจำนวนภารกิจต่อวันในเดือนที่กำหนด
