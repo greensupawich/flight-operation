@@ -24,6 +24,11 @@
   .note{background:var(--accent-soft);color:var(--warn);border-radius:9px;padding:12px 15px;
         font-size:12.5px;line-height:1.65;margin-bottom:20px}
   .note b{font-weight:700}
+  /* ตารางทะเบียน: กว้างพอสำหรับทุกคอลัมน์ ถ้าจอแคบให้เลื่อนแนวนอนแทนการบีบช่องชื่อ */
+  main .wrap{max-width:1360px}
+  .tablewrap table#roster{min-width:1160px;table-layout:fixed}
+  #roster th{white-space:normal;line-height:1.3}
+  #roster td:last-child{white-space:nowrap}
 </style>
 </head>
 <body>
@@ -66,10 +71,10 @@
       <span class="muted" id="monthLabel" style="font-size:13px"></span>
     </div>
     <div class="tablewrap">
-      <table>
+      <table id="roster">
         <thead><tr>
-          <th style="width:130px">รหัส (ID)</th><th>ชื่อ</th><th style="width:190px">ชื่อเดิม / ชื่ออื่น</th><th style="width:110px">คุณวุฒิ</th>
-          <th style="width:150px;text-align:end">ชม.บินประจำเดือน</th><th style="width:170px;text-align:end">จำนวนเที่ยวบินประจำเดือน</th><th style="width:120px">ใช้งาน</th><th style="width:130px"></th>
+          <th style="width:110px">รหัส (ID)</th><th style="width:220px">ชื่อ</th><th style="width:190px">ชื่อเดิม / ชื่ออื่น</th><th style="width:100px">คุณวุฒิ</th>
+          <th style="width:130px;text-align:end">ชม.บินประจำเดือน</th><th style="width:150px;text-align:end">จำนวนเที่ยวบินประจำเดือน</th><th style="width:110px">ใช้งาน</th><th style="width:150px"></th>
         </tr></thead>
         <tbody id="rows"><tr><td colspan="8" class="empty">กำลังโหลด…</td></tr></tbody>
       </table>
