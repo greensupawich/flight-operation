@@ -1,0 +1,52 @@
+-- =====================================================================
+--  Flight Operation · import_reports_2026_09_15.sql
+--  รายงานหลังบิน วันอังคารที่ 15 ก.ย. 2569
+--   • ATR316 MCP 4.8 ชม. · จอด N15 · ข้อขัดข้อง 3
+--   • ATR303 MCP 2.1 ชม. · จอด N16 · ข้อขัดข้อง 2
+--  จับคู่กับภารกิจที่ "บินจริง" ของเครื่องนั้นในวันนั้น (ไม่นับ STBY)
+--  ต้องรัน migration_16 และนำเข้าภารกิจ 15 ก.ย. ก่อน · รันซ้ำได้ (ไม่เพิ่มข้อขัดข้องซ้ำ)
+--  รันใน Supabase → SQL Editor
+-- =====================================================================
+create or replace function pg_temp.add_report(p_date date, p_tail text, p_hours numeric,
+                                               p_result text, p_parking text, p_disc text[])
+returns text language plpgsql as $$
+declare v_mid uuid; v_ac uuid; v_cs text; n int; d text;
+begin
+  select count(*) into n
+    from public.missions m join public.aircraft a on a.id = m.aircraft_id
+   where m.mission_date = p_date and a.tail_number = p_tail
+     and m.kind <> 'stby' and upper(coalesce(m.takeoff_time, '')) <> 'STBY';
+  if n <> 1 then
+    return 'ATR' || right(p_tail, 3) || ': พบภารกิจที่บินจริง ' || n || ' รายการ — ไม่ได้บันทึก (กรอกเองในหน้ารายงาน)';
+  end if;
+
+  select m.id, m.aircraft_id, m.callsign into v_mid, v_ac, v_cs
+    from public.missions m join public.aircraft a on a.id = m.aircraft_id
+   where m.mission_date = p_date and a.tail_number = p_tail
+     and m.kind <> 'stby' and upper(coalesce(m.takeoff_time, '')) <> 'STBY';
+
+  insert into public.post_flight_reports (mission_id, total_hours, result, parking_return)
+  values (v_mid, p_hours, p_result, p_parking)
+  on conflict (mission_id) do update
+     set total_hours = excluded.total_hours, result = excluded.result, parking_return = excluded.parking_return;
+
+  foreach d in array p_disc loop
+    insert into public.discrepancies (aircraft_id, mission_id, description, reported_date)
+    select v_ac, v_mid, d, p_date
+     where not exists (select 1 from public.discrepancies where mission_id = v_mid and description = d);
+  end loop;
+
+  return 'ATR' || right(p_tail, 3) || ' → ' || v_cs || ': ' || p_result || ' ' || p_hours || ' ชม. · จอด ' || p_parking
+         || ' · ข้อขัดข้อง ' || array_length(p_disc, 1) || ' รายการ';
+end $$;
+
+select pg_temp.add_report('2026-09-15', '60316', 4.8, 'MCP', 'N15', array[
+  'APM fault reset ไม่หาย',
+  'Exhaust mode fault in flight reset ไม่หาย',
+  'จอ EADI CM2 กระพริบประมาณ 10 วินาที แล้วกลับมาเป็นปกติ'
+]) as "ผล"
+union all
+select pg_temp.add_report('2026-09-15', '60303', 2.1, 'MCP', 'N16', array[
+  'Fuel Indicator RH อ่านค่าไม่ได้',
+  'Fuel Unbalance Show In Flight'
+]);

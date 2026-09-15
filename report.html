@@ -36,6 +36,13 @@
             font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);
             font-family:"IBM Plex Mono",monospace;margin-bottom:6px}
   .leg-head span:nth-child(5){text-align:end}
+  .result-grid{display:grid;grid-template-columns:1.3fr 1fr 1fr;gap:12px;align-items:end}
+  @media(max-width:640px){ .result-grid{grid-template-columns:1fr} }
+  .result-grid label{margin:0 0 5px}
+  .result-grid .big{font-family:"Bai Jamjuree",sans-serif;font-weight:700;font-size:18px}
+  #resultSel.mcp{background:var(--good-soft);border-color:var(--good);color:var(--good);font-weight:700}
+  #resultSel.bad{background:var(--crit-soft);border-color:var(--crit);color:var(--crit);font-weight:700}
+  .plan-note{font-size:11.5px;color:var(--faint);margin-top:4px}
   .total{display:flex;justify-content:space-between;align-items:center;background:var(--good-soft);
          border-radius:10px;padding:13px 18px;margin-top:14px}
   .total .lb{font-weight:600;color:var(--good);font-size:14px}
@@ -61,6 +68,26 @@
       <div class="sub" id="sub">กำลังโหลด…</div>
     </div>
 
+    <!-- ผลภารกิจ -->
+    <div class="panel" style="margin-bottom:16px">
+      <h3>✅ ผลภารกิจ</h3>
+      <div class="result-grid">
+        <div><label for="resultSel">ผลภารกิจ</label>
+          <select id="resultSel">
+            <option value="">— ยังไม่ระบุ —</option>
+            <option value="MCP">MCP · Mission Complete</option>
+            <option value="INCOMPLETE">ไม่สำเร็จ</option>
+            <option value="CANCELLED">ยกเลิก</option>
+          </select></div>
+        <div><label for="totalInput">ชม.บินรวม</label>
+          <input id="totalInput" class="big" type="number" step="0.1" min="0" placeholder="0.0"></div>
+        <div><label for="parkRet">จุดจอดขากลับ</label>
+          <input id="parkRet" class="big" placeholder="เช่น N15" style="text-transform:uppercase">
+          <div class="plan-note" id="parkPlan"></div></div>
+      </div>
+      <p class="hint" id="totalHint" style="margin:10px 0 0">กรอก ชม.บินรวมได้เลย หรือกรอก ชม.รายขาด้านล่าง ระบบจะรวมให้</p>
+    </div>
+
     <!-- ขาการบิน -->
     <div class="panel">
       <h3>🧭 ขาการบิน
@@ -76,7 +103,7 @@
       <button class="btn sm" id="addLeg" style="margin-top:4px">+ เพิ่มขา</button>
 
       <div class="total">
-        <span class="lb">ชั่วโมงบินรวม (คิดจากทุกขา)</span>
+        <span class="lb">รวม ชม.รายขา</span>
         <span class="val" id="totalVal">0.0</span>
       </div>
     </div>
@@ -162,9 +189,21 @@
     const box = document.getElementById("legsBox");
     const fmt = (n) => (Math.round(n * 10) / 10).toFixed(1);
 
+    const totalInput = document.getElementById("totalInput");
+    let manualTotal = "";                               // ยอดรวมที่กรอกเอง (คืนค่าเมื่อล้าง ชม.รายขา)
+    totalInput.addEventListener("input", () => { if (!totalInput.readOnly) manualTotal = totalInput.value; });
     function recalcTotal() {
       const t = legs.reduce((s, l) => s + (Number(l.hours) || 0), 0);
       document.getElementById("totalVal").textContent = fmt(t);
+      if (t > 0) {                                     // มี ชม.รายขา → ใช้ผลรวมรายขา
+        totalInput.value = fmt(t);
+        totalInput.readOnly = true;
+        document.getElementById("totalHint").textContent = "ชม.บินรวมคิดจากผลรวม ชม.รายขา — ถ้าจะกรอกยอดรวมเอง ให้ลบ ชม.รายขาเป็น 0";
+      } else {
+        if (totalInput.readOnly) totalInput.value = manualTotal;   // เพิ่งล้างรายขา → กลับเป็นยอดที่กรอกเอง
+        totalInput.readOnly = false;
+        document.getElementById("totalHint").textContent = "กรอก ชม.บินรวมได้เลย หรือกรอก ชม.รายขาด้านล่าง ระบบจะรวมให้";
+      }
       return t;
     }
 
@@ -230,7 +269,20 @@
 
     // ---------- รายงานเดิม ----------
     const existing = await getReport(missionId);
-    if (existing) document.getElementById("remarks").value = existing.remarks || "";
+    const resultSel = document.getElementById("resultSel");
+    const paintResult = () => {
+      resultSel.classList.toggle("mcp", resultSel.value === "MCP");
+      resultSel.classList.toggle("bad", resultSel.value === "INCOMPLETE" || resultSel.value === "CANCELLED");
+    };
+    resultSel.addEventListener("change", paintResult);
+    document.getElementById("parkPlan").textContent = m.parking_in ? `ตามแผน: ${m.parking_in}` : "";
+    document.getElementById("parkRet").value = existing?.parking_return || m.parking_in || "";
+    if (existing) {
+      document.getElementById("remarks").value = existing.remarks || "";
+      resultSel.value = existing.result || "";
+      if (!legs.some(l => Number(l.hours)) && Number(existing.total_hours)) totalInput.value = manualTotal = fmt(Number(existing.total_hours));
+    }
+    paintResult();
 
     // ---------- ข้อขัดข้อง ----------
     async function refreshDisc() {
@@ -267,12 +319,17 @@
       if (legErr) { msg.className = "msg err"; msg.textContent = "บันทึกขาไม่สำเร็จ: " + legErr.message;
                     btn.disabled = false; btn.textContent = "บันทึกรายงาน"; return; }
 
-      const total = clean.reduce((s, l) => s + (Number(l.hours) || 0), 0);
-      const repErr = await saveReport(missionId, total, document.getElementById("remarks").value.trim());
+      const legSum = clean.reduce((s, l) => s + (Number(l.hours) || 0), 0);
+      const total = legSum > 0 ? legSum : (parseFloat(totalInput.value) || 0);
+      const result = document.getElementById("resultSel").value;
+      const repErr = await saveReport(missionId, total, document.getElementById("remarks").value.trim(), {
+        result, parking_return: document.getElementById("parkRet").value.toUpperCase(),
+      });
       btn.disabled = false; btn.textContent = "บันทึกรายงาน";
-      if (repErr) { msg.className = "msg err"; msg.textContent = "บันทึกรายงานไม่สำเร็จ: " + repErr.message; return; }
-      msg.className = "msg ok";
-      msg.textContent = `✓ บันทึกแล้ว · รวม ${fmt(total)} ชม. — กระจายไปลูกเรือและเครื่องอัตโนมัติ`;
+      if (repErr && !repErr.warning) { msg.className = "msg err"; msg.textContent = "บันทึกรายงานไม่สำเร็จ: " + repErr.message; return; }
+      msg.className = repErr?.warning ? "msg err" : "msg ok";
+      msg.textContent = repErr?.warning ||
+        `✓ บันทึกแล้ว · ${result || "ยังไม่ระบุผล"} · ${fmt(total)} ชม. — กระจายไปลูกเรือและเครื่องอัตโนมัติ`;
     });
   }
 </script>

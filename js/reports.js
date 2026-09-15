@@ -54,12 +54,18 @@ export async function replaceLegs(missionId, legs) {
 }
 
 // ---------- รายงานหลังบิน (upsert: 1 ภารกิจ = 1 รายงาน) ----------
-export async function saveReport(missionId, totalHours, remarks) {
+//  extra = { result: 'MCP'|'INCOMPLETE'|'CANCELLED'|null, parking_return }  (migration_16)
+export async function saveReport(missionId, totalHours, remarks, extra = {}) {
   const { data: { session } } = await supabase.auth.getSession();
-  const { error } = await supabase.from("post_flight_reports").upsert(
-    { mission_id: missionId, total_hours: totalHours, remarks, created_by: session?.user?.id },
-    { onConflict: "mission_id" }
-  );
+  const row = { mission_id: missionId, total_hours: totalHours, remarks, created_by: session?.user?.id,
+                result: extra.result || null, parking_return: (extra.parking_return || "").trim() || null };
+  let { error } = await supabase.from("post_flight_reports").upsert(row, { onConflict: "mission_id" });
+  // ยังไม่ได้รัน migration_16 → บันทึกเฉพาะข้อมูลเดิม แล้วแจ้งเตือน
+  if (error && /result|parking_return/.test(error.message)) {
+    delete row.result; delete row.parking_return;
+    ({ error } = await supabase.from("post_flight_reports").upsert(row, { onConflict: "mission_id" }));
+    if (!error) return { warning: "บันทึก ชม.แล้ว แต่ผลภารกิจ/จุดจอดขากลับยังไม่ถูกเก็บ — ต้องรัน migration_16_report_result.sql" };
+  }
   return error;
 }
 
