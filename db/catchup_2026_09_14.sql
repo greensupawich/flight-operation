@@ -254,17 +254,18 @@ alter table public.missions alter column kind drop default;
 alter table public.missions alter column kind type text using kind::text;
 
 -- ชนิดเดิมที่ไม่มีในชุดใหม่ (กห. / อื่นๆ) → ภารกิจ ทอ.  (แก้รายภารกิจได้ในหน้าเว็บ)
+-- (รวม stby ด้วย — ถ้ารันซ้ำหลัง migration_09 จะได้ไม่ล้างชนิด STBY ทิ้ง)
 update public.missions
    set kind = 'rtaf'
  where kind is null
-    or kind not in ('fcf', 'dechochai', 'palace', 'rtaf', 'training');
+    or kind not in ('fcf', 'dechochai', 'palace', 'rtaf', 'training', 'stby');
 
 alter table public.missions alter column kind set default 'rtaf';
 alter table public.missions alter column kind set not null;
 
 alter table public.missions drop constraint if exists missions_kind_check;
 alter table public.missions add constraint missions_kind_check
-  check (kind in ('fcf', 'dechochai', 'palace', 'rtaf', 'training'));
+  check (kind in ('fcf', 'dechochai', 'palace', 'rtaf', 'training', 'stby'));
 
 drop type if exists mission_kind;
 
