@@ -26,7 +26,7 @@
   .note b{font-weight:700}
   /* ตารางทะเบียน: กว้างพอสำหรับทุกคอลัมน์ ถ้าจอแคบให้เลื่อนแนวนอนแทนการบีบช่องชื่อ */
   main .wrap{max-width:1360px}
-  .tablewrap table#roster{min-width:1160px;table-layout:fixed}
+  .tablewrap table#roster{min-width:970px;table-layout:fixed}
   #roster th{white-space:normal;line-height:1.3}
   #roster td:last-child{white-space:nowrap}
 </style>
@@ -73,10 +73,10 @@
     <div class="tablewrap">
       <table id="roster">
         <thead><tr>
-          <th style="width:110px">รหัส (ID)</th><th style="width:220px">ชื่อ</th><th style="width:190px">ชื่อเดิม / ชื่ออื่น</th><th style="width:100px">คุณวุฒิ</th>
+          <th style="width:110px">รหัส (ID)</th><th style="width:220px">ชื่อ</th><th style="width:100px">คุณวุฒิ</th>
           <th style="width:130px;text-align:end">ชม.บินประจำเดือน</th><th style="width:150px;text-align:end">จำนวนเที่ยวบินประจำเดือน</th><th style="width:110px">ใช้งาน</th><th style="width:150px"></th>
         </tr></thead>
-        <tbody id="rows"><tr><td colspan="8" class="empty">กำลังโหลด…</td></tr></tbody>
+        <tbody id="rows"><tr><td colspan="7" class="empty">กำลังโหลด…</td></tr></tbody>
       </table>
     </div>
     <p class="muted" style="margin-top:12px;font-size:12.5px">
@@ -89,8 +89,7 @@
   import { requireAuth, canPlan } from "./js/auth.js";
   import { renderTopbar } from "./js/ui.js";
   import { loadCrew, addCrew, updateCrew, deleteCrew, loadMonthlyStats } from "./js/crew.js";
-  import { QUALS, qualStyle, loadAliasMap } from "./js/missions.js";
-  import { setAliases } from "./js/crew.js";
+  import { QUALS, qualStyle } from "./js/missions.js";
 
   const profile = await requireAuth();
   if (profile) {
@@ -118,19 +117,16 @@
     async function refresh() {
       const [yy, mm] = (monthInp.value || monthInp.defaultValue).split("-").map(Number);
       document.getElementById("monthLabel").textContent = `(${TH_MONTH[mm - 1]} ${yy + 543})`;
-      const [list, stats, aliasMap] = await Promise.all([loadCrew(), loadMonthlyStats(yy, mm - 1), loadAliasMap()]);
+      const [list, stats] = await Promise.all([loadCrew(), loadMonthlyStats(yy, mm - 1)]);
       const tb = document.getElementById("rows");
       if (!list.length) {
-        tb.innerHTML = `<tr><td colspan="8" class="empty">ยังไม่มีรายชื่อนักบิน${planner ? " · เพิ่มด้านบนได้เลย" : ""}</td></tr>`;
+        tb.innerHTML = `<tr><td colspan="7" class="empty">ยังไม่มีรายชื่อนักบิน${planner ? " · เพิ่มด้านบนได้เลย" : ""}</td></tr>`;
         return;
       }
       tb.innerHTML = list.map((c) => `
         <tr data-id="${c.id}" class="${c.active ? "" : "inactive"}">
           <td><input data-f="code" value="${esc(c.code)}" class="code" ${planner ? "" : "disabled"}></td>
           <td><input data-f="full_name" value="${esc(c.full_name)}" style="${qualStyle(c.position)};font-weight:600" ${planner ? "" : "disabled"}></td>
-          <td><input data-f="aliases" value="${esc((aliasMap?.get(c.id) || []).join(", "))}"
-                     placeholder="${aliasMap ? "เช่น ร.ท.ณภัทร" : "ต้องรัน migration_15"}" style="font-size:12.5px"
-                     title="ชื่อเดิม/ชื่ออื่นที่หมายถึงคนนี้ คั่นด้วย ,  (เช่น ยศก่อนเลื่อน)" ${planner && aliasMap ? "" : "disabled"}></td>
           <td><select data-f="position" data-qual style="${qualStyle(c.position)};font-weight:700" ${planner ? "" : "disabled"}>
                 ${["", ...QUALS, ...(c.position && !QUALS.includes(c.position) ? [c.position] : [])]
                   .map(r=>`<option value="${r}" ${r===(c.position||"")?"selected":""}>${r||"—"}</option>`).join("")}
@@ -164,11 +160,8 @@
             position: get("position").trim() || null,
             active: get("active") === "true",
           });
-          let aerr = null;
-          if (!err && aliasMap) aerr = await setAliases(tr.dataset.id, get("aliases").split(","), aliasMap.get(tr.dataset.id));
-          b.disabled = false; b.textContent = (err || aerr) ? "บันทึก" : "✓";
+          b.disabled = false; b.textContent = err ? "บันทึก" : "✓";
           if (err) alert("บันทึกไม่สำเร็จ: " + (err.message.includes("duplicate") ? "รหัสนี้ซ้ำกับคนอื่น" : err.message));
-          else if (aerr) alert("บันทึกชื่อเดิมไม่สำเร็จ: " + aerr.message);
           else setTimeout(refresh, 600);
         }));
 
