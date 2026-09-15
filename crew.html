@@ -68,10 +68,10 @@
     <div class="tablewrap">
       <table>
         <thead><tr>
-          <th style="width:130px">รหัส (ID)</th><th>ชื่อ</th><th style="width:110px">คุณวุฒิ</th>
+          <th style="width:130px">รหัส (ID)</th><th>ชื่อ</th><th style="width:190px">ชื่อเดิม / ชื่ออื่น</th><th style="width:110px">คุณวุฒิ</th>
           <th style="width:150px;text-align:end">ชม.บินประจำเดือน</th><th style="width:170px;text-align:end">จำนวนเที่ยวบินประจำเดือน</th><th style="width:120px">ใช้งาน</th><th style="width:130px"></th>
         </tr></thead>
-        <tbody id="rows"><tr><td colspan="7" class="empty">กำลังโหลด…</td></tr></tbody>
+        <tbody id="rows"><tr><td colspan="8" class="empty">กำลังโหลด…</td></tr></tbody>
       </table>
     </div>
     <p class="muted" style="margin-top:12px;font-size:12.5px">
@@ -84,7 +84,8 @@
   import { requireAuth, canPlan } from "./js/auth.js";
   import { renderTopbar } from "./js/ui.js";
   import { loadCrew, addCrew, updateCrew, deleteCrew, loadMonthlyStats } from "./js/crew.js";
-  import { QUALS, qualStyle } from "./js/missions.js";
+  import { QUALS, qualStyle, loadAliasMap } from "./js/missions.js";
+  import { setAliases } from "./js/crew.js";
 
   const profile = await requireAuth();
   if (profile) {
@@ -112,16 +113,19 @@
     async function refresh() {
       const [yy, mm] = (monthInp.value || monthInp.defaultValue).split("-").map(Number);
       document.getElementById("monthLabel").textContent = `(${TH_MONTH[mm - 1]} ${yy + 543})`;
-      const [list, stats] = await Promise.all([loadCrew(), loadMonthlyStats(yy, mm - 1)]);
+      const [list, stats, aliasMap] = await Promise.all([loadCrew(), loadMonthlyStats(yy, mm - 1), loadAliasMap()]);
       const tb = document.getElementById("rows");
       if (!list.length) {
-        tb.innerHTML = `<tr><td colspan="7" class="empty">ยังไม่มีรายชื่อนักบิน${planner ? " · เพิ่มด้านบนได้เลย" : ""}</td></tr>`;
+        tb.innerHTML = `<tr><td colspan="8" class="empty">ยังไม่มีรายชื่อนักบิน${planner ? " · เพิ่มด้านบนได้เลย" : ""}</td></tr>`;
         return;
       }
       tb.innerHTML = list.map((c) => `
         <tr data-id="${c.id}" class="${c.active ? "" : "inactive"}">
           <td><input data-f="code" value="${esc(c.code)}" class="code" ${planner ? "" : "disabled"}></td>
           <td><input data-f="full_name" value="${esc(c.full_name)}" style="${qualStyle(c.position)};font-weight:600" ${planner ? "" : "disabled"}></td>
+          <td><input data-f="aliases" value="${esc((aliasMap?.get(c.id) || []).join(", "))}"
+                     placeholder="${aliasMap ? "เช่น ร.ท.ณภัทร" : "ต้องรัน migration_15"}" style="font-size:12.5px"
+                     title="ชื่อเดิม/ชื่ออื่นที่หมายถึงคนนี้ คั่นด้วย ,  (เช่น ยศก่อนเลื่อน)" ${planner && aliasMap ? "" : "disabled"}></td>
           <td><select data-f="position" data-qual style="${qualStyle(c.position)};font-weight:700" ${planner ? "" : "disabled"}>
                 ${["", ...QUALS, ...(c.position && !QUALS.includes(c.position) ? [c.position] : [])]
                   .map(r=>`<option value="${r}" ${r===(c.position||"")?"selected":""}>${r||"—"}</option>`).join("")}
@@ -155,8 +159,11 @@
             position: get("position").trim() || null,
             active: get("active") === "true",
           });
-          b.disabled = false; b.textContent = err ? "บันทึก" : "✓";
+          let aerr = null;
+          if (!err && aliasMap) aerr = await setAliases(tr.dataset.id, get("aliases").split(","), aliasMap.get(tr.dataset.id));
+          b.disabled = false; b.textContent = (err || aerr) ? "บันทึก" : "✓";
           if (err) alert("บันทึกไม่สำเร็จ: " + (err.message.includes("duplicate") ? "รหัสนี้ซ้ำกับคนอื่น" : err.message));
+          else if (aerr) alert("บันทึกชื่อเดิมไม่สำเร็จ: " + aerr.message);
           else setTimeout(refresh, 600);
         }));
 

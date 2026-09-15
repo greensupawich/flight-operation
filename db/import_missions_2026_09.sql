@@ -32,6 +32,11 @@ begin
   select id into v_id from public.crew_members
    where regexp_replace(full_name, '\s', '', 'g') = v_clean limit 1;
   if v_id is not null then return v_id; end if;
+  -- ชื่อเดิม (migration_15) — ถ้ายังไม่ได้รันจะข้ามขั้นนี้
+  if to_regclass('public.crew_aliases') is not null then
+    execute 'select crew_member_id from public.crew_aliases where alias = $1' into v_id using v_clean;
+    if v_id is not null then return v_id; end if;
+  end if;
   v_bare := regexp_replace(v_clean, '^([^.]{1,3}\.)+', '');
   select count(*), min(id::text)::uuid into n, v_id from public.crew_members
    where regexp_replace(regexp_replace(full_name, '\s', '', 'g'), '^([^.]{1,3}\.)+', '') = v_bare;

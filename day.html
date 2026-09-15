@@ -155,7 +155,7 @@
         </div>
         <div class="av-msg" id="avMsg">จะแสดงเป็นช่องสีแดงในหน้าคิวบิน</div>`;
       combo = attachCombo(panel.querySelector("#offPick .cb"),
-        roster.map(c => ({ id: c.id, label: c.full_name, hint: c.code,
+        roster.map(c => ({ id: c.id, label: c.full_name, hint: c.code, aliases: c.aliases || [],
                            tag: c.position ? { text: c.position, style: qualStyle(c.position) } : null })),
         { emptyHtml: "ไม่พบชื่อนี้ในทะเบียนนักบิน",
           onChange: ({ item }) => { picked = item; } });

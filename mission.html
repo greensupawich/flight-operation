@@ -235,7 +235,7 @@
     // ใช้ combobox ที่แยกเป็นโมดูล (js/combobox.js) — ผูก crew_member_id ทันทีที่เลือก
     // hint = รหัส (พิมพ์รหัสตรง ๆ ก็ผูกได้) · tag = ชิปสีคุณวุฒิ (พิมพ์ IP/P/CP เพื่อกรองได้)
     const comboItems = () => roster.map(p => ({
-      id: p.id, label: p.full_name, hint: p.code,
+      id: p.id, label: p.full_name, hint: p.code, aliases: p.aliases || [],
       tag: p.position ? { text: p.position, style: qualStyle(p.position) } : null,
     }));
 

@@ -76,3 +76,21 @@ export async function loadMonthlyStats(year, month /* 0-11 */) {
   return by;
 }
 
+// บันทึกชื่อเดิมของนักบิน: ลบที่เอาออก + เพิ่มที่ใหม่ (ไม่แย่งชื่อเดิมของคนอื่น)
+export async function setAliases(crewId, list, current) {
+  const squash = (t) => String(t || "").replace(/\s+/g, "");
+  const want = [...new Set(list.map(squash).filter(Boolean))];
+  const have = (current || []).map(squash);
+  const remove = have.filter((a) => !want.includes(a));
+  const add = want.filter((a) => !have.includes(a));
+  if (remove.length) {
+    const { error } = await supabase.from("crew_aliases").delete().eq("crew_member_id", crewId).in("alias", remove);
+    if (error) return error;
+  }
+  if (add.length) {
+    const { error } = await supabase.from("crew_aliases").insert(add.map((alias) => ({ alias, crew_member_id: crewId })));
+    if (error) return error.message.includes("duplicate")
+      ? { message: "ชื่อเดิมนี้ผูกกับนักบินคนอื่นอยู่แล้ว" } : error;
+  }
+  return null;
+}

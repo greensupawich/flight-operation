@@ -137,11 +137,26 @@ export async function loadAircraft() {
 // ชื่อที่แสดง เช่น "ATR72-600/60301"
 export const acLabel = (a) => a ? `${a.type || ""}/${a.tail_number}` : "-";
 
+// ---------- ชื่อเดิม / ชื่ออื่นของนักบิน (migration_15) ----------
+// คืน Map(crewId -> [ชื่อเดิม]) หรือ null ถ้ายังไม่มีตาราง
+export async function loadAliasMap() {
+  const { data, error } = await supabase.from("crew_aliases").select("alias,crew_member_id");
+  if (error) return null;
+  const map = new Map();
+  (data || []).forEach((a) => {
+    if (!map.has(a.crew_member_id)) map.set(a.crew_member_id, []);
+    map.get(a.crew_member_id).push(a.alias);
+  });
+  return map;
+}
+
 // ---------- ทะเบียนลูกเรือ (ไว้เลือกตอนจัดลูกเรือ — ชม.บินผูกกับรหัสในทะเบียน) ----------
 export async function loadCrewRoster() {
-  const { data } = await supabase.from("crew_members")
-    .select("id,code,full_name,position").eq("active", true).order("full_name");
-  return data || [];
+  const [{ data }, aliases] = await Promise.all([
+    supabase.from("crew_members").select("id,code,full_name,position").eq("active", true).order("full_name"),
+    loadAliasMap(),
+  ]);
+  return (data || []).map((c) => ({ ...c, aliases: aliases?.get(c.id) || [] }));
 }
 
 // ---------- helper ----------

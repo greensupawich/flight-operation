@@ -1,7 +1,7 @@
 // =====================================================================
 //  combobox.js — ช่องพิมพ์ได้ + dropdown ที่ "ผูกกับรายการจริง" เท่านั้น
 //  ต่างจาก <input list=datalist> ตรงที่บอกสถานะชัดว่าผูกสำเร็จหรือยัง
-//  items = [{ id, label, hint, tag?: { text, style } }]
+//  items = [{ id, label, hint, tag?: { text, style }, aliases?: [ชื่อเดิม] }]
 // =====================================================================
 export function attachCombo(root, items, { value = "", id = null, onChange, emptyHtml = "" } = {}) {
   const input = root.querySelector(".cb-input");
@@ -9,15 +9,17 @@ export function attachCombo(root, items, { value = "", id = null, onChange, empt
   const badge = root.querySelector(".cb-badge");
   input.value = value;
 
-  const byLabel = new Map(), byHint = new Map();
+  const squash = (t) => String(t || "").replace(/\s+/g, "").toLowerCase();
+  const byLabel = new Map(), byHint = new Map(), byAlias = new Map();
   items.forEach((it) => {
-    byLabel.set(it.label.trim().toLowerCase(), it);
-    if (it.hint) byHint.set(String(it.hint).trim().toLowerCase(), it);
+    byLabel.set(squash(it.label), it);
+    if (it.hint) byHint.set(squash(it.hint), it);
+    (it.aliases || []).forEach((a) => byAlias.set(squash(a), it));
   });
-  // พิมพ์ได้ทั้งชื่อและรหัส
+  // พิมพ์ได้ทั้งชื่อ รหัส หรือชื่อเดิม (เช่นยศก่อนเลื่อน)
   const resolve = (t) => {
-    const k = (t || "").trim().toLowerCase();
-    return byLabel.get(k) || byHint.get(k) || null;
+    const k = squash(t);
+    return byLabel.get(k) || byHint.get(k) || byAlias.get(k) || null;
   };
 
   function mark(item) {
@@ -34,7 +36,8 @@ export function attachCombo(root, items, { value = "", id = null, onChange, empt
     const hits = items.filter((it) => !k
       || it.label.toLowerCase().includes(k)
       || String(it.hint || "").toLowerCase().includes(k)
-      || String(it.tag?.text || "").toLowerCase() === k).slice(0, 60);
+      || String(it.tag?.text || "").toLowerCase() === k
+      || (it.aliases || []).some((a) => a.toLowerCase().includes(k.replace(/\s+/g, "")))).slice(0, 60);
     list.innerHTML = hits.length
       ? hits.map((it) => `<div class="cb-opt" data-id="${it.id}">
            <b>${it.tag ? `<i class="cb-tag" style="${it.tag.style}">${esc(it.tag.text)}</i>` : ""}${esc(it.label)}</b>
