@@ -42,7 +42,7 @@ export async function loadHistory(first, last) {
     supabase.from("queue_entries").select("crew_member_id,entry_date,code,kind,ac_type")
       .gte("entry_date", first).lte("entry_date", last),
     supabase.from("missions")
-      .select("id,mission_date,kind,route,callsign,mission_name,aircraft(type,tail_number),mission_crew(crew_member_id,position)")
+      .select("id,mission_date,kind,status,route,callsign,mission_name,aircraft(type,tail_number),mission_crew(crew_member_id,position)")
       .gte("mission_date", first).lte("mission_date", last),
   ]);
   return { entries: e.data || [], missions: m.data || [] };
@@ -59,7 +59,7 @@ export async function loadQueueMonth(y, m) {
   const [crew, missions, holidays, unavailable, airfields] = await Promise.all([
     loadCrewForQueue(),
     supabase.from("missions")
-      .select("id,mission_date,kind,route,callsign,mission_name,aircraft(type,tail_number),mission_crew(crew_member_id,position)")
+      .select("id,mission_date,kind,status,route,callsign,mission_name,aircraft(type,tail_number),mission_crew(crew_member_id,position)")
       .gte("mission_date", first).lte("mission_date", last),
     supabase.from("holidays").select("holiday_date,name").gte("holiday_date", first).lte("holiday_date", last),
     supabase.from("crew_unavailable").select("crew_member_id,off_date,note").gte("off_date", first).lte("off_date", last),

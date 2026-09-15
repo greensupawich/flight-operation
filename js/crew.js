@@ -48,7 +48,7 @@ export async function loadMonthlyStats(year, month /* 0-11 */) {
 
   const { data, error } = await supabase
     .from("mission_crew")
-    .select("crew_member_id, position, mission_id, missions!inner(mission_date, post_flight_reports(total_hours))")
+    .select("crew_member_id, position, mission_id, missions!inner(mission_date, status, post_flight_reports(total_hours))")
     .not("crew_member_id", "is", null)
     .gte("missions.mission_date", first)
     .lte("missions.mission_date", last);
@@ -62,6 +62,7 @@ export async function loadMonthlyStats(year, month /* 0-11 */) {
     const rep = r.missions?.post_flight_reports;            // 1 ภารกิจ = 1 รายงาน (object หรือ array)
     const report = Array.isArray(rep) ? rep[0] : rep;
     if (!report) return;                                     // ยังไม่มีรายงาน = ยังไม่ถือว่าบินแล้ว
+    if (r.missions?.status === "cancelled") return;          // ยกเลิก = ไม่นับเที่ยวบิน
     const key = `${r.crew_member_id}|${r.mission_id}`;
     if (!perMission.has(key)) perMission.set(key, { member: r.crew_member_id, positions: new Set(), report });
     perMission.get(key).positions.add(pos);

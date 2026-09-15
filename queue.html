@@ -57,6 +57,7 @@
   .chip{flex:1;display:flex;align-items:center;justify-content:center;padding:0 3px;min-height:26px;
         font-family:"IBM Plex Mono",monospace;font-weight:600;font-size:11px;border-bottom:1px solid rgba(0,0,0,.08)}
   .chip:last-child{border-bottom:0}
+  .chip.cx{opacity:.45;text-decoration:line-through}      /* ภารกิจที่ยกเลิก */
   td.off .chip{box-shadow:inset 4px 0 0 var(--q-off-strong)}
 
   /* ---- กล่องแก้ช่อง ---- */
@@ -265,6 +266,7 @@
           return { text: m.kind === "stby" ? "ST" : (maps.codeMap.get(p) || ""),   // ไม่มีรหัส → แสดงแต่สี
                    kind: m.kind, ac: /500/.test(m.aircraft?.type || "") ? "500" : "600",
                    st: m.kind === "stby",
+                   cancelled: m.status === "cancelled",          // ยกเลิก → แสดงจาง ไม่นับคิว
                    tip: `${KINDS[m.kind] || ""} · ${m.callsign || ""} · ${m.route || ""}` };
         }) };
     }
@@ -273,7 +275,7 @@
       const c = cellItems(crewId, d);
       if (!c.items.length) return "";
       return `<div class="chips">${c.items.map(it =>
-        `<span class="chip" style="${chipStyle(it.kind, it.ac)}">${esc(it.text)}</span>`).join("")}</div>`;
+        `<span class="chip${it.cancelled ? " cx" : ""}" style="${chipStyle(it.kind, it.ac)}">${esc(it.text)}</span>`).join("")}</div>`;
     }
 
     function cellClass(crewId, d) {
@@ -291,13 +293,13 @@
       const k = `${crewId}|${d}`, c = cellItems(crewId, d), parts = [];
       if (maps.offMap.has(k)) parts.push("ไม่ว่าง" + (maps.offMap.get(k) ? ": " + maps.offMap.get(k) : ""));
       if (c.manual) parts.push(`แก้เอง: ${c.items[0].text || "(สีอย่างเดียว)"} · ${KINDS[c.items[0].kind] || ""} · ATR72-${c.items[0].ac}`);
-      c.missions.forEach(m => parts.push(`ภารกิจ: ${KINDS[m.kind] || ""} · ${m.callsign || ""} · ${m.route || ""}`));
+      c.missions.forEach(m => parts.push(`ภารกิจ: ${KINDS[m.kind] || ""} · ${m.callsign || ""} · ${m.route || ""}${m.status === "cancelled" ? " · ยกเลิก (ไม่นับคิว)" : ""}`));
       return parts.join("\n");
     }
 
     function rowCounts(crewId) {
       let fly = 0, st = 0;
-      dates.forEach(d => cellItems(crewId, d).items.forEach(it => it.st ? st++ : fly++));
+      dates.forEach(d => cellItems(crewId, d).items.forEach(it => { if (!it.cancelled) it.st ? st++ : fly++; }));
       return { fly, st };
     }
 
@@ -310,7 +312,7 @@
         ? rankQueue({
             crew: data.crew, monthDates: dates, target,
             isOff: d => isWeekend(d) || maps.holidayMap.has(d) || aheadHol.has(d),
-            itemsFor: (id, d) => cellItems(id, d).items,
+            itemsFor: (id, d) => cellItems(id, d).items.filter(it => !it.cancelled),   // ยกเลิกไม่นับคิว
             isUnavailable: (id, d) => maps.offMap.has(`${id}|${d}`),
             historyStart: addDays(target, -120),
           })
@@ -335,8 +337,9 @@
           if (ranks && d === target) {
             cls += " target";
             const r = ranks.get(p.id);
-            if (!inner && r && r.rank) {
-              inner = `<span class="qno">${r.rank}</span>`;
+            const liveItems = cellItems(p.id, d).items.filter(it => !it.cancelled);
+            if (!liveItems.length && r && r.rank) {                 // ว่าง หรือมีแต่ภารกิจที่ยกเลิก
+              inner = `<span class="qno">${r.rank}</span>` + inner;
               t = `คิวที่ ${r.rank} (${r.group === "CP" ? "CP" : "IP/P"}) · บินจริง ${r.flights} เที่ยว (ไม่นับวันหยุด) · บินล่าสุด ${r.last ? thaiShort(r.last) : "ไม่มีข้อมูล"}` + (t ? "\n" + t : "");
             }
           }
