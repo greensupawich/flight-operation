@@ -15,22 +15,20 @@
   .home-head .links{margin-inline-start:auto;display:flex;gap:8px;flex-wrap:wrap}
 
   /* กระดาน: แผงสถานภาพเครื่อง (ซ้าย) + การ์ดภารกิจ (ขวา) */
-  .board{display:grid;grid-template-columns:380px minmax(0,1fr);gap:18px;align-items:start}
-  @media(max-width:980px){ .board{grid-template-columns:1fr} }
-
-  /* โหมดพอดีจอเดียว (auto-scale) — จอกว้างเท่านั้น */
   #fit{overflow:hidden}
   #fit>.board{transform-origin:top left}
-  body.fit-on{overflow:hidden}
-  body.fit-on .page-head{padding:12px 0 6px}
-  body.fit-on .page-head h1{font-size:20px;margin-bottom:2px}
-  body.fit-on .acp{position:static}   /* ปิด sticky ในโหมดพอดีจอ */
-  /* การ์ดภารกิจ 3 ใบต่อบรรทัด (ย่อขนาดให้พอดี) */
+  .board{display:grid;grid-template-columns:380px minmax(0,1fr);gap:18px;align-items:start}
+  /* การ์ดภารกิจ 3 ใบต่อบรรทัดเสมอ */
   .sheets.three{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;align-items:start}
-  @media(max-width:1500px){ .sheets.three{grid-template-columns:repeat(2,minmax(0,1fr))} }
-  @media(max-width:980px){  .sheets.three{grid-template-columns:repeat(3,minmax(0,1fr))} }
-  @media(max-width:820px){  .sheets.three{grid-template-columns:repeat(2,minmax(0,1fr))} }
-  @media(max-width:560px){  .sheets.three{grid-template-columns:1fr} }
+
+  /* โหมด scale ความกว้างพอดีจอ: บังคับเลย์เอาต์เดสก์ท็อป ไม่ให้ media query ทำการ์ดตกบรรทัด */
+  body.fit-w .board{grid-template-columns:380px minmax(0,1fr)}
+  body.fit-w .sheets.three{grid-template-columns:repeat(3,minmax(0,1fr))}
+  /* จอแคบ (มือถือ) ที่ไม่ scale: ยุบเป็นคอลัมน์เดียว เลื่อนได้ปกติ */
+  @media(max-width:700px){
+    body:not(.fit-w) .board{grid-template-columns:1fr}
+    body:not(.fit-w) .sheets.three{grid-template-columns:1fr}
+  }
 
   /* ย่อการ์ดบนกระดานหน้าหลักให้ 3 ใบพอดีในคอลัมน์ขวา */
   .board .sheet-top{padding:6px 9px;gap:6px}
@@ -262,7 +260,7 @@
         editBtn.style.display = on ? "none" : "";
         saveBtn.style.display = on ? "" : "none";
         cancelBtn.style.display = on ? "" : "none";
-        fitBoard();
+        fitWidth();
       };
       editBtn.addEventListener("click", () => toggle(true));
       cancelBtn.addEventListener("click", () => { refresh(); });
@@ -295,28 +293,26 @@
         ? list.map(m => sheetHTML(m, { planner })).join("")
         : `<div class="empty" style="grid-column:1/-1">ยังไม่มีภารกิจในวันนี้${planner ? ' · กด "+ เพิ่มภารกิจ" เพื่อสร้าง' : ""}</div>`;
       wireSheetDelete(box, refresh);
-      fitBoard();
-      setTimeout(fitBoard, 250);   // เผื่อฟอนต์/เลย์เอาต์ปรับตัวหลังโหลด
+      fitWidth();
+      setTimeout(fitWidth, 250);   // เผื่อฟอนต์/เลย์เอาต์ปรับตัวหลังโหลด
     }
 
-    // ย่อ/ขยายกระดานให้พอดีจอเดียว ไม่ต้อง scroll (เฉพาะจอกว้าง ≥900px)
-    function fitBoard() {
+    // scale ทั้งกระดานให้ "ความกว้าง" พอดีจอ (การ์ด 3 ใบอยู่บรรทัดแรกเสมอ) · แนวตั้งเลื่อนได้ปกติ
+    const DESIGN_W = 1520;
+    function fitWidth() {
       const fit = document.getElementById("fit");
       const board = fit && fit.querySelector(".board");
       if (!board) return;
-      board.style.transform = "none"; fit.style.height = "";
-      if (window.innerWidth < 900) { document.body.classList.remove("fit-on"); return; }
-      document.body.classList.add("fit-on");
-      const top = fit.getBoundingClientRect().top;
-      const availH = window.innerHeight - top - 12;
-      const availW = fit.clientWidth;
-      const w = board.scrollWidth, h = board.scrollHeight;
-      if (!w || !h) return;
-      const s = Math.min(availW / w, availH / h, 1.5);   // จำกัดการขยายไม่เกิน 1.5 เท่า
+      board.style.transform = "none"; board.style.width = ""; fit.style.height = "";
+      if (window.innerWidth < 700) { document.body.classList.remove("fit-w"); return; }
+      document.body.classList.add("fit-w");
+      board.style.width = DESIGN_W + "px";
+      const h = board.scrollHeight;
+      const s = fit.clientWidth / DESIGN_W;
       board.style.transform = `scale(${s})`;
       fit.style.height = (h * s) + "px";
     }
-    let fitT; addEventListener("resize", () => { clearTimeout(fitT); fitT = setTimeout(fitBoard, 120); });
+    let fitT; addEventListener("resize", () => { clearTimeout(fitT); fitT = setTimeout(fitWidth, 120); });
 
     refresh();
   }
