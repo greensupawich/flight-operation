@@ -391,14 +391,14 @@
       const col = (group, title) => {
         const rows = [...ranks.values()].filter(r => r.group === group);
         const ranked = rows.filter(r => r.rank).sort((a, b) => a.rank - b.rank);
-        const skipped = rows.filter(r => !r.rank);
+        const skipped = rows.filter(r => r.reason === "ไม่ว่าง");   // แสดงเฉพาะคนที่ไม่ว่าง
         return `<div class="qcol"><h4>${title} <span class="muted" style="font-weight:400">(${ranked.length} คน)</span></h4>
           <ol class="qlist">${ranked.map(r => {
             const c = byId.get(r.id);
             return `<li><span class="qno">${r.rank}</span><span class="nm" style="${qualStyle(c.position)}">${esc(c.full_name)}</span>
               <span class="meta">บิน ${r.flights} · ล่าสุด ${r.last ? thaiShort(r.last) : "—"}</span></li>`;
           }).join("") || `<li class="muted">ไม่มีผู้ที่นับคิวได้</li>`}</ol>
-          ${skipped.length ? `<div class="qskip">ไม่ได้คิว: ${skipped.map(r => `${esc(byId.get(r.id).full_name)} (${r.reason})`).join(", ")}</div>` : ""}</div>`;
+          ${skipped.length ? `<div class="qskip">ไม่ว่าง: ${skipped.map(r => esc(byId.get(r.id).full_name)).join(", ")}</div>` : ""}</div>`;
       };
       box.innerHTML = `<h3>คิวบิน · ${thaiLong(target)}</h3>
         <p class="rule">บินจริงน้อยสุดก่อน (ไม่นับ ST และเที่ยวที่บินในวันหยุด ในเดือนนี้) → บินล่าสุดนานกว่าก่อน → ชื่ออยู่บนก่อน · ติ๊กหน้าชื่อเพื่อนับคิว</p>

@@ -214,9 +214,11 @@ select x->>'callsign' as "COWBOY", x->>'to' as "T/O", left(x->>'name', 45) as "�
 ]$json$::jsonb) with ordinality as t(x, n)
  order by n;
 
--- น.จัดบินภารกิจ วันที่ 18 ก.ย.69 (เก็บใต้ log_date ของกระดาน = 2026-09-17)
-insert into public.day_notes (log_date, duty_officer, duty_phone, updated_at)
-values ('2026-09-17', 'ร.อ.บัณฑิต', '09 4404 4884', now())
+-- น.จัดบินภารกิจ: กระดาน 17 ก.ย. มีชื่อ 2 อัน — วันนี้ (17) และพรุ่งนี้ (18)
+-- แต่ละแถวเก็บใต้ log_date ของ "วันที่รับผิดชอบ" (หน้า home อ่านของวันนี้ + วันถัดไป)
+insert into public.day_notes (log_date, duty_officer, duty_phone, updated_at) values
+  ('2026-09-17', 'ร.อ.บัณฑิต', '09 4404 4884', now()),   -- น.จัดบินวันนี้ (17 ก.ย.)
+  ('2026-09-18', 'ร.อ.บัณฑิต', '09 4404 4884', now())    -- น.จัดบินพรุ่งนี้ (18 ก.ย.)
 on conflict (log_date) do update
   set duty_officer = excluded.duty_officer, duty_phone = excluded.duty_phone, updated_at = now();
 

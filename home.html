@@ -77,6 +77,8 @@
 
   /* ---- ท้ายกระดาน: น.จัดบินภารกิจ (วันถัดไป) ---- */
   .acp-foot{border-top:2px solid var(--line-strong);background:var(--surface-2);padding:9px 10px}
+  .acp-foot .fline{padding:5px 0}
+  .acp-foot .fline + .fline{border-top:1px dashed var(--line)}
   .acp-foot .lb{font-size:11.5px;font-weight:700;color:var(--muted);text-align:center;margin-bottom:6px}
   .acp-foot .lb .dt{color:var(--primary)}
   .acp-foot .show{text-align:center;font-size:13px;font-weight:600;color:var(--ink);min-height:18px}
@@ -155,21 +157,24 @@
     };
     const tail3 = (t) => String(t || "").slice(-3);
 
-    // วันถัดไป (สำหรับ "น.จัดบินภารกิจ วันที่ …") แบบ พ.ศ. ย่อ เช่น 17 ก.ย.69
+    // วัน (พ.ศ. ย่อ เช่น 17 ก.ย.69) ของวันนี้และวันพรุ่งนี้
     const TH_MON_SHORT = ["ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."];
-    const nextDayTH = () => { const d = new Date(n.getFullYear(), n.getMonth(), n.getDate()+1);
-      return `${d.getDate()} ${TH_MON_SHORT[d.getMonth()]}${String(d.getFullYear()+543).slice(-2)}`; };
+    const shortTH = (d) => `${d.getDate()} ${TH_MON_SHORT[d.getMonth()]}${String(d.getFullYear()+543).slice(-2)}`;
+    const nDate = new Date(n.getFullYear(), n.getMonth(), n.getDate());          // วันนี้ (เที่ยงคืน)
+    const nNext = new Date(n.getFullYear(), n.getMonth(), n.getDate()+1);        // พรุ่งนี้
+    const ymd = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+    const nextDate = ymd(nNext);
 
-    // น.จัดบินภารกิจ (ระดับวัน) — เก็บใน day_notes (migration_20)
-    async function loadDayNote() {
+    // น.จัดบินภารกิจ (ระดับวัน) — เก็บใน day_notes (migration_20) · พรุ่งนี้ = แถวของวันถัดไป
+    async function loadDayNote(d) {
       const { data, error } = await supabase.from("day_notes")
-        .select("duty_officer,duty_phone").eq("log_date", date).maybeSingle();
+        .select("duty_officer,duty_phone").eq("log_date", d).maybeSingle();
       if (error) { console.warn("day_notes:", error.message); return null; }
       return data;
     }
-    async function saveDayNote(officer, phone) {
+    async function saveDayNote(d, officer, phone) {
       const { error } = await supabase.from("day_notes")
-        .upsert({ log_date: date, duty_officer: officer || null, duty_phone: phone || null, updated_at: new Date().toISOString() },
+        .upsert({ log_date: d, duty_officer: officer || null, duty_phone: phone || null, updated_at: new Date().toISOString() },
                 { onConflict: "log_date" });
       return error;
     }
@@ -210,20 +215,26 @@
       }).join("");
     }
 
-    // ท้ายกระดาน: ช่องกรอกชื่อ น.จัดบินภารกิจ (วันถัดไป) — แก้ได้เฉพาะผู้วางแผน
-    function footHTML(note) {
+    // ท้ายกระดาน: น.จัดบินภารกิจ วันนี้ + พรุ่งนี้ — แก้ได้เฉพาะผู้วางแผน
+    function footLine(note, labelHTML, key) {
       const officer = note?.duty_officer || "", phone = note?.duty_phone || "";
       const show = officer
         ? `${esc(officer)}${phone ? `<span class="ph">${esc(phone)}</span>` : ""}`
         : `<span class="none">${planner ? "— กดแก้ไขเพื่อกรอกชื่อ —" : "— ยังไม่ระบุ —"}</span>`;
+      return `<div class="fline">
+        <div class="lb">${labelHTML}</div>
+        <div class="show">${show}</div>
+        ${planner ? `<div class="edit">
+          <input data-officer="${key}" value="${esc(officer)}" placeholder="ชื่อ น.จัดบินภารกิจ เช่น ร.อ.บัณฑิต">
+          <input class="ph" data-phone="${key}" value="${esc(phone)}" placeholder="เบอร์โทร">
+        </div>` : ""}
+      </div>`;
+    }
+    function footHTML(noteToday, noteNext) {
       return `<div class="acp-foot" id="foot">
-        <div class="lb">น.จัดบินภารกิจ วันที่ <span class="dt">${nextDayTH()}</span></div>
-        <div class="show" data-show>${show}</div>
+        ${footLine(noteToday, `น.จัดบินภารกิจวันนี้ <span class="dt">${shortTH(nDate)}</span>`, "today")}
+        ${footLine(noteNext,  `น.จัดบินภารกิจพรุ่งนี้ <span class="dt">${shortTH(nNext)}</span>`, "next")}
         ${planner ? `
-        <div class="edit">
-          <input data-officer value="${esc(officer)}" placeholder="ชื่อ น.จัดบินภารกิจ เช่น ร.อ.บัณฑิต">
-          <input class="ph" data-phone value="${esc(phone)}" placeholder="เบอร์โทร">
-        </div>
         <div class="tools">
           <button class="btn sm ghost" data-edit>แก้ไข</button>
           <button class="btn sm primary" data-save style="display:none">บันทึก</button>
@@ -232,7 +243,7 @@
       </div>`;
     }
 
-    function renderAcp(aircraft, defMap, chkMap, stbys, note) {
+    function renderAcp(aircraft, defMap, chkMap, stbys, noteToday, noteNext) {
       const box = document.getElementById("acp");
       const rows = aircraft.length
         ? aircraft.map(a => acpRow(a, defMap.get(a.id) || [], chkMap.get(a.id) || [])).join("")
@@ -245,7 +256,7 @@
         </div>
         ${rows}
         ${stbyBlock(stbys)}
-        ${footHTML(note)}`;
+        ${footHTML(noteToday, noteNext)}`;
       wireFoot();
     }
 
@@ -266,9 +277,10 @@
       cancelBtn.addEventListener("click", () => { refresh(); });
       saveBtn.addEventListener("click", async () => {
         saveBtn.disabled = true; saveBtn.textContent = "…";
-        const err = await saveDayNote(
-          foot.querySelector("[data-officer]").value.trim(),
-          foot.querySelector("[data-phone]").value.trim());
+        const val = (sel) => foot.querySelector(sel).value.trim();
+        const e1 = await saveDayNote(date, val('[data-officer="today"]'), val('[data-phone="today"]'));
+        const e2 = await saveDayNote(nextDate, val('[data-officer="next"]'), val('[data-phone="next"]'));
+        const err = e1 || e2;
         if (err) { alert("บันทึกไม่สำเร็จ: " + err.message); saveBtn.disabled = false; saveBtn.textContent = "บันทึก"; }
         else refresh();
       });
@@ -276,13 +288,14 @@
 
     async function refresh() {
       const box = document.getElementById("sheets");
-      const [all, aircraft, defMap, chkMap, note] = await Promise.all([
-        loadMissionsByDate(date), loadAircraft(), loadDefects(), loadChecks(), loadDayNote()
+      const [all, aircraft, defMap, chkMap, noteToday, noteNext] = await Promise.all([
+        loadMissionsByDate(date), loadAircraft(), loadDefects(), loadChecks(),
+        loadDayNote(date), loadDayNote(nextDate)
       ]);
       const stbys = all.filter(m => m.kind === "stby");
       const list = sortByTakeoff(all.filter(m => m.kind !== "stby"));
 
-      renderAcp(aircraft, defMap, chkMap, stbys, note);
+      renderAcp(aircraft, defMap, chkMap, stbys, noteToday, noteNext);
 
       const done = list.filter(m => m.status !== "cancelled" && reportOf(m)).length;
       const cancelled = list.filter(m => m.status === "cancelled").length;
