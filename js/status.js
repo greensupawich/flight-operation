@@ -60,3 +60,13 @@ export async function loadRecentDiscrepancies() {
   });
   return out;
 }
+
+// สถานภาพของทุกเครื่อง ณ วันที่กำหนด (จากประวัติ migration_18)
+// คืน Map(aircraftId -> { status, note, log_date }) · ถ้ายังไม่มีตารางประวัติ คืน null
+export async function loadStatusOn(dateStr) {
+  const { data, error } = await supabase.rpc("aircraft_status_on", { p_date: dateStr });
+  if (error) return null;
+  const map = new Map();
+  (data || []).forEach((r) => map.set(r.aircraft_id, { status: r.status, note: r.note, log_date: r.log_date }));
+  return map;
+}

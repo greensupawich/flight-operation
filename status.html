@@ -46,14 +46,23 @@
   .ac-edit input{flex:1;min-width:120px}
   .ac-edit .btn{flex:none}
   .updated{font-size:11px;color:var(--faint);margin-top:2px}
+  .histbar{background:var(--accent-soft);color:var(--warn);border-radius:9px;padding:9px 13px;
+           font-size:12.5px;margin-bottom:14px;font-weight:600}
 </style>
 </head>
 <body>
 <main>
   <div class="wrap">
-    <div class="page-head">
-      <h1>สถานภาพเครื่อง</h1>
-      <div class="sub" id="sub">กำลังโหลด…</div>
+    <div class="page-head" style="display:flex;align-items:end;gap:14px;flex-wrap:wrap">
+      <div>
+        <h1>สถานภาพเครื่อง</h1>
+        <div class="sub" id="sub">กำลังโหลด…</div>
+      </div>
+      <div style="margin-inline-start:auto;display:flex;align-items:center;gap:8px">
+        <label for="datePick" style="margin:0;font-size:13px">ณ วันที่:</label>
+        <input type="date" id="datePick" style="width:auto">
+        <button class="btn sm ghost" id="todayBtn">วันนี้</button>
+      </div>
     </div>
     <div class="legend">
       <span><i class="sw" style="background:#2E7D5B;color:#fff">FMC</i>พร้อมบิน</span>
@@ -61,6 +70,7 @@
       <span><i class="sw" style="background:#C0392B;color:#fff">NMC</i>ไม่พร้อมบิน</span>
       <span style="margin-inline-start:auto" id="planHint"></span>
     </div>
+    <div class="histbar" id="histbar" hidden></div>
     <div class="ac-grid" id="grid"><div class="empty">กำลังโหลด…</div></div>
   </div>
 </main>
@@ -68,7 +78,7 @@
 <script type="module">
   import { requireAuth, canPlan } from "./js/auth.js";
   import { renderTopbar } from "./js/ui.js";
-  import { loadAircraft, setAircraftStatus, loadRecentDiscrepancies,
+  import { loadAircraft, setAircraftStatus, loadRecentDiscrepancies, loadStatusOn,
            AC_STATUS, AC_STATUS_LABEL, AC_STATUS_COLORS } from "./js/status.js";
 
   const profile = await requireAuth();
@@ -97,6 +107,13 @@
     }
 
     let discMap = new Map();
+    let viewDate = todayStr();     // yyyy-mm-dd ที่กำลังดู
+    let editable = true;           // แก้ได้เฉพาะเมื่อดู "วันนี้"
+
+    function todayStr() {
+      const n = new Date();
+      return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,"0")}-${String(n.getDate()).padStart(2,"0")}`;
+    }
 
     function card(a) {
       const opts = AC_STATUS.map(s => `<option value="${s}" ${s===a.status?"selected":""}>${AC_STATUS_LABEL[s]}</option>`).join("");
@@ -115,7 +132,7 @@
           <h4 style="margin-top:12px">ข้อขัดข้อง · 3 ไฟลท์ล่าสุด</h4>
           ${flightsHTML(discMap.get(a.id))}
         </div>
-        ${planner ? `
+        ${planner && editable ? `
         <div class="ac-edit">
           <select data-status>${opts}</select>
           <input data-note value="${esc(a.status_note || "")}" placeholder="หมายเหตุสถานภาพ (ถ้ามี)">
@@ -125,11 +142,28 @@
     }
 
     async function refresh() {
+      editable = viewDate >= todayStr();     // อดีต = อ่านอย่างเดียว
       const [list, disc] = await Promise.all([loadAircraft(), loadRecentDiscrepancies()]);
+
+      // ดูย้อนหลัง → แทนที่สถานภาพด้วยค่าจากประวัติ ณ วันนั้น + ข้อขัดข้องถึงวันนั้น
+      if (!editable) {
+        const hist = await loadStatusOn(viewDate);
+        if (hist === null) {
+          document.getElementById("histbar").hidden = false;
+          document.getElementById("histbar").textContent = "ยังไม่มีประวัติสถานภาพ — ต้องรัน migration_18_aircraft_status_history.sql";
+        }
+        list.forEach(a => { const h = hist && hist.get(a.id);
+          if (h) { a.status = h.status; a.status_note = h.note; a.status_updated_at = null; } });
+        disc.forEach((flights, id) => disc.set(id, flights.filter(f => String(f.date) <= viewDate).slice(0,3)));
+      }
       discMap = disc;
+
       const grid = document.getElementById("grid");
       const cnt = { FMC:0, PMC:0, NMC:0 };
       list.forEach(a => cnt[a.status] = (cnt[a.status]||0)+1);
+      const bar = document.getElementById("histbar");
+      if (editable) { bar.hidden = true; }
+      else if (bar.hidden !== false) { bar.hidden = false; bar.textContent = `กำลังดูสถานภาพย้อนหลัง ณ ${thDate(viewDate)} (อ่านอย่างเดียว)`; }
       document.getElementById("sub").textContent = list.length
         ? `${list.length} เครื่อง · FMC ${cnt.FMC} · PMC ${cnt.PMC} · NMC ${cnt.NMC}`
         : "ยังไม่มีเครื่องในระบบ";
@@ -146,6 +180,10 @@
           else refresh();
         }));
     }
+    const dp = document.getElementById("datePick");
+    dp.value = viewDate; dp.max = todayStr();
+    dp.addEventListener("change", () => { viewDate = dp.value || todayStr(); document.getElementById("histbar").hidden = true; refresh(); });
+    document.getElementById("todayBtn").addEventListener("click", () => { viewDate = todayStr(); dp.value = viewDate; document.getElementById("histbar").hidden = true; refresh(); });
     refresh();
   }
 </script>
