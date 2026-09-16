@@ -58,6 +58,20 @@
   .acp-stby .cw .rl{font-family:"IBM Plex Mono",monospace;font-weight:700;color:var(--muted)}
   .acp-stby .poc{margin-top:5px;font-size:11px;color:var(--muted)}
   .acp-empty{padding:10px;text-align:center;color:var(--faint);font-size:12px}
+
+  /* ---- ท้ายกระดาน: น.จัดบินภารกิจ (วันถัดไป) ---- */
+  .acp-foot{border-top:2px solid var(--line-strong);background:var(--surface-2);padding:9px 10px}
+  .acp-foot .lb{font-size:11.5px;font-weight:700;color:var(--muted);text-align:center;margin-bottom:6px}
+  .acp-foot .lb .dt{color:var(--primary)}
+  .acp-foot .show{text-align:center;font-size:13px;font-weight:600;color:var(--ink);min-height:18px}
+  .acp-foot .show .ph{font-family:"IBM Plex Mono",monospace;color:var(--muted);margin-inline-start:8px;font-weight:500}
+  .acp-foot .show .none{color:var(--faint);font-weight:400}
+  .acp-foot .edit{display:none;gap:6px;flex-wrap:wrap}
+  .acp-foot.editing .edit{display:flex}
+  .acp-foot.editing .show{display:none}
+  .acp-foot .edit input{flex:1;min-width:110px;font-size:12.5px;padding:5px 8px}
+  .acp-foot .edit input.ph{flex:none;width:130px;font-family:"IBM Plex Mono",monospace}
+  .acp-foot .tools{display:flex;justify-content:center;gap:8px;margin-top:6px}
 </style>
 </head>
 <body>
@@ -89,6 +103,7 @@
   import { loadMissionsByDate, reportOf } from "./js/missions.js";
   import { sheetHTML, sortByTakeoff, wireSheetDelete } from "./js/mission-sheet.js";
   import { loadAircraft, loadDefects, loadChecks } from "./js/status.js";
+  import { supabase } from "./js/supabase.js";
 
   const profile = await getCurrentProfile();
 
@@ -121,6 +136,25 @@
       return m ? m[1] : a.status;         // แสดง NMCS ตามกระดานถ้ามีในหมายเหตุ
     };
     const tail3 = (t) => String(t || "").slice(-3);
+
+    // วันถัดไป (สำหรับ "น.จัดบินภารกิจ วันที่ …") แบบ พ.ศ. ย่อ เช่น 17 ก.ย.69
+    const TH_MON_SHORT = ["ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."];
+    const nextDayTH = () => { const d = new Date(n.getFullYear(), n.getMonth(), n.getDate()+1);
+      return `${d.getDate()} ${TH_MON_SHORT[d.getMonth()]}${String(d.getFullYear()+543).slice(-2)}`; };
+
+    // น.จัดบินภารกิจ (ระดับวัน) — เก็บใน day_notes (migration_20)
+    async function loadDayNote() {
+      const { data, error } = await supabase.from("day_notes")
+        .select("duty_officer,duty_phone").eq("log_date", date).maybeSingle();
+      if (error) { console.warn("day_notes:", error.message); return null; }
+      return data;
+    }
+    async function saveDayNote(officer, phone) {
+      const { error } = await supabase.from("day_notes")
+        .upsert({ log_date: date, duty_officer: officer || null, duty_phone: phone || null, updated_at: new Date().toISOString() },
+                { onConflict: "log_date" });
+      return error;
+    }
 
     function acpRow(a, defs, chks) {
       const dHTML = defs.length
@@ -158,7 +192,29 @@
       }).join("");
     }
 
-    function renderAcp(aircraft, defMap, chkMap, stbys) {
+    // ท้ายกระดาน: ช่องกรอกชื่อ น.จัดบินภารกิจ (วันถัดไป) — แก้ได้เฉพาะผู้วางแผน
+    function footHTML(note) {
+      const officer = note?.duty_officer || "", phone = note?.duty_phone || "";
+      const show = officer
+        ? `${esc(officer)}${phone ? `<span class="ph">${esc(phone)}</span>` : ""}`
+        : `<span class="none">${planner ? "— กดแก้ไขเพื่อกรอกชื่อ —" : "— ยังไม่ระบุ —"}</span>`;
+      return `<div class="acp-foot" id="foot">
+        <div class="lb">น.จัดบินภารกิจ วันที่ <span class="dt">${nextDayTH()}</span></div>
+        <div class="show" data-show>${show}</div>
+        ${planner ? `
+        <div class="edit">
+          <input data-officer value="${esc(officer)}" placeholder="ชื่อ น.จัดบินภารกิจ เช่น ร.อ.บัณฑิต">
+          <input class="ph" data-phone value="${esc(phone)}" placeholder="เบอร์โทร">
+        </div>
+        <div class="tools">
+          <button class="btn sm ghost" data-edit>แก้ไข</button>
+          <button class="btn sm primary" data-save style="display:none">บันทึก</button>
+          <button class="btn sm ghost" data-cancel style="display:none">ยกเลิก</button>
+        </div>` : ""}
+      </div>`;
+    }
+
+    function renderAcp(aircraft, defMap, chkMap, stbys, note) {
       const box = document.getElementById("acp");
       const rows = aircraft.length
         ? aircraft.map(a => acpRow(a, defMap.get(a.id) || [], chkMap.get(a.id) || [])).join("")
@@ -170,18 +226,44 @@
           <div class="t3">ATR72-500/600</div>
         </div>
         ${rows}
-        ${stbyBlock(stbys)}`;
+        ${stbyBlock(stbys)}
+        ${footHTML(note)}`;
+      wireFoot();
+    }
+
+    function wireFoot() {
+      const foot = document.getElementById("foot");
+      if (!foot || !planner) return;
+      const editBtn = foot.querySelector("[data-edit]");
+      const saveBtn = foot.querySelector("[data-save]");
+      const cancelBtn = foot.querySelector("[data-cancel]");
+      const toggle = (on) => {
+        foot.classList.toggle("editing", on);
+        editBtn.style.display = on ? "none" : "";
+        saveBtn.style.display = on ? "" : "none";
+        cancelBtn.style.display = on ? "" : "none";
+      };
+      editBtn.addEventListener("click", () => toggle(true));
+      cancelBtn.addEventListener("click", () => { refresh(); });
+      saveBtn.addEventListener("click", async () => {
+        saveBtn.disabled = true; saveBtn.textContent = "…";
+        const err = await saveDayNote(
+          foot.querySelector("[data-officer]").value.trim(),
+          foot.querySelector("[data-phone]").value.trim());
+        if (err) { alert("บันทึกไม่สำเร็จ: " + err.message); saveBtn.disabled = false; saveBtn.textContent = "บันทึก"; }
+        else refresh();
+      });
     }
 
     async function refresh() {
       const box = document.getElementById("sheets");
-      const [all, aircraft, defMap, chkMap] = await Promise.all([
-        loadMissionsByDate(date), loadAircraft(), loadDefects(), loadChecks()
+      const [all, aircraft, defMap, chkMap, note] = await Promise.all([
+        loadMissionsByDate(date), loadAircraft(), loadDefects(), loadChecks(), loadDayNote()
       ]);
       const stbys = all.filter(m => m.kind === "stby");
       const list = sortByTakeoff(all.filter(m => m.kind !== "stby"));
 
-      renderAcp(aircraft, defMap, chkMap, stbys);
+      renderAcp(aircraft, defMap, chkMap, stbys, note);
 
       const done = list.filter(m => m.status !== "cancelled" && reportOf(m)).length;
       const cancelled = list.filter(m => m.status === "cancelled").length;
