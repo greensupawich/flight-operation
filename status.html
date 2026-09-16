@@ -10,10 +10,11 @@
 <link rel="stylesheet" href="css/style.css">
 <style>
   main .wrap{max-width:1560px}
-  .legend{display:flex;gap:14px;flex-wrap:wrap;align-items:center;font-size:12.5px;color:var(--muted);margin-bottom:16px}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;align-items:center;font-size:12.5px;color:var(--muted);margin-bottom:14px}
   .legend .sw{display:inline-block;min-width:44px;text-align:center;border-radius:5px;padding:2px 8px;
               font-family:"IBM Plex Mono",monospace;font-weight:700;font-size:11.5px;margin-inline-end:5px}
-  /* แถวละ 3 เครื่อง เหมือนหน้าหลัก */
+  .histbar{background:var(--accent-soft);color:var(--warn);border-radius:9px;padding:9px 13px;
+           font-size:12.5px;margin-bottom:14px;font-weight:600}
   .ac-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;align-items:start}
   @media(max-width:1180px){ .ac-grid{grid-template-columns:repeat(2,minmax(0,1fr))} }
   @media(max-width:760px){  .ac-grid{grid-template-columns:1fr} }
@@ -29,35 +30,44 @@
   .ac-badge{margin-inline-start:auto;font-family:"IBM Plex Mono",monospace;font-weight:700;font-size:14px;
             border-radius:8px;padding:6px 14px}
   .ac-body{padding:13px 16px}
-  .ac-body h4{margin:0 0 8px;font-size:12.5px;color:var(--faint);font-weight:600;
+  .ac-body h4{margin:14px 0 6px;font-size:12px;color:var(--faint);font-weight:600;
               text-transform:uppercase;letter-spacing:.04em;font-family:"IBM Plex Mono",monospace}
-  .flt{border-inline-start:3px solid var(--line-strong);padding:2px 0 2px 10px;margin-bottom:10px}
+  .ac-body h4:first-child{margin-top:0}
+  .note{font-size:12.5px;color:var(--muted);background:var(--surface-2);border-radius:8px;padding:8px 11px}
+  .note b{color:var(--ink)}
+  .updated{font-size:11px;color:var(--faint);margin-top:4px}
+  ol.defs{margin:0;padding-inline-start:20px}
+  ol.defs li{font-size:13px;line-height:1.5;margin:2px 0}
+  .checks{display:flex;flex-direction:column;gap:4px}
+  .chk{display:flex;gap:8px;font-size:13px;align-items:baseline}
+  .chk .nm{font-family:"IBM Plex Mono",monospace;font-weight:600;min-width:64px;color:var(--primary)}
+  .chk .due{color:var(--ink)}
   .flt-date{font-size:12px;color:var(--muted);font-weight:600;margin-bottom:2px}
   .flt-date .cs{font-family:"IBM Plex Mono",monospace;color:var(--primary);margin-inline-start:6px}
   .flt ul{margin:0;padding-inline-start:16px}
   .flt li{font-size:13px;line-height:1.5;margin:1px 0}
   .flt li.resolved{color:var(--faint);text-decoration:line-through}
-  .no-disc{font-size:13px;color:var(--good);padding:4px 0}
-  .note{font-size:12.5px;color:var(--muted);background:var(--surface-2);border-radius:8px;padding:8px 11px;margin-top:6px}
-  .note b{color:var(--ink)}
-  /* แถบแก้ไข (planner) */
-  .ac-edit{display:flex;gap:8px;align-items:center;padding:10px 16px;border-top:1px dashed var(--line);flex-wrap:wrap}
-  .ac-edit select{width:auto;font-weight:600}
-  .ac-edit input{flex:1;min-width:120px}
-  .ac-edit .btn{flex:none}
-  .updated{font-size:11px;color:var(--faint);margin-top:2px}
-  .histbar{background:var(--accent-soft);color:var(--warn);border-radius:9px;padding:9px 13px;
-           font-size:12.5px;margin-bottom:14px;font-weight:600}
+  .none{font-size:13px;color:var(--good)}
+  .none.grey{color:var(--faint)}
+
+  .ac-foot{padding:10px 16px;border-top:1px dashed var(--line)}
+  .ac-edit{padding:12px 16px;border-top:1px solid var(--line);background:var(--surface-2);display:none}
+  .ac.editing .ac-edit{display:block}
+  .ac.editing .ac-foot{display:none}
+  .ed-row{display:flex;gap:6px;align-items:center;margin-bottom:6px}
+  .ed-row input{flex:1}
+  .ed-row .nmin{flex:none;width:92px;font-family:"IBM Plex Mono",monospace}
+  .ed-row .btn-mini{flex:none;width:30px;height:34px;border:1px solid var(--line-strong);border-radius:8px;
+    background:var(--surface);color:var(--crit);cursor:pointer;font-weight:700}
+  .ed-lbl{font-size:11.5px;color:var(--faint);font-weight:600;margin:10px 0 4px;text-transform:uppercase}
+  .ed-actions{display:flex;gap:8px;margin-top:12px}
 </style>
 </head>
 <body>
 <main>
   <div class="wrap">
     <div class="page-head" style="display:flex;align-items:end;gap:14px;flex-wrap:wrap">
-      <div>
-        <h1>สถานภาพเครื่อง</h1>
-        <div class="sub" id="sub">กำลังโหลด…</div>
-      </div>
+      <div><h1>สถานภาพเครื่อง</h1><div class="sub" id="sub">กำลังโหลด…</div></div>
       <div style="margin-inline-start:auto;display:flex;align-items:center;gap:8px">
         <label for="datePick" style="margin:0;font-size:13px">ณ วันที่:</label>
         <input type="date" id="datePick" style="width:auto">
@@ -68,7 +78,6 @@
       <span><i class="sw" style="background:#2E7D5B;color:#fff">FMC</i>พร้อมบิน</span>
       <span><i class="sw" style="background:#E0A32B;color:#2a1e00">PMC</i>พร้อมบางภารกิจ</span>
       <span><i class="sw" style="background:#C0392B;color:#fff">NMC</i>ไม่พร้อมบิน</span>
-      <span style="margin-inline-start:auto" id="planHint"></span>
     </div>
     <div class="histbar" id="histbar" hidden></div>
     <div class="ac-grid" id="grid"><div class="empty">กำลังโหลด…</div></div>
@@ -79,6 +88,7 @@
   import { requireAuth, canPlan } from "./js/auth.js";
   import { renderTopbar } from "./js/ui.js";
   import { loadAircraft, setAircraftStatus, loadRecentDiscrepancies, loadStatusOn,
+           loadDefects, saveDefects, loadChecks, saveChecks,
            AC_STATUS, AC_STATUS_LABEL, AC_STATUS_COLORS } from "./js/status.js";
 
   const profile = await requireAuth();
@@ -86,100 +96,127 @@
     renderTopbar(profile);
     const planner = canPlan(profile);
     const esc = (s) => String(s ?? "").replace(/[&<>"]/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;" }[c]));
-
     const TH_MON = ["ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."];
-    const thDate = (s) => { if (!s) return "-"; const [y,m,d]=s.split("-").map(Number); return `${d} ${TH_MON[m-1]} ${y+543}`; };
-    document.getElementById("planHint").textContent = planner
-      ? "" : "ดูอย่างเดียว — ปรับสถานภาพได้เฉพาะผู้ดูแล/ผู้วางแผน";
+    const thDate = (s) => { if (!s) return "-"; const [y,m,d]=String(s).slice(0,10).split("-").map(Number); return `${d} ${TH_MON[m-1]} ${y+543}`; };
+    const todayStr = () => { const n=new Date(); return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,"0")}-${String(n.getDate()).padStart(2,"0")}`; };
 
-    function badge(st) {
-      const c = AC_STATUS_COLORS[st] || AC_STATUS_COLORS.FMC;
-      return `<span class="ac-badge" style="background:${c.bg};color:${c.fg}">${st}</span>`;
-    }
+    let viewDate = todayStr(), editable = true;
+    let discMap = new Map(), defMap = new Map(), chkMap = new Map();
+
+    const badge = (st) => { const c = AC_STATUS_COLORS[st] || AC_STATUS_COLORS.FMC;
+      return `<span class="ac-badge" style="background:${c.bg};color:${c.fg}">${st}</span>`; };
 
     function flightsHTML(flights) {
-      if (!flights || !flights.length) return `<div class="no-disc">✓ ไม่มีข้อขัดข้องที่บันทึกไว้</div>`;
+      if (!flights || !flights.length) return `<div class="none">✓ ไม่มีข้อขัดข้องหลังบิน</div>`;
       return flights.map(f => `
         <div class="flt">
           <div class="flt-date">${thDate(f.date)}${f.callsign ? `<span class="cs">${esc(f.callsign)}</span>` : ""}</div>
-          <ul>${f.items.map(it => `<li class="${it.status === "resolved" ? "resolved" : ""}">${esc(it.description)}</li>`).join("")}</ul>
+          <ul>${f.items.map(it => `<li class="${it.status==="resolved"?"resolved":""}">${esc(it.description)}</li>`).join("")}</ul>
         </div>`).join("");
     }
 
-    let discMap = new Map();
-    let viewDate = todayStr();     // yyyy-mm-dd ที่กำลังดู
-    let editable = true;           // แก้ได้เฉพาะเมื่อดู "วันนี้"
-
-    function todayStr() {
-      const n = new Date();
-      return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,"0")}-${String(n.getDate()).padStart(2,"0")}`;
-    }
-
     function card(a) {
-      const opts = AC_STATUS.map(s => `<option value="${s}" ${s===a.status?"selected":""}>${AC_STATUS_LABEL[s]}</option>`).join("");
+      const defs = defMap.get(a.id) || [];
+      const chks = chkMap.get(a.id) || [];
       return `
       <div class="ac s-${a.status}" data-id="${a.id}">
         <div class="ac-head">
-          <div class="ac-id">
-            <div class="type">${esc(a.type || "-")}</div>
-            <div class="tail">${esc(a.tail_number)}</div>
-          </div>
+          <div class="ac-id"><div class="type">${esc(a.type || "-")}</div><div class="tail">${esc(a.tail_number)}</div></div>
           ${badge(a.status)}
         </div>
         <div class="ac-body">
           ${a.status_note ? `<div class="note"><b>หมายเหตุ:</b> ${esc(a.status_note)}</div>` : ""}
-          ${a.status_updated_at ? `<div class="updated">อัปเดตสถานภาพ: ${thDate(a.status_updated_at.slice(0,10))}</div>` : ""}
-          <h4 style="margin-top:12px">ข้อขัดข้อง · 3 ไฟลท์ล่าสุด</h4>
+          ${a.status_updated_at ? `<div class="updated">อัปเดตสถานภาพ: ${thDate(a.status_updated_at)}</div>` : ""}
+
+          <h4>ข้อขัดข้องประจำเครื่อง</h4>
+          ${defs.length ? `<ol class="defs">${defs.map(d => `<li>${esc(d)}</li>`).join("")}</ol>`
+                        : `<div class="none">✓ ไม่มี</div>`}
+
+          <h4>รายการเช็คตามวงรอบ</h4>
+          ${chks.length ? `<div class="checks">${chks.map(c => `<div class="chk"><span class="nm">${esc(c.name)}</span><span class="due">${esc(c.due_text || "-")}</span></div>`).join("")}</div>`
+                        : `<div class="none grey">— ยังไม่ระบุ —</div>`}
+
+          <h4>ข้อขัดข้องหลังบิน · ล่าสุด</h4>
           ${flightsHTML(discMap.get(a.id))}
         </div>
         ${planner && editable ? `
+        <div class="ac-foot"><button class="btn sm" data-edit>แก้ไขสถานภาพ / ข้อขัดข้อง / รายการเช็ค</button></div>
         <div class="ac-edit">
-          <select data-status>${opts}</select>
-          <input data-note value="${esc(a.status_note || "")}" placeholder="หมายเหตุสถานภาพ (ถ้ามี)">
-          <button class="btn sm primary" data-save>บันทึก</button>
+          <div class="ed-lbl">สถานภาพ</div>
+          <div class="ed-row">
+            <select data-f-status style="flex:1">${AC_STATUS.map(s=>`<option value="${s}" ${s===a.status?"selected":""}>${AC_STATUS_LABEL[s]}</option>`).join("")}</select>
+          </div>
+          <input data-f-note value="${esc(a.status_note || "")}" placeholder="หมายเหตุสถานภาพ (ถ้ามี)">
+          <div class="ed-lbl">ข้อขัดข้องประจำเครื่อง</div>
+          <div data-defs></div>
+          <button class="btn sm ghost" data-add-def>+ เพิ่มข้อขัดข้อง</button>
+          <div class="ed-lbl">รายการเช็คตามวงรอบ</div>
+          <div data-checks></div>
+          <button class="btn sm ghost" data-add-chk>+ เพิ่มรายการเช็ค</button>
+          <div class="ed-actions">
+            <button class="btn sm primary" data-save>บันทึก</button>
+            <button class="btn sm ghost" data-cancel>ยกเลิก</button>
+          </div>
         </div>` : ""}
       </div>`;
     }
 
-    async function refresh() {
-      editable = viewDate >= todayStr();     // อดีต = อ่านอย่างเดียว
-      const [list, disc] = await Promise.all([loadAircraft(), loadRecentDiscrepancies()]);
+    const defRow = (v="") => `<div class="ed-row"><input data-def value="${esc(v)}" placeholder="รายละเอียดข้อขัดข้อง"><button type="button" class="btn-mini" data-rm>−</button></div>`;
+    const chkRow = (n="",d="") => `<div class="ed-row"><input class="nmin" data-cname value="${esc(n)}" placeholder="เช่น 2 M"><input data-cdue value="${esc(d)}" placeholder="กำหนดครบ เช่น 21 - 22 ก.ย.69"><button type="button" class="btn-mini" data-rm>−</button></div>`;
 
-      // ดูย้อนหลัง → แทนที่สถานภาพด้วยค่าจากประวัติ ณ วันนั้น + ข้อขัดข้องถึงวันนั้น
+    function wireCard(el) {
+      const id = el.dataset.id;
+      const editBtn = el.querySelector("[data-edit]");
+      if (!editBtn) return;
+      editBtn.addEventListener("click", () => {
+        el.querySelector("[data-defs]").innerHTML = (defMap.get(id) || []).map(defRow).join("") || defRow();
+        el.querySelector("[data-checks]").innerHTML = (chkMap.get(id) || []).map(c => chkRow(c.name, c.due_text)).join("") || chkRow();
+        el.classList.add("editing");
+      });
+      el.querySelector("[data-cancel]").addEventListener("click", () => el.classList.remove("editing"));
+      el.querySelector("[data-add-def]").addEventListener("click", () => el.querySelector("[data-defs]").insertAdjacentHTML("beforeend", defRow()));
+      el.querySelector("[data-add-chk]").addEventListener("click", () => el.querySelector("[data-checks]").insertAdjacentHTML("beforeend", chkRow()));
+      el.addEventListener("click", (e) => { if (e.target.matches("[data-rm]")) e.target.closest(".ed-row").remove(); });
+      el.querySelector("[data-save]").addEventListener("click", async (e) => {
+        const b = e.target; b.disabled = true; b.textContent = "…";
+        const status = el.querySelector("[data-f-status]").value;
+        const note = el.querySelector("[data-f-note]").value;
+        const defs = [...el.querySelectorAll("[data-def]")].map(i => i.value.trim()).filter(Boolean);
+        const chks = [...el.querySelectorAll("[data-checks] .ed-row")].map(r => ({
+          name: r.querySelector("[data-cname]").value, due_text: r.querySelector("[data-cdue]").value })).filter(c => c.name.trim());
+        const e1 = await setAircraftStatus(id, status, note);
+        const e2 = await saveDefects(id, defs);
+        const e3 = await saveChecks(id, chks);
+        const err = e1 || e2 || e3;
+        if (err) { alert("บันทึกไม่สำเร็จ: " + err.message); b.disabled = false; b.textContent = "บันทึก"; }
+        else refresh();
+      });
+    }
+
+    async function refresh() {
+      editable = viewDate >= todayStr();
+      const [list, disc, defs, chks] = await Promise.all([loadAircraft(), loadRecentDiscrepancies(), loadDefects(), loadChecks()]);
+      defMap = defs; chkMap = chks;
       if (!editable) {
         const hist = await loadStatusOn(viewDate);
-        if (hist === null) {
-          document.getElementById("histbar").hidden = false;
-          document.getElementById("histbar").textContent = "ยังไม่มีประวัติสถานภาพ — ต้องรัน migration_18_aircraft_status_history.sql";
-        }
-        list.forEach(a => { const h = hist && hist.get(a.id);
-          if (h) { a.status = h.status; a.status_note = h.note; a.status_updated_at = null; } });
-        disc.forEach((flights, id) => disc.set(id, flights.filter(f => String(f.date) <= viewDate).slice(0,3)));
+        if (hist === null) { const bar=document.getElementById("histbar"); bar.hidden=false;
+          bar.textContent="ยังไม่มีประวัติสถานภาพ — ต้องรัน migration_18_aircraft_status_history.sql"; }
+        list.forEach(a => { const h = hist && hist.get(a.id); if (h) { a.status=h.status; a.status_note=h.note; a.status_updated_at=null; } });
+        disc.forEach((flights,id) => disc.set(id, flights.filter(f => String(f.date) <= viewDate).slice(0,1)));
       }
       discMap = disc;
-
-      const grid = document.getElementById("grid");
       const cnt = { FMC:0, PMC:0, NMC:0 };
       list.forEach(a => cnt[a.status] = (cnt[a.status]||0)+1);
       const bar = document.getElementById("histbar");
-      if (editable) { bar.hidden = true; }
+      if (editable) bar.hidden = true;
       else if (bar.hidden !== false) { bar.hidden = false; bar.textContent = `กำลังดูสถานภาพย้อนหลัง ณ ${thDate(viewDate)} (อ่านอย่างเดียว)`; }
       document.getElementById("sub").textContent = list.length
-        ? `${list.length} เครื่อง · FMC ${cnt.FMC} · PMC ${cnt.PMC} · NMC ${cnt.NMC}`
-        : "ยังไม่มีเครื่องในระบบ";
-      grid.innerHTML = list.length ? list.map(card).join("")
-        : `<div class="empty" style="grid-column:1/-1">ยังไม่มีเครื่องในระบบ</div>`;
-
-      grid.querySelectorAll("[data-save]").forEach(b =>
-        b.addEventListener("click", async (e) => {
-          const c = e.target.closest(".ac");
-          b.disabled = true; b.textContent = "…";
-          const err = await setAircraftStatus(c.dataset.id,
-            c.querySelector("[data-status]").value, c.querySelector("[data-note]").value);
-          if (err) { alert("บันทึกไม่สำเร็จ: " + err.message); b.disabled = false; b.textContent = "บันทึก"; }
-          else refresh();
-        }));
+        ? `${list.length} เครื่อง · FMC ${cnt.FMC} · PMC ${cnt.PMC} · NMC ${cnt.NMC}` : "ยังไม่มีเครื่องในระบบ";
+      const grid = document.getElementById("grid");
+      grid.innerHTML = list.length ? list.map(card).join("") : `<div class="empty" style="grid-column:1/-1">ยังไม่มีเครื่องในระบบ</div>`;
+      grid.querySelectorAll(".ac").forEach(wireCard);
     }
+
     const dp = document.getElementById("datePick");
     dp.value = viewDate; dp.max = todayStr();
     dp.addEventListener("change", () => { viewDate = dp.value || todayStr(); document.getElementById("histbar").hidden = true; refresh(); });

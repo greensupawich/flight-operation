@@ -56,7 +56,7 @@ export async function loadRecentDiscrepancies() {
   const out = new Map();
   byAc.forEach((flights, acId) => {
     const list = [...flights.values()].sort((a, b) => String(b.date).localeCompare(String(a.date)));
-    out.set(acId, list.slice(0, 3));   // 3 ไฟลท์ล่าสุด
+    out.set(acId, list.slice(0, 1));   // เอาแค่ไฟลท์ล่าสุด
   });
   return out;
 }
@@ -69,4 +69,44 @@ export async function loadStatusOn(dateStr) {
   const map = new Map();
   (data || []).forEach((r) => map.set(r.aircraft_id, { status: r.status, note: r.note, log_date: r.log_date }));
   return map;
+}
+
+// ---------- ข้อขัดข้องประจำเครื่อง (รายการค้างของเครื่อง) ----------
+export async function loadDefects() {
+  const { data, error } = await supabase.from("aircraft_defects")
+    .select("aircraft_id,seq,description").order("aircraft_id").order("seq");
+  const map = new Map();
+  if (!error) (data || []).forEach(d => {
+    if (!map.has(d.aircraft_id)) map.set(d.aircraft_id, []);
+    map.get(d.aircraft_id).push(d.description);
+  });
+  return map;
+}
+export async function saveDefects(aircraftId, descriptions) {
+  await supabase.from("aircraft_defects").delete().eq("aircraft_id", aircraftId);
+  const rows = (descriptions || []).map((t,i) => ({ aircraft_id: aircraftId, seq: i+1, description: t }))
+    .filter(r => r.description);
+  if (!rows.length) return null;
+  const { error } = await supabase.from("aircraft_defects").insert(rows);
+  return error;
+}
+
+// ---------- รายการเช็คตามวงรอบ ----------
+export async function loadChecks() {
+  const { data, error } = await supabase.from("aircraft_checks")
+    .select("aircraft_id,seq,name,due_text").order("aircraft_id").order("seq");
+  const map = new Map();
+  if (!error) (data || []).forEach(c => {
+    if (!map.has(c.aircraft_id)) map.set(c.aircraft_id, []);
+    map.get(c.aircraft_id).push({ name: c.name, due_text: c.due_text || "" });
+  });
+  return map;
+}
+export async function saveChecks(aircraftId, list) {
+  await supabase.from("aircraft_checks").delete().eq("aircraft_id", aircraftId);
+  const rows = (list || []).map((c,i) => ({ aircraft_id: aircraftId, seq: i+1, name: (c.name||"").trim(), due_text: (c.due_text||"").trim() || null }))
+    .filter(r => r.name);
+  if (!rows.length) return null;
+  const { error } = await supabase.from("aircraft_checks").insert(rows);
+  return error;
 }
