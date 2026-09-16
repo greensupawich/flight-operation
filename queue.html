@@ -105,10 +105,16 @@
 
   details.af{margin-top:16px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 14px}
   details.af summary{cursor:pointer;font-weight:600;font-size:13.5px}
-  .af-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px;margin-top:10px}
-  .af-row{display:flex;gap:6px;align-items:center}
-  .af-row span{flex:1;font-size:13px}
-  .af-row input{width:80px;font-family:"IBM Plex Mono",monospace;text-transform:uppercase;padding:6px 8px}
+  .af-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px;margin-top:12px}
+  /* แต่ละสนามบินเป็นกล่องแยก มีเส้นขอบ — กันอ่านสลับแถว */
+  .af-row{display:flex;gap:8px;align-items:center;border:1px solid var(--line-strong);border-radius:9px;
+          padding:7px 9px;background:var(--surface-2)}
+  .af-row span{flex:1;min-width:0;font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .af-row input{width:86px;flex:none;font-family:"IBM Plex Mono",monospace;text-transform:uppercase;
+                padding:6px 8px;background:var(--surface)}
+  .af-row .btn{flex:none}
+  .af-row.af-new{border-style:dashed;border-color:var(--primary);background:var(--surface)}
+  .af-row.af-new input:first-child{flex:1;width:auto;font-family:inherit;text-transform:none}
   .missing{background:var(--accent-soft);color:var(--warn);border-radius:9px;padding:10px 13px;font-size:12.5px;margin-bottom:12px}
 </style>
 </head>
@@ -629,7 +635,7 @@
           <input value="${esc(a.code)}" placeholder="รหัส" maxlength="6" ${planner ? "" : "disabled"}>
           ${planner ? `<button class="btn sm" data-save>บันทึก</button>` : ""}
         </div>`).join("") +
-        (planner ? `<div class="af-row"><input id="afNewName" placeholder="ชื่อจุด เช่น บน.46" style="width:auto;flex:1;text-transform:none">
+        (planner ? `<div class="af-row af-new"><input id="afNewName" placeholder="ชื่อจุด เช่น บน.46">
                      <input id="afNewCode" placeholder="รหัส" maxlength="6"><button class="btn sm" id="afAdd">เพิ่ม</button></div>` : "");
       grid.querySelectorAll("[data-save]").forEach(b => b.addEventListener("click", async (e) => {
         const row = e.target.closest(".af-row");
