@@ -17,6 +17,14 @@
   /* กระดาน: แผงสถานภาพเครื่อง (ซ้าย) + การ์ดภารกิจ (ขวา) */
   .board{display:grid;grid-template-columns:380px minmax(0,1fr);gap:18px;align-items:start}
   @media(max-width:980px){ .board{grid-template-columns:1fr} }
+
+  /* โหมดพอดีจอเดียว (auto-scale) — จอกว้างเท่านั้น */
+  #fit{overflow:hidden}
+  #fit>.board{transform-origin:top left}
+  body.fit-on{overflow:hidden}
+  body.fit-on .page-head{padding:12px 0 6px}
+  body.fit-on .page-head h1{font-size:20px;margin-bottom:2px}
+  body.fit-on .acp{position:static}   /* ปิด sticky ในโหมดพอดีจอ */
   /* การ์ดภารกิจ 3 ใบต่อบรรทัด (ย่อขนาดให้พอดี) */
   .sheets.three{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;align-items:start}
   @media(max-width:1500px){ .sheets.three{grid-template-columns:repeat(2,minmax(0,1fr))} }
@@ -100,9 +108,11 @@
       </div>
     </div>
 
-    <div class="board">
-      <aside class="acp" id="acp"><div class="acp-empty">กำลังโหลด…</div></aside>
-      <div class="sheets three" id="sheets"><div class="empty">กำลังโหลด…</div></div>
+    <div id="fit">
+      <div class="board">
+        <aside class="acp" id="acp"><div class="acp-empty">กำลังโหลด…</div></aside>
+        <div class="sheets three" id="sheets"><div class="empty">กำลังโหลด…</div></div>
+      </div>
     </div>
   </div>
 </main>
@@ -252,6 +262,7 @@
         editBtn.style.display = on ? "none" : "";
         saveBtn.style.display = on ? "" : "none";
         cancelBtn.style.display = on ? "" : "none";
+        fitBoard();
       };
       editBtn.addEventListener("click", () => toggle(true));
       cancelBtn.addEventListener("click", () => { refresh(); });
@@ -284,7 +295,29 @@
         ? list.map(m => sheetHTML(m, { planner })).join("")
         : `<div class="empty" style="grid-column:1/-1">ยังไม่มีภารกิจในวันนี้${planner ? ' · กด "+ เพิ่มภารกิจ" เพื่อสร้าง' : ""}</div>`;
       wireSheetDelete(box, refresh);
+      fitBoard();
+      setTimeout(fitBoard, 250);   // เผื่อฟอนต์/เลย์เอาต์ปรับตัวหลังโหลด
     }
+
+    // ย่อ/ขยายกระดานให้พอดีจอเดียว ไม่ต้อง scroll (เฉพาะจอกว้าง ≥900px)
+    function fitBoard() {
+      const fit = document.getElementById("fit");
+      const board = fit && fit.querySelector(".board");
+      if (!board) return;
+      board.style.transform = "none"; fit.style.height = "";
+      if (window.innerWidth < 900) { document.body.classList.remove("fit-on"); return; }
+      document.body.classList.add("fit-on");
+      const top = fit.getBoundingClientRect().top;
+      const availH = window.innerHeight - top - 12;
+      const availW = fit.clientWidth;
+      const w = board.scrollWidth, h = board.scrollHeight;
+      if (!w || !h) return;
+      const s = Math.min(availW / w, availH / h, 1.5);   // จำกัดการขยายไม่เกิน 1.5 เท่า
+      board.style.transform = `scale(${s})`;
+      fit.style.height = (h * s) + "px";
+    }
+    let fitT; addEventListener("resize", () => { clearTimeout(fitT); fitT = setTimeout(fitBoard, 120); });
+
     refresh();
   }
 </script>
