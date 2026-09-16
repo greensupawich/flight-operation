@@ -71,7 +71,7 @@ export async function loadStatusOn(dateStr) {
   return map;
 }
 
-// ---------- ข้อขัดข้องประจำเครื่อง (รายการค้างของเครื่อง) ----------
+// ---------- รายการข้อขัดข้อง (รายการค้างของเครื่อง) ----------
 export async function loadDefects() {
   const { data, error } = await supabase.from("aircraft_defects")
     .select("aircraft_id,seq,description").order("aircraft_id").order("seq");

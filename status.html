@@ -128,7 +128,7 @@
           ${a.status_note ? `<div class="note"><b>หมายเหตุ:</b> ${esc(a.status_note)}</div>` : ""}
           ${a.status_updated_at ? `<div class="updated">อัปเดตสถานภาพ: ${thDate(a.status_updated_at)}</div>` : ""}
 
-          <h4>ข้อขัดข้องประจำเครื่อง</h4>
+          <h4>รายการข้อขัดข้อง</h4>
           ${defs.length ? `<ol class="defs">${defs.map(d => `<li>${esc(d)}</li>`).join("")}</ol>`
                         : `<div class="none">✓ ไม่มี</div>`}
 
@@ -147,7 +147,7 @@
             <select data-f-status style="flex:1">${AC_STATUS.map(s=>`<option value="${s}" ${s===a.status?"selected":""}>${AC_STATUS_LABEL[s]}</option>`).join("")}</select>
           </div>
           <input data-f-note value="${esc(a.status_note || "")}" placeholder="หมายเหตุสถานภาพ (ถ้ามี)">
-          <div class="ed-lbl">ข้อขัดข้องประจำเครื่อง</div>
+          <div class="ed-lbl">รายการข้อขัดข้อง</div>
           <div data-defs></div>
           <button class="btn sm ghost" data-add-def>+ เพิ่มข้อขัดข้อง</button>
           <div class="ed-lbl">รายการเช็คตามวงรอบ</div>
