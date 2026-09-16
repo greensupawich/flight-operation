@@ -10,13 +10,54 @@
 <link rel="stylesheet" href="css/style.css">
 <link rel="stylesheet" href="css/sheet.css">
 <style>
-  main .wrap{max-width:1560px}
-  .home-head{display:flex;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:18px}
+  main .wrap{max-width:1720px}
+  .home-head{display:flex;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px}
   .home-head .links{margin-inline-start:auto;display:flex;gap:8px;flex-wrap:wrap}
-  /* แถวละ 3 ภารกิจ · จอเล็กลดเป็น 2 และ 1 */
-  .sheets.three{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;align-items:start}
-  @media(max-width:1180px){ .sheets.three{grid-template-columns:repeat(2,minmax(0,1fr))} }
-  @media(max-width:760px){  .sheets.three{grid-template-columns:1fr} }
+
+  /* กระดาน: แผงสถานภาพเครื่อง (ซ้าย) + การ์ดภารกิจ (ขวา) */
+  .board{display:grid;grid-template-columns:380px minmax(0,1fr);gap:18px;align-items:start}
+  @media(max-width:980px){ .board{grid-template-columns:1fr} }
+  .sheets.three{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;align-items:start}
+  @media(max-width:1400px){ .sheets.three{grid-template-columns:1fr} }
+  @media(max-width:980px){  .sheets.three{grid-template-columns:repeat(2,minmax(0,1fr))} }
+  @media(max-width:640px){  .sheets.three{grid-template-columns:1fr} }
+
+  /* ---- แผงสถานภาพเครื่อง ---- */
+  .acp{border:2px solid var(--line-strong);border-radius:8px;overflow:hidden;background:var(--surface);
+       box-shadow:var(--shadow);position:sticky;top:12px}
+  .acp-title{background:var(--surface-2);border-bottom:2px solid var(--line-strong);text-align:center;
+             padding:8px 10px;font-family:"Bai Jamjuree",sans-serif;font-weight:700;line-height:1.35}
+  .acp-title .t1{font-size:14px}
+  .acp-title .t2{font-size:12px;color:var(--muted);font-weight:600}
+  .acp-title .t3{font-size:12px;color:var(--primary);font-weight:700;margin-top:2px}
+
+  .acp-row{display:grid;grid-template-columns:60px minmax(0,1fr) 132px;border-top:1px solid var(--line-strong)}
+  .acp-tail{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+            color:#fff;padding:6px 2px;text-align:center}
+  .acp-row.s-FMC .acp-tail{background:#2E7D5B}
+  .acp-row.s-PMC .acp-tail{background:#E0A32B;color:#2a1e00}
+  .acp-row.s-NMC .acp-tail{background:#C0392B}
+  .acp-tail .num{font-family:"Bai Jamjuree",sans-serif;font-weight:700;font-size:19px;line-height:1}
+  .acp-tail .st{font-family:"IBM Plex Mono",monospace;font-weight:700;font-size:10.5px}
+  .acp-defs{padding:5px 8px;border-inline:1px solid var(--line-strong);font-size:11px;line-height:1.4;
+            color:var(--ink)}
+  .acp-defs ol{margin:0;padding-inline-start:15px}
+  .acp-defs li{margin:1px 0}
+  .acp-defs .dash{color:var(--faint)}
+  .acp-checks{padding:5px 7px;display:flex;flex-direction:column;gap:2px;font-size:11px}
+  .acp-chk{display:flex;gap:5px;align-items:baseline}
+  .acp-chk .nm{font-family:"IBM Plex Mono",monospace;font-weight:700;color:var(--primary);min-width:46px}
+  .acp-chk .due{color:var(--ink)}
+
+  /* ---- บล็อก STBY ---- */
+  .acp-stby{border-top:2px solid var(--line-strong);background:var(--surface-2);padding:8px 10px}
+  .acp-stby .hd{display:flex;align-items:center;gap:8px;font-weight:700;font-size:12.5px;margin-bottom:5px}
+  .acp-stby .hd .tag{font-family:"IBM Plex Mono",monospace;background:#fff;color:#16202E;
+                     border:1px solid var(--line-strong);border-radius:5px;padding:1px 7px;font-size:11px}
+  .acp-stby .cw{display:grid;grid-template-columns:38px 1fr;gap:1px 8px;font-size:11.5px}
+  .acp-stby .cw .rl{font-family:"IBM Plex Mono",monospace;font-weight:700;color:var(--muted)}
+  .acp-stby .poc{margin-top:5px;font-size:11px;color:var(--muted)}
+  .acp-empty{padding:10px;text-align:center;color:var(--faint);font-size:12px}
 </style>
 </head>
 <body>
@@ -29,11 +70,16 @@
       </div>
       <div class="links">
         <a class="btn sm ghost" id="dayLink" href="day.html">เปิดหน้าภารกิจวันนี้</a>
+        <a class="btn sm ghost" href="status.html">สถานภาพเครื่อง</a>
         <a class="btn sm ghost" href="dashboard.html">ปฏิทิน</a>
         <a class="btn sm primary" id="addBtn" href="#" hidden>+ เพิ่มภารกิจ</a>
       </div>
     </div>
-    <div class="sheets three" id="sheets"><div class="empty">กำลังโหลด…</div></div>
+
+    <div class="board">
+      <aside class="acp" id="acp"><div class="acp-empty">กำลังโหลด…</div></aside>
+      <div class="sheets three" id="sheets"><div class="empty">กำลังโหลด…</div></div>
+    </div>
   </div>
 </main>
 
@@ -42,6 +88,7 @@
   import { renderTopbar } from "./js/ui.js";
   import { loadMissionsByDate, reportOf } from "./js/missions.js";
   import { sheetHTML, sortByTakeoff, wireSheetDelete } from "./js/mission-sheet.js";
+  import { loadAircraft, loadDefects, loadChecks } from "./js/status.js";
 
   const profile = await getCurrentProfile();
 
@@ -52,6 +99,7 @@
   } else {
     renderTopbar(profile);
     const planner = canPlan(profile);
+    const esc = (s) => String(s ?? "").replace(/[&<>"]/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;" }[c]));
 
     const TH_MONTH = ["มกราคม","กุมภาพันธ์","มีนาคม","เมษายน","พฤษภาคม","มิถุนายน",
                       "กรกฎาคม","สิงหาคม","กันยายน","ตุลาคม","พฤศจิกายน","ธันวาคม"];
@@ -67,13 +115,78 @@
       a.hidden = false; a.href = `mission.html?new=1&date=${date}`;
     }
 
+    // ---- แผงสถานภาพเครื่อง (ซ้าย) ----
+    const stLabel = (a) => {
+      const m = String(a.status_note || "").match(/(NMCS|PMCS|FMC|PMC|NMC)/);
+      return m ? m[1] : a.status;         // แสดง NMCS ตามกระดานถ้ามีในหมายเหตุ
+    };
+    const tail3 = (t) => String(t || "").slice(-3);
+
+    function acpRow(a, defs, chks) {
+      const dHTML = defs.length
+        ? `<ol>${defs.map(d => `<li>${esc(d)}</li>`).join("")}</ol>`
+        : `<span class="dash">—</span>`;
+      const cHTML = chks.length
+        ? chks.map(c => `<div class="acp-chk"><span class="nm">${esc(c.name)}</span><span class="due">${esc(c.due_text || "")}</span></div>`).join("")
+        : `<span class="dash">—</span>`;
+      return `<div class="acp-row s-${a.status}">
+        <div class="acp-tail"><span class="num">${esc(tail3(a.tail_number))}</span><span class="st">${esc(stLabel(a))}</span></div>
+        <div class="acp-defs">${dHTML}</div>
+        <div class="acp-checks">${cHTML}</div>
+      </div>`;
+    }
+
+    // บล็อก STBY จากภารกิจชนิด stby (ถ้ามี)
+    function stbyBlock(stbys) {
+      if (!stbys.length) return "";
+      return stbys.map(m => {
+        const crew = (m.mission_crew || []);
+        const rolesOrder = ["AC","IP","P","CP","N","FM","RO","LM","AH"];
+        const lines = rolesOrder.map(r => {
+          const names = crew.filter(c => (c.position||"").toUpperCase() === r)
+                            .sort((a,b)=>(a.sort_order||0)-(b.sort_order||0))
+                            .map(c => (c.crew_name||"").trim()).filter(Boolean);
+          return names.length ? `<div class="rl">${r}</div><div>${names.map(esc).join("  ·  ")}</div>` : "";
+        }).join("");
+        const acType = m.aircraft ? esc(m.aircraft.type || "ATR72-500/600") : "ATR72-500/600";
+        const poc = [m.poc_name, m.poc_phone].filter(Boolean).join("  ");
+        return `<div class="acp-stby">
+          <div class="hd">STBY <span class="tag">${acType}</span> <span class="tag">COWBOY ${esc(m.callsign || "-")}</span></div>
+          ${lines ? `<div class="cw">${lines}</div>` : `<div class="poc">— ยังไม่ระบุลูกเรือ —</div>`}
+          ${poc ? `<div class="poc">${esc(poc)}</div>` : ""}
+        </div>`;
+      }).join("");
+    }
+
+    function renderAcp(aircraft, defMap, chkMap, stbys) {
+      const box = document.getElementById("acp");
+      const rows = aircraft.length
+        ? aircraft.map(a => acpRow(a, defMap.get(a.id) || [], chkMap.get(a.id) || [])).join("")
+        : `<div class="acp-empty">ยังไม่มีเครื่องในระบบ</div>`;
+      box.innerHTML = `
+        <div class="acp-title">
+          <div class="t1">ภารกิจ ฝูง.603 บน.6</div>
+          <div class="t2">วัน${TH_DOW[n.getDay()]} ที่ ${n.getDate()} ${TH_MONTH[n.getMonth()]} พ.ศ.${n.getFullYear()+543}</div>
+          <div class="t3">ATR72-500/600</div>
+        </div>
+        ${rows}
+        ${stbyBlock(stbys)}`;
+    }
+
     async function refresh() {
       const box = document.getElementById("sheets");
-      const list = sortByTakeoff(await loadMissionsByDate(date));
+      const [all, aircraft, defMap, chkMap] = await Promise.all([
+        loadMissionsByDate(date), loadAircraft(), loadDefects(), loadChecks()
+      ]);
+      const stbys = all.filter(m => m.kind === "stby");
+      const list = sortByTakeoff(all.filter(m => m.kind !== "stby"));
+
+      renderAcp(aircraft, defMap, chkMap, stbys);
+
       const done = list.filter(m => m.status !== "cancelled" && reportOf(m)).length;
       const cancelled = list.filter(m => m.status === "cancelled").length;
       document.getElementById("sub").textContent = list.length
-        ? `${list.length} ภารกิจ · เรียงตามเวลา T/O · รายงานแล้ว ${done}${cancelled ? ` · ยกเลิก ${cancelled}` : ""}`
+        ? `${list.length} ภารกิจ · เรียงตามเวลา T/O · รายงานแล้ว ${done}${cancelled ? ` · ยกเลิก ${cancelled}` : ""}${stbys.length ? ` · STBY ${stbys.length}` : ""}`
         : "ยังไม่มีภารกิจในวันนี้";
       box.innerHTML = list.length
         ? list.map(m => sheetHTML(m, { planner })).join("")
