@@ -26,15 +26,31 @@ export function renderTopbar(profile) {
   bar.innerHTML = `
     <div class="wrap">
       <div class="brand"><span class="mk">🛩️</span> Flight Operation</div>
-      <nav class="nav">${links}</nav>
+      <button class="nav-toggle" id="__navToggle" aria-label="เมนู" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
+      <nav class="nav" id="__nav">${links}</nav>
       <div class="userchip">
         <span class="role">${profile.role}</span>
-        <span>${profile.full_name || profile.email}</span>
+        <span class="uname">${profile.full_name || profile.email}</span>
         <button class="btn sm ghost" id="__signout">ออก</button>
       </div>
     </div>`;
   document.body.prepend(bar);
   document.getElementById("__signout").addEventListener("click", signOut);
+
+  // เมนูมือถือ: กด ☰ เพื่อเปิด/ปิด · ปิดเมื่อคลิกนอกแถบ
+  const toggle = document.getElementById("__navToggle");
+  toggle.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const open = bar.classList.toggle("open");
+    toggle.setAttribute("aria-expanded", open ? "true" : "false");
+  });
+  document.addEventListener("click", (e) => {
+    if (bar.classList.contains("open") && !bar.contains(e.target)) {
+      bar.classList.remove("open"); toggle.setAttribute("aria-expanded", "false");
+    }
+  });
 }
 
 export { canPlan, isAdmin };
