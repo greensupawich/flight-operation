@@ -68,16 +68,19 @@ export function sheetHTML(m, { planner = false } = {}) {
   </div>`;
 }
 
-// เรียงตามเวลา T/O · ภารกิจที่ T/O ไม่ใช่เวลา (STBY / ว่าง) อยู่ท้าย เรียงตาม BRIEF
+// เรียงตามเวลา T/O · T/O เท่ากัน → BRIEF ที่มาก่อนอยู่ก่อน · แล้วค่อยตัดสินที่ callsign
+// ภารกิจที่ T/O ไม่ใช่เวลา (STBY / ว่าง) อยู่ท้าย เรียงตาม BRIEF
 export function sortByTakeoff(list) {
   const num = (s) => /^\d{3,4}$/.test(String(s || "").trim()) ? parseInt(s, 10) : null;
   const key = (m) => {
     const to = num(m.takeoff_time);
-    return to !== null ? [0, to] : [1, num(m.brief_time) ?? 9999];
+    const br = num(m.brief_time) ?? 9999;
+    return to !== null ? [0, to, br] : [1, br, br];
   };
   return [...list].sort((a, b) => {
     const x = key(a), y = key(b);
-    return x[0] - y[0] || x[1] - y[1] || String(a.callsign || "").localeCompare(String(b.callsign || ""));
+    return x[0] - y[0] || x[1] - y[1] || x[2] - y[2]
+        || String(a.callsign || "").localeCompare(String(b.callsign || ""));
   });
 }
 
