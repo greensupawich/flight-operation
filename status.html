@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Flight Operation · สถานภาพเครื่อง</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bai+Jamjuree:wght@600;700&family=IBM+Plex+Sans+Thai:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<link rel="stylesheet" href="css/style.css">
+<style>
+  main .wrap{max-width:1560px}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;align-items:center;font-size:12.5px;color:var(--muted);margin-bottom:16px}
+  .legend .sw{display:inline-block;min-width:44px;text-align:center;border-radius:5px;padding:2px 8px;
+              font-family:"IBM Plex Mono",monospace;font-weight:700;font-size:11.5px;margin-inline-end:5px}
+  /* แถวละ 3 เครื่อง เหมือนหน้าหลัก */
+  .ac-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;align-items:start}
+  @media(max-width:1180px){ .ac-grid{grid-template-columns:repeat(2,minmax(0,1fr))} }
+  @media(max-width:760px){  .ac-grid{grid-template-columns:1fr} }
+
+  .ac{background:var(--surface);border:1px solid var(--line-strong);border-radius:12px;overflow:hidden;
+      box-shadow:var(--shadow);border-top:5px solid var(--line-strong)}
+  .ac.s-FMC{border-top-color:#2E7D5B}
+  .ac.s-PMC{border-top-color:#E0A32B}
+  .ac.s-NMC{border-top-color:#C0392B}
+  .ac-head{display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--line)}
+  .ac-id .type{font-size:12px;color:var(--muted);font-weight:500}
+  .ac-id .tail{font-family:"Bai Jamjuree",sans-serif;font-weight:700;font-size:22px;line-height:1.1}
+  .ac-badge{margin-inline-start:auto;font-family:"IBM Plex Mono",monospace;font-weight:700;font-size:14px;
+            border-radius:8px;padding:6px 14px}
+  .ac-body{padding:13px 16px}
+  .ac-body h4{margin:0 0 8px;font-size:12.5px;color:var(--faint);font-weight:600;
+              text-transform:uppercase;letter-spacing:.04em;font-family:"IBM Plex Mono",monospace}
+  .flt{border-inline-start:3px solid var(--line-strong);padding:2px 0 2px 10px;margin-bottom:10px}
+  .flt-date{font-size:12px;color:var(--muted);font-weight:600;margin-bottom:2px}
+  .flt-date .cs{font-family:"IBM Plex Mono",monospace;color:var(--primary);margin-inline-start:6px}
+  .flt ul{margin:0;padding-inline-start:16px}
+  .flt li{font-size:13px;line-height:1.5;margin:1px 0}
+  .flt li.resolved{color:var(--faint);text-decoration:line-through}
+  .no-disc{font-size:13px;color:var(--good);padding:4px 0}
+  .note{font-size:12.5px;color:var(--muted);background:var(--surface-2);border-radius:8px;padding:8px 11px;margin-top:6px}
+  .note b{color:var(--ink)}
+  /* แถบแก้ไข (planner) */
+  .ac-edit{display:flex;gap:8px;align-items:center;padding:10px 16px;border-top:1px dashed var(--line);flex-wrap:wrap}
+  .ac-edit select{width:auto;font-weight:600}
+  .ac-edit input{flex:1;min-width:120px}
+  .ac-edit .btn{flex:none}
+  .updated{font-size:11px;color:var(--faint);margin-top:2px}
+</style>
+</head>
+<body>
+<main>
+  <div class="wrap">
+    <div class="page-head">
+      <h1>สถานภาพเครื่อง</h1>
+      <div class="sub" id="sub">กำลังโหลด…</div>
+    </div>
+    <div class="legend">
+      <span><i class="sw" style="background:#2E7D5B;color:#fff">FMC</i>พร้อมบิน</span>
+      <span><i class="sw" style="background:#E0A32B;color:#2a1e00">PMC</i>พร้อมบางภารกิจ</span>
+      <span><i class="sw" style="background:#C0392B;color:#fff">NMC</i>ไม่พร้อมบิน</span>
+      <span style="margin-inline-start:auto" id="planHint"></span>
+    </div>
+    <div class="ac-grid" id="grid"><div class="empty">กำลังโหลด…</div></div>
+  </div>
+</main>
+
+<script type="module">
+  import { requireAuth, canPlan } from "./js/auth.js";
+  import { renderTopbar } from "./js/ui.js";
+  import { loadAircraft, setAircraftStatus, loadRecentDiscrepancies,
+           AC_STATUS, AC_STATUS_LABEL, AC_STATUS_COLORS } from "./js/status.js";
+
+  const profile = await requireAuth();
+  if (profile) {
+    renderTopbar(profile);
+    const planner = canPlan(profile);
+    const esc = (s) => String(s ?? "").replace(/[&<>"]/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;" }[c]));
+
+    const TH_MON = ["ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."];
+    const thDate = (s) => { if (!s) return "-"; const [y,m,d]=s.split("-").map(Number); return `${d} ${TH_MON[m-1]} ${y+543}`; };
+    document.getElementById("planHint").textContent = planner
+      ? "" : "ดูอย่างเดียว — ปรับสถานภาพได้เฉพาะผู้ดูแล/ผู้วางแผน";
+
+    function badge(st) {
+      const c = AC_STATUS_COLORS[st] || AC_STATUS_COLORS.FMC;
+      return `<span class="ac-badge" style="background:${c.bg};color:${c.fg}">${st}</span>`;
+    }
+
+    function flightsHTML(flights) {
+      if (!flights || !flights.length) return `<div class="no-disc">✓ ไม่มีข้อขัดข้องที่บันทึกไว้</div>`;
+      return flights.map(f => `
+        <div class="flt">
+          <div class="flt-date">${thDate(f.date)}${f.callsign ? `<span class="cs">${esc(f.callsign)}</span>` : ""}</div>
+          <ul>${f.items.map(it => `<li class="${it.status === "resolved" ? "resolved" : ""}">${esc(it.description)}</li>`).join("")}</ul>
+        </div>`).join("");
+    }
+
+    let discMap = new Map();
+
+    function card(a) {
+      const opts = AC_STATUS.map(s => `<option value="${s}" ${s===a.status?"selected":""}>${AC_STATUS_LABEL[s]}</option>`).join("");
+      return `
+      <div class="ac s-${a.status}" data-id="${a.id}">
+        <div class="ac-head">
+          <div class="ac-id">
+            <div class="type">${esc(a.type || "-")}</div>
+            <div class="tail">${esc(a.tail_number)}</div>
+          </div>
+          ${badge(a.status)}
+        </div>
+        <div class="ac-body">
+          ${a.status_note ? `<div class="note"><b>หมายเหตุ:</b> ${esc(a.status_note)}</div>` : ""}
+          ${a.status_updated_at ? `<div class="updated">อัปเดตสถานภาพ: ${thDate(a.status_updated_at.slice(0,10))}</div>` : ""}
+          <h4 style="margin-top:12px">ข้อขัดข้อง · 3 ไฟลท์ล่าสุด</h4>
+          ${flightsHTML(discMap.get(a.id))}
+        </div>
+        ${planner ? `
+        <div class="ac-edit">
+          <select data-status>${opts}</select>
+          <input data-note value="${esc(a.status_note || "")}" placeholder="หมายเหตุสถานภาพ (ถ้ามี)">
+          <button class="btn sm primary" data-save>บันทึก</button>
+        </div>` : ""}
+      </div>`;
+    }
+
+    async function refresh() {
+      const [list, disc] = await Promise.all([loadAircraft(), loadRecentDiscrepancies()]);
+      discMap = disc;
+      const grid = document.getElementById("grid");
+      const cnt = { FMC:0, PMC:0, NMC:0 };
+      list.forEach(a => cnt[a.status] = (cnt[a.status]||0)+1);
+      document.getElementById("sub").textContent = list.length
+        ? `${list.length} เครื่อง · FMC ${cnt.FMC} · PMC ${cnt.PMC} · NMC ${cnt.NMC}`
+        : "ยังไม่มีเครื่องในระบบ";
+      grid.innerHTML = list.length ? list.map(card).join("")
+        : `<div class="empty" style="grid-column:1/-1">ยังไม่มีเครื่องในระบบ</div>`;
+
+      grid.querySelectorAll("[data-save]").forEach(b =>
+        b.addEventListener("click", async (e) => {
+          const c = e.target.closest(".ac");
+          b.disabled = true; b.textContent = "…";
+          const err = await setAircraftStatus(c.dataset.id,
+            c.querySelector("[data-status]").value, c.querySelector("[data-note]").value);
+          if (err) { alert("บันทึกไม่สำเร็จ: " + err.message); b.disabled = false; b.textContent = "บันทึก"; }
+          else refresh();
+        }));
+    }
+    refresh();
+  }
+</script>
+</body>
+</html>

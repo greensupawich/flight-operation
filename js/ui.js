@@ -8,6 +8,7 @@ const LINKS = [
   { href: "dashboard.html", label: "ภารกิจ" },
   { href: "queue.html",     label: "คิวบิน" },
   { href: "crew.html",      label: "ทะเบียนนักบิน" },
+  { href: "status.html",    label: "สถานภาพเครื่อง" },
   { href: "stats.html",     label: "สถิติ" },
   { href: "admin.html",     label: "ผู้ดูแล", adminOnly: true },
 ];
