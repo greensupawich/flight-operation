@@ -8,25 +8,75 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bai+Jamjuree:wght@600;700&family=IBM+Plex+Sans+Thai:wght@400;500;600&family=IBM+Plex+Mono&display=swap">
 <link rel="stylesheet" href="css/style.css">
+<style>
+  main .wrap{max-width:1560px}
+  h3.sec{font-family:"Bai Jamjuree",sans-serif;margin:26px 0 8px}
+  h3.sec:first-of-type{margin-top:14px}
+  .stat-head{display:flex;align-items:end;gap:12px;flex-wrap:wrap}
+  .stat-head .pick{margin-inline-start:auto;display:flex;align-items:center;gap:8px}
+  .stat-head .pick input{width:auto}
+  .kpi{display:flex;gap:10px;flex-wrap:wrap;margin:10px 0 4px}
+  .kpi .card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 16px;box-shadow:var(--shadow)}
+  .kpi .card .n{font-family:"Bai Jamjuree",sans-serif;font-weight:700;font-size:22px}
+  .kpi .card .l{font-size:12px;color:var(--muted)}
+
+  /* ---- กราฟแท่ง ชม.รวมรายวัน ---- */
+  .chart{display:flex;align-items:stretch;gap:2px;height:230px;padding:12px 12px 6px;
+         border:1px solid var(--line);border-radius:12px;background:var(--surface);
+         box-shadow:var(--shadow);overflow-x:auto}
+  .bar{flex:1 0 16px;display:flex;flex-direction:column;align-items:center;height:100%}
+  .bar .col{flex:1;width:100%;display:flex;align-items:flex-end;justify-content:center;min-height:0}
+  .bar .fill{width:72%;background:var(--primary);border-radius:3px 3px 0 0;min-height:2px;transition:height .2s}
+  .bar.wk .fill{background:var(--muted)}   /* เสาร์-อาทิตย์ สีจาง */
+  .bar .cap{height:15px;line-height:15px;font-size:9px;color:var(--faint);font-family:"IBM Plex Mono",monospace}
+  .chart-empty{display:flex;align-items:center;justify-content:center;width:100%;color:var(--faint)}
+
+  /* ---- ตารางแยกประเภท ---- */
+  table.mt{border-collapse:collapse;width:100%;font-size:12px}
+  table.mt th,table.mt td{border:1px solid var(--line);padding:4px 6px;text-align:center;white-space:nowrap}
+  table.mt th{background:var(--surface-2);font-weight:600;font-size:11px;color:var(--muted);position:sticky;top:0}
+  table.mt td.k{text-align:start;font-weight:700;white-space:nowrap;position:sticky;inset-inline-start:0}
+  table.mt th.k{text-align:start;position:sticky;inset-inline-start:0;z-index:2}
+  table.mt td.tot,table.mt th.tot{font-weight:700;background:var(--surface-2);position:sticky;inset-inline-end:0}
+  table.mt td.z{color:var(--faint)}
+  table.mt tr.sum td{font-weight:700;background:var(--surface-2)}
+  table.mt tr.sum td.k{background:var(--surface-2)}
+  .legend{display:flex;gap:12px;flex-wrap:wrap;margin:8px 0 0;font-size:12px;color:var(--muted)}
+  .legend .sw{display:inline-block;width:14px;height:14px;border-radius:4px;margin-inline-end:5px;vertical-align:-2px;border:1px solid var(--line)}
+</style>
 </head>
 <body>
 <main>
   <div class="wrap">
-    <div class="page-head"><h1>สถิติ</h1><div class="sub">ชม.บินรายคน · ชม.เครื่อง · ข้อขัดข้อง</div></div>
+    <div class="page-head stat-head">
+      <div><h1>สถิติ</h1><div class="sub">ชม.บินรวม · แยกประเภทภารกิจ · รายคน · รายเครื่อง</div></div>
+      <div class="pick">
+        <label for="mon" style="margin:0;font-size:13px">เดือน:</label>
+        <input type="month" id="mon">
+      </div>
+    </div>
 
-    <h3 style="font-family:'Bai Jamjuree',sans-serif;margin:18px 0 8px">ชั่วโมงบินสะสม — รายคน</h3>
+    <h3 class="sec">ชั่วโมงบินรวมทุกเครื่อง — รายวัน</h3>
+    <div class="kpi" id="kpi"></div>
+    <div class="chart" id="chart"><div class="chart-empty">กำลังโหลด…</div></div>
+
+    <h3 class="sec">ชั่วโมงบินแยกประเภทภารกิจ — รายวัน / รวมเดือน</h3>
+    <div class="tablewrap"><div id="mtable"><div class="empty">กำลังโหลด…</div></div></div>
+    <div class="legend" id="legend"></div>
+
+    <h3 class="sec">ชั่วโมงบินสะสม — รายคน</h3>
     <div class="tablewrap">
       <table><thead><tr><th>ลูกเรือ (รหัส)</th><th>แบบเครื่อง</th><th style="text-align:end">ชม.รวม</th></tr></thead>
       <tbody id="crew"><tr><td colspan="3" class="empty">กำลังโหลด…</td></tr></tbody></table>
     </div>
 
-    <h3 style="font-family:'Bai Jamjuree',sans-serif;margin:26px 0 8px">ชั่วโมงบินสะสม — รายเครื่อง</h3>
+    <h3 class="sec">ชั่วโมงบินสะสม — รายเครื่อง</h3>
     <div class="tablewrap">
       <table><thead><tr><th>ทะเบียน</th><th>แบบ</th><th style="text-align:end">ชม.รวม</th></tr></thead>
       <tbody id="ac"><tr><td colspan="3" class="empty">กำลังโหลด…</td></tr></tbody></table>
     </div>
 
-    <h3 style="font-family:'Bai Jamjuree',sans-serif;margin:26px 0 8px">ข้อขัดข้อง — รายเครื่อง</h3>
+    <h3 class="sec">ข้อขัดข้อง — รายเครื่อง</h3>
     <div class="tablewrap">
       <table><thead><tr><th>ทะเบียน</th><th>รายละเอียด</th><th>สถานะ</th><th>วันที่</th></tr></thead>
       <tbody id="disc"><tr><td colspan="4" class="empty">กำลังโหลด…</td></tr></tbody></table>
@@ -38,13 +88,105 @@
   import { requireAuth } from "./js/auth.js";
   import { renderTopbar } from "./js/ui.js";
   import { supabase } from "./js/supabase.js";
+  import { KINDS, KIND_COLORS, DEFAULT_KIND } from "./js/missions.js";
 
   const profile = await requireAuth();
   if (!profile) throw new Error("no auth");
   renderTopbar(profile);
   const esc=(s)=>String(s??"").replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+  const fx=(h)=>Number(h||0);
+  const fmt=(h)=>{ const v=Math.round(fx(h)*10)/10; return v ? String(v) : ""; };
 
-  // ชม.รายคน
+  // ---------- ดึงชั่วโมงบินทั้งหมด (ผูกกับวันที่ + ประเภทภารกิจ) ----------
+  const { data: reps, error: repErr } = await supabase.from("post_flight_reports")
+    .select("total_hours, missions(mission_date, kind)");
+  if (repErr) console.warn("reports:", repErr.message);
+  const rows = (reps||[]).filter(r=>r.missions && r.missions.mission_date)
+    .map(r=>({ date:String(r.missions.mission_date).slice(0,10), kind:r.missions.kind||DEFAULT_KIND, h:fx(r.total_hours) }));
+
+  const daysIn=(y,m)=>new Date(y,m,0).getDate();   // m=1..12
+
+  function renderMonth(ym){
+    const [y,m]=ym.split("-").map(Number);
+    const nd=daysIn(y,m);
+    const inMonth=rows.filter(r=>r.date.slice(0,7)===ym);
+
+    // รวมรายวัน (ทุกประเภท) + แยกตามประเภท
+    const perDay=Array(nd+1).fill(0);
+    const perKind=new Map();                         // kind -> [day]=hours
+    for(const r of inMonth){
+      const d=Number(r.date.slice(8,10));
+      if(d<1||d>nd) continue;
+      perDay[d]+=r.h;
+      if(!perKind.has(r.kind)) perKind.set(r.kind, Array(nd+1).fill(0));
+      perKind.get(r.kind)[d]+=r.h;
+    }
+    const monthTotal=perDay.reduce((a,b)=>a+b,0);
+    const flyingDays=perDay.filter(v=>v>0).length;
+    const maxDay=Math.max(1,...perDay);
+
+    // ----- KPI -----
+    document.getElementById("kpi").innerHTML=`
+      <div class="card"><div class="n">${Math.round(monthTotal*10)/10}</div><div class="l">ชม.รวมทั้งเดือน</div></div>
+      <div class="card"><div class="n">${flyingDays}</div><div class="l">วันที่มีบิน</div></div>
+      <div class="card"><div class="n">${inMonth.length}</div><div class="l">เที่ยวบิน</div></div>`;
+
+    // ----- กราฟแท่งรายวัน -----
+    const chart=document.getElementById("chart");
+    if(monthTotal===0){ chart.innerHTML=`<div class="chart-empty">ยังไม่มีข้อมูลชั่วโมงบินในเดือนนี้</div>`; }
+    else{
+      let html="";
+      for(let d=1;d<=nd;d++){
+        const dow=new Date(y,m-1,d).getDay();
+        const wk=(dow===0||dow===6)?" wk":"";
+        const pct=Math.round(perDay[d]/maxDay*100);
+        html+=`<div class="bar${wk}" title="${d} · ${Math.round(perDay[d]*10)/10} ชม.">
+          <div class="col"><div class="fill" style="height:${pct}%"></div></div>
+          <div class="cap">${d}</div></div>`;
+      }
+      chart.innerHTML=html;
+    }
+
+    // ----- ตารางแยกประเภท -----
+    const kindsShown=Object.keys(KINDS).filter(k=>perKind.has(k) && perKind.get(k).some(v=>v>0));
+    const box=document.getElementById("mtable");
+    if(!kindsShown.length){ box.innerHTML=`<div class="empty">ยังไม่มีข้อมูลชั่วโมงบินในเดือนนี้</div>`;
+      document.getElementById("legend").innerHTML=""; return; }
+
+    const head=`<tr><th class="k">ประเภทภารกิจ</th>`+
+      Array.from({length:nd},(_,i)=>{const d=i+1;const dow=new Date(y,m-1,d).getDay();
+        return `<th${(dow===0||dow===6)?' style="color:var(--faint)"':''}>${d}</th>`;}).join("")+
+      `<th class="tot">รวมเดือน</th></tr>`;
+
+    const body=kindsShown.map(k=>{
+      const c=KIND_COLORS[k]||KIND_COLORS[DEFAULT_KIND];
+      const arr=perKind.get(k);
+      const tot=arr.reduce((a,b)=>a+b,0);
+      const tint=`background:color-mix(in srgb, ${c.bg} 20%, var(--surface))`;
+      const cells=Array.from({length:nd},(_,i)=>{const v=arr[i+1];
+        return v>0?`<td style="${tint}">${fmt(v)}</td>`:`<td class="z">·</td>`;}).join("");
+      return `<tr><td class="k" style="background:${c.bg};color:${c.fg}">${esc(KINDS[k])}</td>${cells}`+
+             `<td class="tot">${Math.round(tot*10)/10}</td></tr>`;
+    }).join("");
+
+    const sumRow=`<tr class="sum"><td class="k">รวม/วัน</td>`+
+      Array.from({length:nd},(_,i)=>{const v=perDay[i+1];return `<td>${v>0?fmt(v):"·"}</td>`;}).join("")+
+      `<td class="tot">${Math.round(monthTotal*10)/10}</td></tr>`;
+
+    box.innerHTML=`<table class="mt"><thead>${head}</thead><tbody>${body}${sumRow}</tbody></table>`;
+
+    document.getElementById("legend").innerHTML=kindsShown.map(k=>{
+      const c=KIND_COLORS[k]||KIND_COLORS[DEFAULT_KIND];
+      return `<span><i class="sw" style="background:${c.bg}"></i>${esc(KINDS[k])}</span>`;}).join("");
+  }
+
+  const mon=document.getElementById("mon");
+  const now=new Date();
+  mon.value=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}`;
+  mon.addEventListener("change",()=>renderMonth(mon.value||mon.max));
+  renderMonth(mon.value);
+
+  // ---------- ตารางสะสม (ไม่ขึ้นกับเดือน) ----------
   const { data: ch } = await supabase.from("crew_hours")
     .select("total_hours, aircraft_type, crew_members(code,full_name)").order("total_hours",{ascending:false});
   document.getElementById("crew").innerHTML = (ch&&ch.length)
@@ -53,13 +195,11 @@
         <td>${esc(r.aircraft_type)}</td><td class="num">${r.total_hours}</td></tr>`).join("")
     : `<tr><td colspan="3" class="empty">ยังไม่มีข้อมูล</td></tr>`;
 
-  // ชม.เครื่อง
   const { data: ac } = await supabase.from("aircraft").select("*").order("total_hours",{ascending:false});
   document.getElementById("ac").innerHTML = (ac&&ac.length)
     ? ac.map(a=>`<tr><td class="mono">${esc(a.tail_number)}</td><td>${esc(a.type||"-")}</td><td class="num">${a.total_hours}</td></tr>`).join("")
     : `<tr><td colspan="3" class="empty">ยังไม่มีข้อมูล</td></tr>`;
 
-  // ข้อขัดข้อง
   const { data: d } = await supabase.from("discrepancies")
     .select("*, aircraft(tail_number)").order("reported_date",{ascending:false});
   document.getElementById("disc").innerHTML = (d&&d.length)
