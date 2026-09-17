@@ -64,12 +64,6 @@
     <div class="tablewrap"><div id="mtable"><div class="empty">กำลังโหลด…</div></div></div>
     <div class="legend" id="legend"></div>
 
-    <h3 class="sec">ชั่วโมงบินสะสม — รายคน</h3>
-    <div class="tablewrap">
-      <table><thead><tr><th>ลูกเรือ (รหัส)</th><th>แบบเครื่อง</th><th style="text-align:end">ชม.รวม</th></tr></thead>
-      <tbody id="crew"><tr><td colspan="3" class="empty">กำลังโหลด…</td></tr></tbody></table>
-    </div>
-
     <h3 class="sec">ชั่วโมงบินสะสม — รายเครื่อง</h3>
     <div class="tablewrap">
       <table><thead><tr><th>ทะเบียน</th><th>แบบ</th><th style="text-align:end">ชม.รวม</th></tr></thead>
@@ -204,14 +198,6 @@
   renderMonth(mon.value);
 
   // ---------- ตารางสะสม (ไม่ขึ้นกับเดือน) ----------
-  const { data: ch } = await supabase.from("crew_hours")
-    .select("total_hours, aircraft_type, crew_members(code,full_name)").order("total_hours",{ascending:false});
-  document.getElementById("crew").innerHTML = (ch&&ch.length)
-    ? ch.map(r=>`<tr><td>${esc(r.crew_members?.full_name||"-")}
-        <span class="mono muted" style="font-size:11.5px">${esc(r.crew_members?.code||"")}</span></td>
-        <td>${esc(r.aircraft_type)}</td><td class="num">${r.total_hours}</td></tr>`).join("")
-    : `<tr><td colspan="3" class="empty">ยังไม่มีข้อมูล</td></tr>`;
-
   const { data: ac } = await supabase.from("aircraft").select("*").order("total_hours",{ascending:false});
   document.getElementById("ac").innerHTML = (ac&&ac.length)
     ? ac.map(a=>`<tr><td class="mono">${esc(a.tail_number)}</td><td>${esc(a.type||"-")}</td><td class="num">${a.total_hours}</td></tr>`).join("")
@@ -219,8 +205,18 @@
 
   const { data: d } = await supabase.from("discrepancies")
     .select("*, aircraft(tail_number)").order("reported_date",{ascending:false});
-  document.getElementById("disc").innerHTML = (d&&d.length)
-    ? d.map(x=>`<tr><td class="mono">${esc(x.aircraft?.tail_number||"-")}</td><td>${esc(x.description)}</td><td>${esc(x.status)}</td><td>${esc(x.reported_date)}</td></tr>`).join("")
+  // สีประจำเครื่อง (แยกด้วย hue ต่างกัน · ใช้ได้ทั้งธีมสว่าง/มืด ด้วย color-mix)
+  const tails=[...new Set((d||[]).map(x=>x.aircraft?.tail_number||"-"))].sort();
+  const HUES=[210,8,145,40,275,175,320,95];
+  const col=(t)=>`hsl(${HUES[Math.max(0,tails.indexOf(t))%HUES.length]} 70% 45%)`;
+  const discRows=(d||[]).slice().sort((a,b)=>
+    (a.aircraft?.tail_number||"").localeCompare(b.aircraft?.tail_number||"")
+    || String(b.reported_date).localeCompare(String(a.reported_date)));
+  document.getElementById("disc").innerHTML = discRows.length
+    ? discRows.map(x=>{ const t=x.aircraft?.tail_number||"-"; const c=col(t);
+        return `<tr>
+          <td class="mono" style="border-inline-start:5px solid ${c};background:color-mix(in srgb, ${c} 20%, var(--surface));font-weight:700">${esc(t)}</td>
+          <td>${esc(x.description)}</td><td>${esc(x.status)}</td><td>${esc(x.reported_date)}</td></tr>`;}).join("")
     : `<tr><td colspan="4" class="empty">ยังไม่มีข้อมูล</td></tr>`;
 </script>
 </body>
