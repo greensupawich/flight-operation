@@ -90,7 +90,7 @@ with flown as (
     join public.post_flight_reports r on r.mission_id = m.id
    where mc.crew_member_id is not null
      and upper(coalesce(mc.position,'')) in ('AC','IP','P','CP','N')
-     and coalesce(m.status,'') <> 'cancelled'
+     and m.status is distinct from 'cancelled'
    group by mc.crew_member_id, 2
 )
 update public.crew_members c set
