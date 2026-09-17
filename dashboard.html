@@ -48,6 +48,19 @@
       <a class="btn sm primary" id="addBtn" href="#" hidden style="margin-inline-start:auto">+ เพิ่มภารกิจ</a>
     </div>
 
+    <details id="offRangeBox" hidden style="background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 16px;margin-bottom:16px;box-shadow:var(--shadow)">
+      <summary style="cursor:pointer;font-weight:600;font-size:14px">🟥 ตั้ง "ไม่ว่าง" ของนักบินเป็นช่วงวันที่ (กรอกทีเดียว ไม่ต้องไล่ทีละวัน)</summary>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-top:12px">
+        <div><label style="font-size:12px">นักบิน</label><br><select id="orPilot" style="min-width:210px"></select></div>
+        <div><label style="font-size:12px">ตั้งแต่วันที่</label><br><input type="date" id="orFrom" style="width:auto"></div>
+        <div><label style="font-size:12px">ถึงวันที่</label><br><input type="date" id="orTo" style="width:auto"></div>
+        <div style="flex:1;min-width:160px"><label style="font-size:12px">หมายเหตุ (ถ้ามี)</label><br><input id="orNote" placeholder="เช่น ลาพักผ่อน / ราชการ" style="width:100%"></div>
+        <button class="btn sm primary" id="orApply">ทำเครื่องหมายไม่ว่าง</button>
+        <button class="btn sm ghost" id="orClear">ลบช่วงนี้</button>
+      </div>
+      <div id="orMsg" style="font-size:12.5px;margin-top:8px;min-height:16px"></div>
+    </details>
+
     <div class="cal" id="dow"></div>
     <div class="cal" id="grid" style="margin-top:6px"></div>
 
@@ -61,7 +74,9 @@
 <script type="module">
   import { requireAuth, canPlan } from "./js/auth.js";
   import { renderTopbar } from "./js/ui.js";
-  import { loadMonthCounts, isoLocal } from "./js/missions.js";
+  import { loadMonthCounts, isoLocal, esc } from "./js/missions.js";
+  import { loadCrew } from "./js/crew.js";
+  import { addUnavailable, removeUnavailable } from "./js/queue.js";
 
   const profile = await requireAuth();
   if (profile) {
@@ -80,6 +95,47 @@
       const a = document.getElementById("addBtn");
       a.hidden = false;
       a.href = `mission.html?new=1&date=${todayStr}`;
+
+      // ---------- ตั้ง "ไม่ว่าง" เป็นช่วงวันที่ ----------
+      document.getElementById("offRangeBox").hidden = false;
+      const fr = document.getElementById("orFrom"), to = document.getElementById("orTo");
+      const msg = document.getElementById("orMsg");
+      fr.value = todayStr; to.value = todayStr;
+      loadCrew(false).then((crew) => {
+        document.getElementById("orPilot").innerHTML = `<option value="">— เลือกนักบิน —</option>` +
+          crew.map(c => `<option value="${c.id}">${esc(c.full_name)} (${esc(c.code)})</option>`).join("");
+      });
+      const datesBetween = (x, z) => {
+        const out = []; if (!x || !z) return out;
+        let d = new Date(x + "T00:00:00"); const end = new Date(z + "T00:00:00");
+        if (end < d) return out;
+        for (; d <= end; d.setDate(d.getDate() + 1)) out.push(isoLocal(d));
+        return out;
+      };
+      const readRange = () => {
+        const id = document.getElementById("orPilot").value;
+        const ds = datesBetween(fr.value, to.value);
+        if (!id) { msg.style.color = "var(--crit)"; msg.textContent = "กรุณาเลือกนักบิน"; return null; }
+        if (!ds.length) { msg.style.color = "var(--crit)"; msg.textContent = "ช่วงวันที่ไม่ถูกต้อง (วันสิ้นสุดต้องไม่ก่อนวันเริ่ม)"; return null; }
+        return { id, ds };
+      };
+      const shortD = (s) => { const [, mo, da] = s.split("-").map(Number); return `${da}/${mo}`; };
+      document.getElementById("orApply").addEventListener("click", async (e) => {
+        const r = readRange(); if (!r) return;
+        e.target.disabled = true; msg.style.color = "var(--muted)"; msg.textContent = "กำลังบันทึก…";
+        const err = await addUnavailable(r.id, r.ds, document.getElementById("orNote").value);
+        e.target.disabled = false;
+        if (err) { msg.style.color = "var(--crit)"; msg.textContent = "บันทึกไม่สำเร็จ: " + err.message; return; }
+        msg.style.color = "var(--good)"; msg.textContent = `ตั้งไม่ว่าง ${r.ds.length} วัน (${shortD(r.ds[0])}–${shortD(r.ds[r.ds.length-1])}) แล้ว`;
+      });
+      document.getElementById("orClear").addEventListener("click", async (e) => {
+        const r = readRange(); if (!r) return;
+        e.target.disabled = true; msg.style.color = "var(--muted)"; msg.textContent = "กำลังลบ…";
+        const err = await removeUnavailable(r.id, r.ds);
+        e.target.disabled = false;
+        if (err) { msg.style.color = "var(--crit)"; msg.textContent = "ลบไม่สำเร็จ: " + err.message; return; }
+        msg.style.color = "var(--good)"; msg.textContent = `ลบสถานะไม่ว่าง ${r.ds.length} วันแล้ว`;
+      });
     }
 
     async function render() {

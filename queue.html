@@ -137,19 +137,6 @@
       </div>
     </div>
 
-    <details class="af" id="offRangeBox" hidden>
-      <summary>🟥 ตั้ง "ไม่ว่าง" เป็นช่วงวันที่ (กรอกทีเดียว ไม่ต้องไล่ระบายทีละวัน)</summary>
-      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-top:10px">
-        <div><label style="font-size:12px">นักบิน</label><br><select id="orPilot" style="min-width:200px"></select></div>
-        <div><label style="font-size:12px">ตั้งแต่วันที่</label><br><input type="date" id="orFrom" style="width:auto"></div>
-        <div><label style="font-size:12px">ถึงวันที่</label><br><input type="date" id="orTo" style="width:auto"></div>
-        <div style="flex:1;min-width:160px"><label style="font-size:12px">หมายเหตุ (ถ้ามี)</label><br><input id="orNote" placeholder="เช่น ลาพักผ่อน / ราชการ" style="width:100%"></div>
-        <button class="btn sm primary" id="orApply">ทำเครื่องหมายไม่ว่าง</button>
-        <button class="btn sm ghost" id="orClear">ลบช่วงนี้</button>
-      </div>
-      <div id="orMsg" style="font-size:12.5px;margin-top:8px;min-height:16px"></div>
-    </details>
-
     <div class="legend" id="legend"></div>
     <p class="hint" id="hint"></p>
     <div class="missing" id="missing" hidden></div>
@@ -196,56 +183,6 @@
     if (planner) {
       document.getElementById("modes").hidden = false;
       table.classList.add("can-edit");
-      document.getElementById("offRangeBox").hidden = false;
-    }
-
-    // ---------- ตั้งไม่ว่างเป็นช่วงวันที่ ----------
-    const datesBetween = (a, b) => {
-      const out = []; if (!a || !b) return out;
-      let d = new Date(a + "T00:00:00"); const end = new Date(b + "T00:00:00");
-      if (end < d) return out;
-      for (; d <= end; d.setDate(d.getDate() + 1)) out.push(`${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`);
-      return out;
-    };
-    let orFilled = false;
-    function syncOrPilot() {
-      const sel = document.getElementById("orPilot");
-      if (!sel || orFilled || !data?.crew?.length) return;
-      const cur = sel.value;
-      sel.innerHTML = `<option value="">— เลือกนักบิน —</option>` +
-        data.crew.map(c => `<option value="${c.id}">${esc(c.full_name)} (${esc(c.code)})</option>`).join("");
-      sel.value = cur; orFilled = true;
-    }
-    if (planner) {
-      const fr = document.getElementById("orFrom"), to = document.getElementById("orTo");
-      fr.value = todayStr; to.value = todayStr;
-      const msg = document.getElementById("orMsg");
-      const readRange = () => {
-        const id = document.getElementById("orPilot").value;
-        const ds = datesBetween(fr.value, to.value);
-        if (!id) { msg.style.color = "var(--crit)"; msg.textContent = "กรุณาเลือกนักบิน"; return null; }
-        if (!ds.length) { msg.style.color = "var(--crit)"; msg.textContent = "ช่วงวันที่ไม่ถูกต้อง (วันสิ้นสุดต้องไม่ก่อนวันเริ่ม)"; return null; }
-        return { id, ds };
-      };
-      const thShort = (s) => { const [y,m,d]=s.split("-").map(Number); return `${d}/${m}`; };
-      document.getElementById("orApply").addEventListener("click", async (e) => {
-        const r = readRange(); if (!r) return;
-        e.target.disabled = true; msg.style.color = "var(--muted)"; msg.textContent = "กำลังบันทึก…";
-        const err = await addUnavailable(r.id, r.ds, document.getElementById("orNote").value);
-        e.target.disabled = false;
-        if (err) { msg.style.color = "var(--crit)"; msg.textContent = "บันทึกไม่สำเร็จ: " + err.message; return; }
-        msg.style.color = "var(--good)"; msg.textContent = `ตั้งไม่ว่าง ${r.ds.length} วัน (${thShort(r.ds[0])}–${thShort(r.ds[r.ds.length-1])}) แล้ว`;
-        refresh();
-      });
-      document.getElementById("orClear").addEventListener("click", async (e) => {
-        const r = readRange(); if (!r) return;
-        e.target.disabled = true; msg.style.color = "var(--muted)"; msg.textContent = "กำลังลบ…";
-        const err = await removeUnavailable(r.id, r.ds);
-        e.target.disabled = false;
-        if (err) { msg.style.color = "var(--crit)"; msg.textContent = "ลบไม่สำเร็จ: " + err.message; return; }
-        msg.style.color = "var(--good)"; msg.textContent = `ลบสถานะไม่ว่าง ${r.ds.length} วันแล้ว`;
-        refresh();
-      });
     }
 
     // ---------- คำอธิบาย ----------
@@ -294,7 +231,6 @@
         ? await loadHistory(addDays(target, -120), addDays(first, -1)) : { entries: [], missions: [] };
       data = { ...base, entries, hist };
       render();
-      syncOrPilot();
     }
 
     // ---------- สิ่งที่แสดงในแต่ละช่อง ----------
