@@ -86,10 +86,13 @@ export async function clearHoliday(date) {
 }
 
 // ---------- วันไม่ว่าง (ทำทีละหลายช่องจากการลาก) ----------
-export async function addUnavailable(crewId, dates) {
+export async function addUnavailable(crewId, dates, note) {
   if (!dates.length) return null;
+  const row = (d) => note != null
+    ? { crew_member_id: crewId, off_date: d, note: (note || "").trim() || null }
+    : { crew_member_id: crewId, off_date: d };
   const { error } = await supabase.from("crew_unavailable")
-    .upsert(dates.map((d) => ({ crew_member_id: crewId, off_date: d })), { onConflict: "crew_member_id,off_date" });
+    .upsert(dates.map(row), { onConflict: "crew_member_id,off_date" });
   return error;
 }
 export async function removeUnavailable(crewId, dates) {
