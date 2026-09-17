@@ -41,6 +41,8 @@
   table.mt td.z{color:var(--faint)}
   table.mt tr.sum td{font-weight:700;background:var(--surface-2)}
   table.mt tr.sum td.k{background:var(--surface-2)}
+  .pager{display:flex;align-items:center;justify-content:center;gap:12px;margin:10px 0}
+  .pager .pinfo{font-size:12.5px;color:var(--muted)}
   .legend{display:flex;gap:12px;flex-wrap:wrap;margin:8px 0 0;font-size:12px;color:var(--muted)}
   .legend .sw{display:inline-block;width:14px;height:14px;border-radius:4px;margin-inline-end:5px;vertical-align:-2px;border:1px solid var(--line)}
 </style>
@@ -70,11 +72,16 @@
       <tbody id="ac"><tr><td colspan="3" class="empty">กำลังโหลด…</td></tr></tbody></table>
     </div>
 
-    <h3 class="sec">ข้อขัดข้อง — รายเครื่อง</h3>
+    <div class="stat-head" style="margin:26px 0 8px">
+      <h3 class="sec" style="margin:0">ข้อขัดข้อง — รายเครื่อง</h3>
+      <div class="pick"><label for="discAc" style="margin:0;font-size:13px">เครื่อง:</label>
+        <select id="discAc" style="width:auto"><option value="">ทั้งหมด</option></select></div>
+    </div>
     <div class="tablewrap">
       <table><thead><tr><th>ทะเบียน</th><th>รายละเอียด</th><th>สถานะ</th><th>วันที่</th></tr></thead>
       <tbody id="disc"><tr><td colspan="4" class="empty">กำลังโหลด…</td></tr></tbody></table>
     </div>
+    <div class="pager" id="discPager"></div>
   </div>
 </main>
 
@@ -212,12 +219,39 @@
   const discRows=(d||[]).slice().sort((a,b)=>
     (a.aircraft?.tail_number||"").localeCompare(b.aircraft?.tail_number||"")
     || String(b.reported_date).localeCompare(String(a.reported_date)));
-  document.getElementById("disc").innerHTML = discRows.length
-    ? discRows.map(x=>{ const t=x.aircraft?.tail_number||"-"; const c=col(t);
-        return `<tr>
-          <td class="mono" style="border-inline-start:5px solid ${c};background:color-mix(in srgb, ${c} 20%, var(--surface));font-weight:700">${esc(t)}</td>
-          <td>${esc(x.description)}</td><td>${esc(x.status)}</td><td>${esc(x.reported_date)}</td></tr>`;}).join("")
-    : `<tr><td colspan="4" class="empty">ยังไม่มีข้อมูล</td></tr>`;
+
+  // ---- ตัวเลือกเครื่อง (dropdown) ----
+  const sel=document.getElementById("discAc");
+  const cntOf=(t)=>discRows.filter(x=>(x.aircraft?.tail_number||"-")===t).length;
+  sel.innerHTML=`<option value="">ทั้งหมด (${discRows.length})</option>`+
+    tails.map(t=>`<option value="${esc(t)}">${esc(t)} (${cntOf(t)})</option>`).join("");
+
+  // ---- แสดงผลแบบแบ่งหน้า หน้าละ 10 ----
+  const PAGE=10;
+  let discFilter="", discPage=1;
+  function renderDisc(){
+    const list=discFilter ? discRows.filter(x=>(x.aircraft?.tail_number||"-")===discFilter) : discRows;
+    const pages=Math.max(1,Math.ceil(list.length/PAGE));
+    if(discPage>pages) discPage=pages;
+    const slice=list.slice((discPage-1)*PAGE,(discPage-1)*PAGE+PAGE);
+    document.getElementById("disc").innerHTML = slice.length
+      ? slice.map(x=>{ const t=x.aircraft?.tail_number||"-"; const c=col(t);
+          return `<tr>
+            <td class="mono" style="border-inline-start:5px solid ${c};background:color-mix(in srgb, ${c} 20%, var(--surface));font-weight:700">${esc(t)}</td>
+            <td>${esc(x.description)}</td><td>${esc(x.status)}</td><td>${esc(x.reported_date)}</td></tr>`;}).join("")
+      : `<tr><td colspan="4" class="empty">ไม่มีข้อขัดข้อง</td></tr>`;
+    const pager=document.getElementById("discPager");
+    if(list.length<=PAGE){ pager.innerHTML=list.length?`<span class="pinfo">${list.length} รายการ</span>`:""; }
+    else{
+      pager.innerHTML=`<button class="btn sm ghost" ${discPage<=1?"disabled":""} data-prev>‹ ก่อนหน้า</button>`
+        +`<span class="pinfo">หน้า ${discPage}/${pages} · ${list.length} รายการ</span>`
+        +`<button class="btn sm ghost" ${discPage>=pages?"disabled":""} data-next>ถัดไป ›</button>`;
+      pager.querySelector("[data-prev]")?.addEventListener("click",()=>{ discPage--; renderDisc(); });
+      pager.querySelector("[data-next]")?.addEventListener("click",()=>{ discPage++; renderDisc(); });
+    }
+  }
+  sel.addEventListener("change",()=>{ discFilter=sel.value; discPage=1; renderDisc(); });
+  renderDisc();
 </script>
 </body>
 </html>
