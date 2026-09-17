@@ -25,10 +25,23 @@
         font-size:12.5px;line-height:1.65;margin-bottom:20px}
   .note b{font-weight:700}
   /* ตารางทะเบียน: กว้างพอสำหรับทุกคอลัมน์ ถ้าจอแคบให้เลื่อนแนวนอนแทนการบีบช่องชื่อ */
-  main .wrap{max-width:1360px}
-  .tablewrap table#roster{min-width:970px;table-layout:fixed}
+  main .wrap{max-width:1560px}
+  .tablewrap table#roster{min-width:1200px;table-layout:fixed}
   #roster th{white-space:normal;line-height:1.3}
   #roster td:last-child{white-space:nowrap}
+  /* ช่องความพร้อมบิน (currency) 500 / 600 */
+  .cur{border-radius:7px;padding:5px 6px;text-align:center;font-size:12px;font-weight:600;display:flex;
+       flex-direction:column;gap:4px;align-items:center}
+  .cur.ok  {background:var(--good-soft);color:var(--good)}
+  .cur.warn{background:#FFE7A0;color:#5a4300}
+  .cur.crit{background:#F4B3AC;color:#6e1b12}
+  .cur.na  {background:#15181d;color:#8a929c}
+  :root[data-theme="dark"] .cur.warn{background:#5a4300;color:#FFE7A0}
+  :root[data-theme="dark"] .cur.crit{background:#5a1a13;color:#F4B3AC}
+  .cur .cfk{display:flex;align-items:center;gap:4px;font-size:10.5px;font-weight:600}
+  .cur .cfk input{width:15px;height:15px}
+  .cur input[type=date]{font-size:11px;padding:3px 4px;width:100%;box-sizing:border-box}
+  .cur .dv{font-family:"IBM Plex Mono",monospace}
 </style>
 </head>
 <body>
@@ -49,6 +62,11 @@
     <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:-6px 0 18px;font-size:12.5px;color:var(--muted)">
       คุณวุฒิ:
       <span id="lgIP"></span><span id="lgP"></span><span id="lgCP"></span>
+      <span style="margin-inline-start:14px">ความพร้อมบิน:</span>
+      <span class="cur ok"   style="display:inline-block;padding:2px 8px">ปกติ</span>
+      <span class="cur warn" style="display:inline-block;padding:2px 8px">เกิน 80 วัน</span>
+      <span class="cur crit" style="display:inline-block;padding:2px 8px">เกิน 90 วัน / ไม่มีข้อมูล</span>
+      <span class="cur na"   style="display:inline-block;padding:2px 8px">บินแบบนี้ไม่ได้</span>
     </div>
 
     <!-- เพิ่มคนใหม่ -->
@@ -73,10 +91,11 @@
     <div class="tablewrap">
       <table id="roster">
         <thead><tr>
-          <th style="width:110px">รหัส (ID)</th><th style="width:220px">ชื่อ</th><th style="width:100px">คุณวุฒิ</th>
-          <th style="width:130px;text-align:end">ชม.บินประจำเดือน</th><th style="width:150px;text-align:end">จำนวนเที่ยวบินประจำเดือน</th><th style="width:110px">ใช้งาน</th><th style="width:150px"></th>
+          <th style="width:100px">รหัส (ID)</th><th style="width:180px">ชื่อ</th><th style="width:84px">คุณวุฒิ</th>
+          <th style="width:118px">บิน 500 ล่าสุด</th><th style="width:118px">บิน 600 ล่าสุด</th>
+          <th style="width:110px;text-align:end">ชม.บินประจำเดือน</th><th style="width:130px;text-align:end">เที่ยวบินประจำเดือน</th><th style="width:96px">ใช้งาน</th><th style="width:140px"></th>
         </tr></thead>
-        <tbody id="rows"><tr><td colspan="7" class="empty">กำลังโหลด…</td></tr></tbody>
+        <tbody id="rows"><tr><td colspan="9" class="empty">กำลังโหลด…</td></tr></tbody>
       </table>
     </div>
     <p class="muted" style="margin-top:12px;font-size:12.5px">
@@ -106,6 +125,24 @@
     const esc = (s) => String(s ?? "").replace(/[&<>"]/g,
       (c) => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;" }[c]));
 
+    // ---- ความพร้อมบิน (currency) ----
+    const TH_MON_SHORT = ["ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."];
+    const todayMid = new Date(); todayMid.setHours(0,0,0,0);
+    const daysSince = (d) => d ? Math.floor((todayMid - new Date(d.slice(0,10)+"T00:00:00")) / 86400000) : null;
+    const thShort = (d) => { if(!d) return "—"; const [y,mo,da]=d.slice(0,10).split("-").map(Number);
+      return `${da} ${TH_MON_SHORT[mo-1]}${String(y+543).slice(-2)}`; };
+    // สี: ดำ=บินไม่ได้ · แดง=เกิน90วัน/ไม่มีข้อมูล · เหลือง=เกิน80วัน · เขียว=ปกติ
+    const curClass = (canFly, d) => { if(!canFly) return "na"; const n=daysSince(d);
+      if(n===null || n>=90) return "crit"; if(n>=80) return "warn"; return "ok"; };
+    const curCell = (type, canFly, d) => {
+      const cls = curClass(canFly, d);
+      if (!planner) return `<td><div class="cur ${cls}">${canFly ? `<span class="dv">${thShort(d)}</span>${daysSince(d)!==null?`<span style="font-size:10px;opacity:.8">${daysSince(d)} วัน</span>`:""}` : "บินไม่ได้"}</div></td>`;
+      return `<td><div class="cur ${cls}" data-cur="${type}">
+        <label class="cfk"><input type="checkbox" data-f="can_fly_${type}" ${canFly?"checked":""}> บินได้</label>
+        <input type="date" data-f="last_${type}_date" value="${d?d.slice(0,10):""}" ${canFly?"":"disabled"}>
+      </div></td>`;
+    };
+
     // ---- เลือกเดือน (ค่าเริ่มต้น = เดือนปัจจุบัน) ----
     const TH_MONTH = ["มกราคม","กุมภาพันธ์","มีนาคม","เมษายน","พฤษภาคม","มิถุนายน",
                       "กรกฎาคม","สิงหาคม","กันยายน","ตุลาคม","พฤศจิกายน","ธันวาคม"];
@@ -120,7 +157,7 @@
       const [list, stats] = await Promise.all([loadCrew(), loadMonthlyStats(yy, mm - 1)]);
       const tb = document.getElementById("rows");
       if (!list.length) {
-        tb.innerHTML = `<tr><td colspan="7" class="empty">ยังไม่มีรายชื่อนักบิน${planner ? " · เพิ่มด้านบนได้เลย" : ""}</td></tr>`;
+        tb.innerHTML = `<tr><td colspan="9" class="empty">ยังไม่มีรายชื่อนักบิน${planner ? " · เพิ่มด้านบนได้เลย" : ""}</td></tr>`;
         return;
       }
       tb.innerHTML = list.map((c) => `
@@ -131,6 +168,8 @@
                 ${["", ...QUALS, ...(c.position && !QUALS.includes(c.position) ? [c.position] : [])]
                   .map(r=>`<option value="${r}" ${r===(c.position||"")?"selected":""}>${r||"—"}</option>`).join("")}
               </select></td>
+          ${curCell("500", c.can_fly_500 !== false, c.last_500_date)}
+          ${curCell("600", c.can_fly_600 !== false, c.last_600_date)}
           <td class="num hrs">${(stats[c.id]?.hours || 0).toFixed(1)}</td>
           <td class="num hrs">${stats[c.id]?.flights || 0}</td>
           <td><select data-f="active" ${planner ? "" : "disabled"}>
@@ -148,6 +187,17 @@
           sel.closest("tr").querySelector('[data-f="full_name"]').setAttribute("style", `${st};font-weight:600`);
         }));
 
+      // บินได้/ไม่ได้ → เปิด-ปิดช่องวันที่ + เปลี่ยนสีช่องทันที
+      tb.querySelectorAll(".cur[data-cur]").forEach((box) => {
+        const type = box.dataset.cur;
+        const chk = box.querySelector('[data-f="can_fly_'+type+'"]');
+        const dt  = box.querySelector('[data-f="last_'+type+'_date"]');
+        const paint = () => { dt.disabled = !chk.checked;
+          box.className = "cur " + curClass(chk.checked, dt.value || null); };
+        chk.addEventListener("change", paint);
+        dt.addEventListener("change", paint);
+      });
+
       tb.querySelectorAll("[data-save]").forEach((b) =>
         b.addEventListener("click", async (e) => {
           const tr = e.target.closest("tr");
@@ -155,10 +205,14 @@
           const code = get("code").trim(), full_name = get("full_name").trim();
           if (!code || !full_name) { alert("รหัสและชื่อห้ามว่าง"); return; }
           b.disabled = true; b.textContent = "…";
+          const chk = (f) => tr.querySelector(`[data-f="${f}"]`)?.checked ?? true;
+          const date = (f) => tr.querySelector(`[data-f="${f}"]`)?.value || null;
           const err = await updateCrew(tr.dataset.id, {
             code, full_name,
             position: get("position").trim() || null,
             active: get("active") === "true",
+            can_fly_500: chk("can_fly_500"), can_fly_600: chk("can_fly_600"),
+            last_500_date: date("last_500_date"), last_600_date: date("last_600_date"),
           });
           b.disabled = false; b.textContent = err ? "บันทึก" : "✓";
           if (err) alert("บันทึกไม่สำเร็จ: " + (err.message.includes("duplicate") ? "รหัสนี้ซ้ำกับคนอื่น" : err.message));
