@@ -48,7 +48,15 @@
       <a class="btn sm primary" id="addBtn" href="#" hidden style="margin-inline-start:auto">+ เพิ่มภารกิจ</a>
     </div>
 
-    <details id="offRangeBox" hidden style="background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 16px;margin-bottom:16px;box-shadow:var(--shadow)">
+    <div class="cal" id="dow"></div>
+    <div class="cal" id="grid" style="margin-top:6px"></div>
+
+    <div class="legend">
+      <span><i style="background:var(--primary)"></i>จำนวนภารกิจในวันนั้น</span>
+      <span><i style="background:var(--accent)"></i>วันนี้</span>
+    </div>
+
+    <details id="offRangeBox" hidden style="background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 16px;margin-top:22px;box-shadow:var(--shadow)">
       <summary style="cursor:pointer;font-weight:600;font-size:14px">🟥 ตั้ง "ไม่ว่าง" ของนักบินเป็นช่วงวันที่ (กรอกทีเดียว ไม่ต้องไล่ทีละวัน)</summary>
       <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-top:12px">
         <div><label style="font-size:12px">นักบิน</label><br><select id="orPilot" style="min-width:210px"></select></div>
@@ -60,14 +68,6 @@
       </div>
       <div id="orMsg" style="font-size:12.5px;margin-top:8px;min-height:16px"></div>
     </details>
-
-    <div class="cal" id="dow"></div>
-    <div class="cal" id="grid" style="margin-top:6px"></div>
-
-    <div class="legend">
-      <span><i style="background:var(--primary)"></i>จำนวนภารกิจในวันนั้น</span>
-      <span><i style="background:var(--accent)"></i>วันนี้</span>
-    </div>
   </div>
 </main>
 
