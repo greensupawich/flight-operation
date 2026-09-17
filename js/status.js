@@ -31,6 +31,15 @@ export async function setAircraftStatus(id, status, note) {
   return error;
 }
 
+// แก้สถานภาพย้อนหลัง: เขียนลงประวัติของวันนั้นโดยตรง (ไม่แตะสถานภาพปัจจุบัน)
+export async function setAircraftStatusOn(id, dateStr, status, note) {
+  const { error } = await supabase.from("aircraft_status_history")
+    .upsert({ aircraft_id: id, log_date: dateStr, status,
+              note: (note || "").trim() || null, updated_at: new Date().toISOString() },
+            { onConflict: "aircraft_id,log_date" });
+  return error;
+}
+
 // ข้อขัดข้องของทุกเครื่อง จัดกลุ่มเป็น "ไฟลท์" (ตามภารกิจ · ถ้าไม่มีภารกิจใช้วันที่)
 // คืน Map(aircraftId -> [{ date, callsign, items:[{description,status}] }]) เรียงใหม่→เก่า
 export async function loadRecentDiscrepancies() {

@@ -87,7 +87,7 @@
 <script type="module">
   import { requireAuth, canPlan } from "./js/auth.js";
   import { renderTopbar } from "./js/ui.js";
-  import { loadAircraft, setAircraftStatus, loadRecentDiscrepancies, loadStatusOn,
+  import { loadAircraft, setAircraftStatus, setAircraftStatusOn, loadRecentDiscrepancies, loadStatusOn,
            loadDefects, saveDefects, loadChecks, saveChecks,
            AC_STATUS, AC_STATUS_LABEL, AC_STATUS_COLORS } from "./js/status.js";
 
@@ -100,7 +100,7 @@
     const thDate = (s) => { if (!s) return "-"; const [y,m,d]=String(s).slice(0,10).split("-").map(Number); return `${d} ${TH_MON[m-1]} ${y+543}`; };
     const todayStr = () => { const n=new Date(); return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,"0")}-${String(n.getDate()).padStart(2,"0")}`; };
 
-    let viewDate = todayStr(), editable = true;
+    let viewDate = todayStr(), curIsPast = false;
     let discMap = new Map(), defMap = new Map(), chkMap = new Map();
 
     const badge = (st) => { const c = AC_STATUS_COLORS[st] || AC_STATUS_COLORS.FMC;
@@ -139,20 +139,22 @@
           <h4>ข้อขัดข้องหลังบิน · ล่าสุด</h4>
           ${flightsHTML(discMap.get(a.id))}
         </div>
-        ${planner && editable ? `
-        <div class="ac-foot"><button class="btn sm" data-edit>แก้ไขสถานภาพ / ข้อขัดข้อง / รายการเช็ค</button></div>
+        ${planner ? `
+        <div class="ac-foot"><button class="btn sm" data-edit>${curIsPast ? "แก้ไขสถานภาพ (ย้อนหลัง)" : "แก้ไขสถานภาพ / ข้อขัดข้อง / รายการเช็ค"}</button></div>
         <div class="ac-edit">
+          ${curIsPast ? `<div class="note" style="background:var(--accent-soft);color:var(--warn)">กำลังแก้ย้อนหลัง ณ ${thDate(viewDate)} — บันทึกเฉพาะสถานภาพของวันนั้น (ข้อขัดข้อง/รายการเช็คเป็นข้อมูลปัจจุบัน แก้ได้ที่วันนี้)</div>` : ""}
           <div class="ed-lbl">สถานภาพ</div>
           <div class="ed-row">
             <select data-f-status style="flex:1">${AC_STATUS.map(s=>`<option value="${s}" ${s===a.status?"selected":""}>${AC_STATUS_LABEL[s]}</option>`).join("")}</select>
           </div>
           <input data-f-note value="${esc(a.status_note || "")}" placeholder="หมายเหตุสถานภาพ (ถ้ามี)">
+          ${!curIsPast ? `
           <div class="ed-lbl">รายการข้อขัดข้อง</div>
           <div data-defs></div>
           <button class="btn sm ghost" data-add-def>+ เพิ่มข้อขัดข้อง</button>
           <div class="ed-lbl">รายการเช็คตามวงรอบ</div>
           <div data-checks></div>
-          <button class="btn sm ghost" data-add-chk>+ เพิ่มรายการเช็ค</button>
+          <button class="btn sm ghost" data-add-chk>+ เพิ่มรายการเช็ค</button>` : ""}
           <div class="ed-actions">
             <button class="btn sm primary" data-save>บันทึก</button>
             <button class="btn sm ghost" data-cancel>ยกเลิก</button>
@@ -169,38 +171,41 @@
       const editBtn = el.querySelector("[data-edit]");
       if (!editBtn) return;
       editBtn.addEventListener("click", () => {
-        el.querySelector("[data-defs]").innerHTML = (defMap.get(id) || []).map(defRow).join("") || defRow();
-        el.querySelector("[data-checks]").innerHTML = (chkMap.get(id) || []).map(c => chkRow(c.name, c.due_text)).join("") || chkRow();
+        const defsBox = el.querySelector("[data-defs]"), chksBox = el.querySelector("[data-checks]");
+        if (defsBox) defsBox.innerHTML = (defMap.get(id) || []).map(defRow).join("") || defRow();
+        if (chksBox) chksBox.innerHTML = (chkMap.get(id) || []).map(c => chkRow(c.name, c.due_text)).join("") || chkRow();
         el.classList.add("editing");
       });
       el.querySelector("[data-cancel]").addEventListener("click", () => el.classList.remove("editing"));
-      el.querySelector("[data-add-def]").addEventListener("click", () => el.querySelector("[data-defs]").insertAdjacentHTML("beforeend", defRow()));
-      el.querySelector("[data-add-chk]").addEventListener("click", () => el.querySelector("[data-checks]").insertAdjacentHTML("beforeend", chkRow()));
+      el.querySelector("[data-add-def]")?.addEventListener("click", () => el.querySelector("[data-defs]").insertAdjacentHTML("beforeend", defRow()));
+      el.querySelector("[data-add-chk]")?.addEventListener("click", () => el.querySelector("[data-checks]").insertAdjacentHTML("beforeend", chkRow()));
       el.addEventListener("click", (e) => { if (e.target.matches("[data-rm]")) e.target.closest(".ed-row").remove(); });
       el.querySelector("[data-save]").addEventListener("click", async (e) => {
         const b = e.target; b.disabled = true; b.textContent = "…";
         const status = el.querySelector("[data-f-status]").value;
         const note = el.querySelector("[data-f-note]").value;
-        const defs = [...el.querySelectorAll("[data-def]")].map(i => i.value.trim()).filter(Boolean);
-        const chks = [...el.querySelectorAll("[data-checks] .ed-row")].map(r => ({
-          name: r.querySelector("[data-cname]").value, due_text: r.querySelector("[data-cdue]").value })).filter(c => c.name.trim());
-        const e1 = await setAircraftStatus(id, status, note);
-        const e2 = await saveDefects(id, defs);
-        const e3 = await saveChecks(id, chks);
-        const err = e1 || e2 || e3;
+        let err;
+        if (curIsPast) {
+          err = await setAircraftStatusOn(id, viewDate, status, note);   // แก้ย้อนหลัง → เขียนประวัติของวันนั้น
+        } else {
+          const defs = [...el.querySelectorAll("[data-def]")].map(i => i.value.trim()).filter(Boolean);
+          const chks = [...el.querySelectorAll("[data-checks] .ed-row")].map(r => ({
+            name: r.querySelector("[data-cname]").value, due_text: r.querySelector("[data-cdue]").value })).filter(c => c.name.trim());
+          err = await setAircraftStatus(id, status, note) || await saveDefects(id, defs) || await saveChecks(id, chks);
+        }
         if (err) { alert("บันทึกไม่สำเร็จ: " + err.message); b.disabled = false; b.textContent = "บันทึก"; }
         else refresh();
       });
     }
 
     async function refresh() {
-      editable = viewDate >= todayStr();
+      curIsPast = viewDate < todayStr();
       const [list, disc, defs, chks] = await Promise.all([loadAircraft(), loadRecentDiscrepancies(), loadDefects(), loadChecks()]);
       defMap = defs; chkMap = chks;
-      if (!editable) {
+      let histMissing = false;
+      if (curIsPast) {
         const hist = await loadStatusOn(viewDate);
-        if (hist === null) { const bar=document.getElementById("histbar"); bar.hidden=false;
-          bar.textContent="ยังไม่มีประวัติสถานภาพ — ต้องรัน migration_18_aircraft_status_history.sql"; }
+        if (hist === null) histMissing = true;
         list.forEach(a => { const h = hist && hist.get(a.id); if (h) { a.status=h.status; a.status_note=h.note; a.status_updated_at=null; } });
         disc.forEach((flights,id) => disc.set(id, flights.filter(f => String(f.date) <= viewDate).slice(0,1)));
       }
@@ -208,8 +213,9 @@
       const cnt = { FMC:0, PMC:0, NMC:0 };
       list.forEach(a => cnt[a.status] = (cnt[a.status]||0)+1);
       const bar = document.getElementById("histbar");
-      if (editable) bar.hidden = true;
-      else if (bar.hidden !== false) { bar.hidden = false; bar.textContent = `กำลังดูสถานภาพย้อนหลัง ณ ${thDate(viewDate)} (อ่านอย่างเดียว)`; }
+      if (!curIsPast) bar.hidden = true;
+      else if (histMissing) { bar.hidden = false; bar.textContent = "ยังไม่มีประวัติสถานภาพ — ต้องรัน migration_18_aircraft_status_history.sql"; }
+      else { bar.hidden = false; bar.textContent = `กำลังดู/แก้สถานภาพย้อนหลัง ณ ${thDate(viewDate)} · ${planner ? "แก้ไขได้" : "อ่านอย่างเดียว"}`; }
       document.getElementById("sub").textContent = list.length
         ? `${list.length} เครื่อง · FMC ${cnt.FMC} · PMC ${cnt.PMC} · NMC ${cnt.NMC}` : "ยังไม่มีเครื่องในระบบ";
       const grid = document.getElementById("grid");
