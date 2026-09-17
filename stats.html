@@ -135,14 +135,18 @@
     const chart=document.getElementById("chart");
     if(monthTotal===0){ chart.innerHTML=`<div class="chart-empty">ยังไม่มีข้อมูลชั่วโมงบินในเดือนนี้</div>`; }
     else{
+      // เดือนปัจจุบัน → ลากเส้นแค่ถึง "วันนี้" · เดือนที่ผ่านมาแล้ว → เต็มเดือน
+      const today=new Date();
+      const curYm=`${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,"0")}`;
+      const endDay = ym===curYm ? Math.min(today.getDate(),nd) : (ym>curYm ? 0 : nd);
       const cum=Array(nd+1).fill(0);
       for(let d=1;d<=nd;d++) cum[d]=cum[d-1]+perDay[d];
-      const yMax=cum[nd]||1;
+      const yMax=cum[endDay]||1;
       const padL=44,padR=16,padT=12,padB=24,H=230;
       const cw=Math.max(320,(chart.clientWidth||900)-24);
-      const minW=padL+padR+(nd-1)*22;
+      const minW=padL+padR+Math.max(1,endDay-1)*22;
       const W=Math.max(cw,minW);
-      const stepX=(W-padL-padR)/((nd-1)||1);
+      const stepX=(W-padL-padR)/((endDay-1)||1);
       const X=(d)=>padL+stepX*(d-1);
       const Y=(v)=>padT+(H-padT-padB)*(1-v/yMax);
       let grid="";
@@ -150,14 +154,14 @@
         grid+=`<line class="grid" x1="${padL}" y1="${yy.toFixed(1)}" x2="${(W-padR).toFixed(1)}" y2="${yy.toFixed(1)}"/>`
              +`<text class="axt" x="${padL-6}" y="${(yy+3).toFixed(1)}" text-anchor="end">${Math.round(v*10)/10}</text>`; }
       let xl="",dots="";
-      for(let d=1;d<=nd;d++){ if(d===1||d===nd||d%5===0){
+      for(let d=1;d<=endDay;d++){ if(d===1||d===endDay||d%5===0){
         xl+=`<text class="axt" x="${X(d).toFixed(1)}" y="${H-6}" text-anchor="middle">${d}</text>`;
         dots+=`<circle class="dot" cx="${X(d).toFixed(1)}" cy="${Y(cum[d]).toFixed(1)}" r="3"><title>${d} · สะสม ${Math.round(cum[d]*10)/10} ชม.</title></circle>`; } }
       let ln="";
-      for(let d=1;d<=nd;d++) ln+=(d===1?"M":"L")+X(d).toFixed(1)+","+Y(cum[d]).toFixed(1)+" ";
+      for(let d=1;d<=endDay;d++) ln+=(d===1?"M":"L")+X(d).toFixed(1)+","+Y(cum[d]).toFixed(1)+" ";
       const area=`M${X(1).toFixed(1)},${Y(0).toFixed(1)} `
-        +Array.from({length:nd},(_,i)=>`L${X(i+1).toFixed(1)},${Y(cum[i+1]).toFixed(1)}`).join(" ")
-        +` L${X(nd).toFixed(1)},${Y(0).toFixed(1)} Z`;
+        +Array.from({length:endDay},(_,i)=>`L${X(i+1).toFixed(1)},${Y(cum[i+1]).toFixed(1)}`).join(" ")
+        +` L${X(endDay).toFixed(1)},${Y(0).toFixed(1)} Z`;
       chart.innerHTML=`<svg viewBox="0 0 ${W} ${H}" style="width:${W}px">
         ${grid}<path class="ar" d="${area}"/><path class="ln" d="${ln.trim()}"/>${dots}${xl}</svg>`;
     }
