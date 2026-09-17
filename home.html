@@ -206,11 +206,9 @@
           return names.length ? `<div class="rl">${r}</div><div>${names.map(esc).join("  ·  ")}</div>` : "";
         }).join("");
         const acType = m.aircraft ? esc(m.aircraft.type || "ATR72-500/600") : "ATR72-500/600";
-        const poc = [m.poc_name, m.poc_phone].filter(Boolean).join("  ");
         return `<div class="acp-stby">
           <div class="hd">STBY <span class="tag">${acType}</span> <span class="tag">COWBOY ${esc(m.callsign || "-")}</span></div>
           ${lines ? `<div class="cw">${lines}</div>` : `<div class="poc">— ยังไม่ระบุลูกเรือ —</div>`}
-          ${poc ? `<div class="poc">${esc(poc)}</div>` : ""}
         </div>`;
       }).join("");
     }

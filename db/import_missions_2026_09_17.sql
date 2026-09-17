@@ -197,8 +197,8 @@ select x->>'callsign' as "COWBOY", x->>'to' as "T/O", left(x->>'name', 45) as "�
   "name": "STBY ATR72-500/600",
   "route": "",
   "head": "",
-  "poc": "ร.อ.บัณฑิต",
-  "pocTel": "09 4404 4884",
+  "poc": "",
+  "pocTel": "",
   "out": "",
   "in": "",
   "remark": "",
@@ -213,6 +213,10 @@ select x->>'callsign' as "COWBOY", x->>'to' as "T/O", left(x->>'name', 45) as "�
  }
 ]$json$::jsonb) with ordinality as t(x, n)
  order by n;
+
+-- ล้าง POC ของ STBY ที่เคยนำเข้าผิด (ร.อ.บัณฑิต คือ น.จัดบิน ไม่ใช่ POC ของ STBY)
+update public.missions set poc_name = null, poc_phone = null
+ where mission_date = '2026-09-17' and kind = 'stby';
 
 -- น.จัดบินภารกิจ: กระดาน 17 ก.ย. มีชื่อ 2 อัน — วันนี้ (17) และพรุ่งนี้ (18)
 -- แต่ละแถวเก็บใต้ log_date ของ "วันที่รับผิดชอบ" (หน้า home อ่านของวันนี้ + วันถัดไป)
