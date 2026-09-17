@@ -10,10 +10,17 @@
 <link rel="stylesheet" href="css/style.css">
 <link rel="stylesheet" href="css/sheet.css">
 <style>
+  main .wrap{max-width:1560px}
   .day-head{display:flex;align-items:end;gap:14px;flex-wrap:wrap;margin-bottom:18px}
-  /* min() กัน grid item กว้างเกินคอนเทนเนอร์ (เหตุที่ตารางตกขอบ) */
-  .sheets{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(430px,100%),1fr));gap:20px}
-  @media(max-width:900px){ .sheets{grid-template-columns:1fr} }
+  /* บรรทัดละ 3 ภารกิจ · จอเล็กลดเป็น 2 และ 1 */
+  .sheets{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;align-items:start}
+  @media(max-width:1180px){ .sheets{grid-template-columns:repeat(2,minmax(0,1fr))} }
+  @media(max-width:760px){  .sheets{grid-template-columns:1fr} }
+  /* ย่อการ์ดให้ 3 ใบพอดีบรรทัด */
+  .sheets .sheet-top{padding:6px 9px;gap:6px}
+  .sheets table.fm{font-size:11.5px}
+  .sheets table.fm td{padding:4px 6px;line-height:1.4}
+  .sheets table.fm td.lb{font-size:10.5px}
 
   /* ---- แจ้งไม่ว่าง ---- */
   .avail{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
