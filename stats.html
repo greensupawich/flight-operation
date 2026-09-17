@@ -35,8 +35,13 @@
   table.mt{border-collapse:collapse;width:100%;font-size:12px}
   table.mt th,table.mt td{border:1px solid var(--line);padding:4px 6px;text-align:center;white-space:nowrap}
   table.mt th{background:var(--surface-2);font-weight:600;font-size:11px;color:var(--muted);position:sticky;top:0}
-  table.mt td.k{text-align:start;font-weight:700;white-space:nowrap;position:sticky;inset-inline-start:0}
-  table.mt th.k{text-align:start;position:sticky;inset-inline-start:0;z-index:2}
+  table.mt td.k{text-align:start;font-weight:700;white-space:normal;position:sticky;inset-inline-start:0;
+                width:92px;min-width:92px;max-width:92px;vertical-align:middle;z-index:1;line-height:1.25}
+  table.mt th.k{text-align:start;position:sticky;inset-inline-start:0;width:92px;min-width:92px;z-index:3}
+  table.mt td.sub,table.mt th.sub{position:sticky;inset-inline-start:92px;width:44px;min-width:44px;
+                background:var(--surface-2);font-size:10px;color:var(--muted);font-weight:600;z-index:1}
+  table.mt th.sub{z-index:3}
+  table.mt tr.ktop td,table.mt tr.ktop th{border-top:2px solid var(--line-strong)}
   table.mt td.tot,table.mt th.tot{font-weight:700;background:var(--surface-2);position:sticky;inset-inline-end:0}
   table.mt td.z{color:var(--faint)}
   table.mt tr.sum td{font-weight:700;background:var(--surface-2)}
@@ -112,17 +117,20 @@
     const nd=daysIn(y,m);
     const inMonth=rows.filter(r=>r.date.slice(0,7)===ym);
 
-    // รวมรายวัน (ทุกประเภท) + แยกตามประเภท
-    const perDay=Array(nd+1).fill(0);
-    const perKind=new Map();                         // kind -> [day]=hours
+    // รวมรายวัน (ทุกประเภท) + แยกตามประเภท (ชม.บิน + จำนวนเที่ยว)
+    const perDay=Array(nd+1).fill(0);                 // ชม.รวมต่อวัน (ใช้ในกราฟ)
+    const perDayF=Array(nd+1).fill(0);               // จำนวนเที่ยวรวมต่อวัน
+    const perKindH=new Map(), perKindF=new Map();    // kind -> [day]=ชม. / =เที่ยว
     for(const r of inMonth){
       const d=Number(r.date.slice(8,10));
       if(d<1||d>nd) continue;
-      perDay[d]+=r.h;
-      if(!perKind.has(r.kind)) perKind.set(r.kind, Array(nd+1).fill(0));
-      perKind.get(r.kind)[d]+=r.h;
+      perDay[d]+=r.h; perDayF[d]+=1;
+      if(!perKindH.has(r.kind)){ perKindH.set(r.kind, Array(nd+1).fill(0)); perKindF.set(r.kind, Array(nd+1).fill(0)); }
+      perKindH.get(r.kind)[d]+=r.h;
+      perKindF.get(r.kind)[d]+=1;
     }
     const monthTotal=perDay.reduce((a,b)=>a+b,0);
+    const monthFlights=perDayF.reduce((a,b)=>a+b,0);
     const flyingDays=perDay.filter(v=>v>0).length;
     const maxDay=Math.max(1,...perDay);
 
@@ -171,27 +179,35 @@
     const kindsShown=Object.keys(KINDS).filter(k=>k!=="stby");   // ทุกประเภท (ยกเว้น STBY) แม้ไม่มีข้อมูล
     const box=document.getElementById("mtable");
 
-    const head=`<tr><th class="k">ประเภทภารกิจ</th>`+
+    const head=`<tr><th class="k">ประเภทภารกิจ</th><th class="sub"></th>`+
       Array.from({length:nd},(_,i)=>{const d=i+1;const dow=new Date(y,m-1,d).getDay();
         return `<th${(dow===0||dow===6)?' style="color:var(--faint)"':''}>${d}</th>`;}).join("")+
       `<th class="tot">รวมเดือน</th></tr>`;
 
+    const zeros=Array(nd+1).fill(0);
+    // แต่ละประเภท = 2 แถวย่อย: บน=จำนวนเที่ยว · ล่าง=ชม.บิน
     const body=kindsShown.map(k=>{
       const c=KIND_COLORS[k]||KIND_COLORS[DEFAULT_KIND];
-      const arr=perKind.get(k)||Array(nd+1).fill(0);
-      const tot=arr.reduce((a,b)=>a+b,0);
+      const fArr=perKindF.get(k)||zeros, hArr=perKindH.get(k)||zeros;
+      const fTot=fArr.reduce((a,b)=>a+b,0), hTot=hArr.reduce((a,b)=>a+b,0);
       const tint=`background:color-mix(in srgb, ${c.bg} 20%, var(--surface))`;
-      const cells=Array.from({length:nd},(_,i)=>{const v=arr[i+1];
+      const fCells=Array.from({length:nd},(_,i)=>{const v=fArr[i+1];
+        return v>0?`<td style="${tint}">${v}</td>`:`<td class="z">·</td>`;}).join("");
+      const hCells=Array.from({length:nd},(_,i)=>{const v=hArr[i+1];
         return v>0?`<td style="${tint}">${fmt(v)}</td>`:`<td class="z">·</td>`;}).join("");
-      return `<tr><td class="k" style="background:${c.bg};color:${c.fg}">${esc(KINDS[k])}</td>${cells}`+
-             `<td class="tot">${Math.round(tot*10)/10}</td></tr>`;
+      return `<tr class="ktop"><td class="k" rowspan="2" style="background:${c.bg};color:${c.fg}">${esc(KINDS[k])}</td>`+
+             `<td class="sub">เที่ยว</td>${fCells}<td class="tot">${fTot}</td></tr>`+
+             `<tr><td class="sub">ชม.</td>${hCells}<td class="tot">${Math.round(hTot*10)/10}</td></tr>`;
     }).join("");
 
-    const sumRow=`<tr class="sum"><td class="k">รวม/วัน</td>`+
+    const sumF=`<tr class="sum ktop"><td class="k" rowspan="2">รวม/วัน</td><td class="sub">เที่ยว</td>`+
+      Array.from({length:nd},(_,i)=>{const v=perDayF[i+1];return `<td>${v>0?v:"·"}</td>`;}).join("")+
+      `<td class="tot">${monthFlights}</td></tr>`;
+    const sumH=`<tr class="sum"><td class="sub">ชม.</td>`+
       Array.from({length:nd},(_,i)=>{const v=perDay[i+1];return `<td>${v>0?fmt(v):"·"}</td>`;}).join("")+
       `<td class="tot">${Math.round(monthTotal*10)/10}</td></tr>`;
 
-    box.innerHTML=`<table class="mt"><thead>${head}</thead><tbody>${body}${sumRow}</tbody></table>`;
+    box.innerHTML=`<table class="mt"><thead>${head}</thead><tbody>${body}${sumF}${sumH}</tbody></table>`;
 
     document.getElementById("legend").innerHTML=kindsShown.map(k=>{
       const c=KIND_COLORS[k]||KIND_COLORS[DEFAULT_KIND];
