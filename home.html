@@ -90,6 +90,25 @@
   .acp-foot .edit input{flex:1;min-width:110px;font-size:12.5px;padding:5px 8px}
   .acp-foot .edit input.ph{flex:none;width:130px;font-family:"IBM Plex Mono",monospace}
   .acp-foot .tools{display:flex;justify-content:center;gap:8px;margin-top:6px}
+
+  /* ---- Export PDF (พิมพ์กระดานตาม layout เดิม แนวนอน) ---- */
+  @media print {
+    @page { size: A4 landscape; margin: 7mm; }
+    * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+    .topbar, .home-head { display: none !important; }
+    body { background: #fff !important; }
+    main { padding: 0 !important; }
+    main .wrap { max-width: none !important; padding: 0 !important; }
+    #fit { overflow: visible !important; height: auto !important; }
+    #fit > .board { transform: none !important; width: auto !important; }
+    .board { grid-template-columns: 300px minmax(0,1fr) !important; gap: 8px !important; }
+    .sheets.three { grid-template-columns: repeat(3, 1fr) !important; gap: 6px !important; }
+    .acp { position: static !important; box-shadow: none !important; }
+    .sheet { box-shadow: none !important; break-inside: avoid; }
+    .acp-foot .tools, .acp-foot .edit, .sheet-actions { display: none !important; }
+    table.fm { font-size: 9px !important; }
+    table.fm td { padding: 2px 3px !important; }
+  }
 </style>
 </head>
 <body>
@@ -101,9 +120,13 @@
         <div class="sub" id="sub">กำลังโหลด…</div>
       </div>
       <div class="links">
-        <a class="btn sm ghost" id="dayLink" href="day.html">เปิดหน้าภารกิจวันนี้</a>
+        <button class="btn sm" id="prevDay" title="วันก่อนหน้า">←</button>
+        <input type="date" id="datePick" style="width:auto">
+        <button class="btn sm" id="nextDay" title="วันถัดไป">→</button>
+        <button class="btn sm ghost" id="todayBtn">วันนี้</button>
+        <button class="btn sm ghost" id="pdfBtn">🖨️ Export PDF</button>
+        <a class="btn sm ghost" id="dayLink" href="day.html">หน้าภารกิจ</a>
         <a class="btn sm ghost" href="status.html">สถานภาพเครื่อง</a>
-        <a class="btn sm ghost" href="dashboard.html">ปฏิทิน</a>
         <a class="btn sm primary" id="addBtn" href="#" hidden>+ เพิ่มภารกิจ</a>
       </div>
     </div>
@@ -140,14 +163,21 @@
                       "กรกฎาคม","สิงหาคม","กันยายน","ตุลาคม","พฤศจิกายน","ธันวาคม"];
     const TH_DOW = ["อาทิตย์","จันทร์","อังคาร","พุธ","พฤหัสบดี","ศุกร์","เสาร์"];
     const n = new Date();
-    const date = `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, "0")}-${String(n.getDate()).padStart(2, "0")}`;
-
-    document.getElementById("title").textContent =
-      `ภารกิจวัน${TH_DOW[n.getDay()]}ที่ ${n.getDate()} ${TH_MONTH[n.getMonth()]} ${n.getFullYear() + 543}`;
-    document.getElementById("dayLink").href = `day.html?date=${date}`;
-    if (planner) {
-      const a = document.getElementById("addBtn");
-      a.hidden = false; a.href = `mission.html?new=1&date=${date}`;
+    const ymd = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+    // วันที่กำลังดู (เลื่อนย้อนหลัง/ไปหน้าได้) · ค่าเริ่มต้น = วันนี้
+    let view, vNext, date, nextDate;
+    function setView(d) {
+      view = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+      vNext = new Date(view.getFullYear(), view.getMonth(), view.getDate()+1);
+      date = ymd(view); nextDate = ymd(vNext);
+    }
+    setView(n);
+    function updateHeader() {
+      document.getElementById("title").textContent =
+        `ภารกิจวัน${TH_DOW[view.getDay()]}ที่ ${view.getDate()} ${TH_MONTH[view.getMonth()]} ${view.getFullYear() + 543}`;
+      document.getElementById("dayLink").href = `day.html?date=${date}`;
+      document.getElementById("datePick").value = date;
+      if (planner) { const a = document.getElementById("addBtn"); a.hidden = false; a.href = `mission.html?new=1&date=${date}`; }
     }
 
     // ---- แผงสถานภาพเครื่อง (ซ้าย) ----
@@ -157,13 +187,9 @@
     };
     const tail3 = (t) => String(t || "").slice(-3);
 
-    // วัน (พ.ศ. ย่อ เช่น 17 ก.ย.69) ของวันนี้และวันพรุ่งนี้
+    // วัน (พ.ศ. ย่อ เช่น 17 ก.ย.69)
     const TH_MON_SHORT = ["ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."];
     const shortTH = (d) => `${d.getDate()} ${TH_MON_SHORT[d.getMonth()]}${String(d.getFullYear()+543).slice(-2)}`;
-    const nDate = new Date(n.getFullYear(), n.getMonth(), n.getDate());          // วันนี้ (เที่ยงคืน)
-    const nNext = new Date(n.getFullYear(), n.getMonth(), n.getDate()+1);        // พรุ่งนี้
-    const ymd = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
-    const nextDate = ymd(nNext);
 
     // น.จัดบินภารกิจ (ระดับวัน) — เก็บใน day_notes (migration_20) · พรุ่งนี้ = แถวของวันถัดไป
     async function loadDayNote(d) {
@@ -230,8 +256,8 @@
     }
     function footHTML(noteToday, noteNext) {
       return `<div class="acp-foot" id="foot">
-        ${footLine(noteToday, `น.จัดบินภารกิจวันนี้ <span class="dt">${shortTH(nDate)}</span>`, "today")}
-        ${footLine(noteNext,  `น.จัดบินภารกิจพรุ่งนี้ <span class="dt">${shortTH(nNext)}</span>`, "next")}
+        ${footLine(noteToday, `น.จัดบินภารกิจวันนี้ <span class="dt">${shortTH(view)}</span>`, "today")}
+        ${footLine(noteNext,  `น.จัดบินภารกิจพรุ่งนี้ <span class="dt">${shortTH(vNext)}</span>`, "next")}
         ${planner ? `
         <div class="tools">
           <button class="btn sm ghost" data-edit>แก้ไข</button>
@@ -249,7 +275,7 @@
       box.innerHTML = `
         <div class="acp-title">
           <div class="t1">ภารกิจ ฝูง.603 บน.6</div>
-          <div class="t2">วัน${TH_DOW[n.getDay()]} ที่ ${n.getDate()} ${TH_MONTH[n.getMonth()]} พ.ศ.${n.getFullYear()+543}</div>
+          <div class="t2">วัน${TH_DOW[view.getDay()]} ที่ ${view.getDate()} ${TH_MONTH[view.getMonth()]} พ.ศ.${view.getFullYear()+543}</div>
           <div class="t3">ATR72-500/600</div>
         </div>
         ${rows}
@@ -285,6 +311,7 @@
     }
 
     async function refresh() {
+      updateHeader();
       const box = document.getElementById("sheets");
       const [all, aircraft, defMap, chkMap, noteToday, noteNext] = await Promise.all([
         loadMissionsByDate(date), loadAircraft(), loadDefects(), loadChecks(),
@@ -324,6 +351,21 @@
       fit.style.height = (h * s) + "px";
     }
     let fitT; addEventListener("resize", () => { clearTimeout(fitT); fitT = setTimeout(fitWidth, 120); });
+
+    // ---- นำทางวัน + Export PDF ----
+    const shiftDay = (n2) => { setView(new Date(view.getFullYear(), view.getMonth(), view.getDate() + n2)); refresh(); };
+    document.getElementById("prevDay").addEventListener("click", () => shiftDay(-1));
+    document.getElementById("nextDay").addEventListener("click", () => shiftDay(1));
+    document.getElementById("todayBtn").addEventListener("click", () => { setView(n); refresh(); });
+    document.getElementById("datePick").addEventListener("change", (e) => {
+      if (!e.target.value) return;
+      const [y, mo, da] = e.target.value.split("-").map(Number);
+      setView(new Date(y, mo - 1, da)); refresh();
+    });
+    document.getElementById("pdfBtn").addEventListener("click", () => {
+      fitWidth();                 // ให้กระดานเป็นสัดส่วนปกติก่อนพิมพ์
+      setTimeout(() => window.print(), 60);
+    });
 
     refresh();
   }
