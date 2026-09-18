@@ -1,0 +1,379 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Flight Operation · โครงสร้างระบบ</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bai+Jamjuree:wght@600;700&family=IBM+Plex+Sans+Thai:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+  :root{
+    --bg:#eef1f5; --surface:#ffffff; --surface-2:#f4f6f9; --line:#e2e6ec; --line-strong:#cdd4de;
+    --ink:#1c2430; --muted:#5b6675; --faint:#8b95a3; --primary:#2f6ae0; --primary-soft:#e6eefc;
+    --accent:#e0a32b; --good:#2e7d5b; --good-soft:#e2f2ea; --warn:#b26a00; --crit:#c0392b; --crit-soft:#fbe6e3;
+    --shadow:0 1px 3px rgba(20,30,50,.07),0 6px 20px rgba(20,30,50,.05); --radius:14px;
+  }
+  @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+    --bg:#10141b; --surface:#171d27; --surface-2:#1e2530; --line:#28313d; --line-strong:#3a4553;
+    --ink:#e7ecf3; --muted:#9aa6b5; --faint:#6b7686; --primary:#5b9bff; --primary-soft:#17233a;
+    --accent:#e6b455; --good:#4bbd8a; --good-soft:#142a22; --warn:#e0a32b; --crit:#e0685c; --crit-soft:#331916;
+    --shadow:0 1px 3px rgba(0,0,0,.4);
+  }}
+  :root[data-theme="dark"]{
+    --bg:#10141b; --surface:#171d27; --surface-2:#1e2530; --line:#28313d; --line-strong:#3a4553;
+    --ink:#e7ecf3; --muted:#9aa6b5; --faint:#6b7686; --primary:#5b9bff; --primary-soft:#17233a;
+    --accent:#e6b455; --good:#4bbd8a; --good-soft:#142a22; --warn:#e0a32b; --crit:#e0685c; --crit-soft:#331916;
+    --shadow:0 1px 3px rgba(0,0,0,.4);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans Thai",system-ui,sans-serif;
+       line-height:1.6;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 20px}
+  h1,h2,h3{font-family:"Bai Jamjuree",sans-serif;line-height:1.25}
+  code,.mono{font-family:"IBM Plex Mono",monospace}
+  a{color:var(--primary)}
+
+  header.hero{background:linear-gradient(135deg,var(--primary-soft),var(--surface));border-bottom:1px solid var(--line)}
+  header.hero .wrap{padding:38px 20px 30px}
+  .badge{display:inline-block;font-size:12px;font-weight:600;color:var(--primary);background:var(--surface);
+         border:1px solid var(--line);border-radius:999px;padding:4px 12px;margin-bottom:12px}
+  header h1{font-size:30px;margin:0 0 6px}
+  header p{margin:0;color:var(--muted);max-width:680px}
+
+  nav.toc{position:sticky;top:0;z-index:10;background:color-mix(in srgb,var(--surface) 92%,transparent);
+          backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+  nav.toc .wrap{display:flex;gap:6px;flex-wrap:wrap;padding:10px 20px;font-size:13px}
+  nav.toc a{color:var(--muted);text-decoration:none;padding:5px 10px;border-radius:8px;font-weight:600}
+  nav.toc a:hover{background:var(--surface-2);color:var(--ink)}
+
+  section{padding:34px 0 8px}
+  section h2{font-size:22px;margin:0 0 4px;display:flex;align-items:center;gap:10px}
+  section h2 .no{font-family:"IBM Plex Mono",monospace;font-size:14px;color:#fff;background:var(--primary);
+                 width:28px;height:28px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;flex:none}
+  section .lead{color:var(--muted);margin:0 0 18px}
+
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:16px 18px;box-shadow:var(--shadow)}
+  .card h3{margin:0 0 8px;font-size:15px}
+  .card ul{margin:0;padding-inline-start:18px;font-size:13.5px;color:var(--muted)}
+  .card ul li{margin:3px 0}
+  .card .tag{font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--accent);font-weight:600}
+
+  /* ---- flow diagram (กล่อง + ลูกศร) ---- */
+  .flow{display:flex;align-items:stretch;gap:0;flex-wrap:wrap;background:var(--surface);border:1px solid var(--line);
+        border-radius:var(--radius);padding:20px;box-shadow:var(--shadow);overflow-x:auto}
+  .layer{flex:1;min-width:180px;display:flex;flex-direction:column;gap:10px;padding:0 12px}
+  .layer + .layer{border-inline-start:2px dashed var(--line-strong)}
+  .layer .lh{font-family:"IBM Plex Mono",monospace;font-size:11px;text-transform:uppercase;letter-spacing:.05em;
+             color:var(--faint);font-weight:600;text-align:center;margin-bottom:2px}
+  .node{background:var(--surface-2);border:1px solid var(--line-strong);border-radius:10px;padding:10px 12px;font-size:13px}
+  .node b{display:block;font-weight:700;font-size:13.5px}
+  .node small{color:var(--muted);font-size:11.5px}
+  .node.pri{border-color:var(--primary);background:var(--primary-soft)}
+  .node.good{border-color:var(--good);background:var(--good-soft)}
+  .node.warn{border-color:var(--accent)}
+
+  /* ---- fan-out (trigger) ---- */
+  .fan{display:grid;grid-template-columns:minmax(200px,240px) 60px 1fr;align-items:center;gap:12px 0;
+       background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow)}
+  @media(max-width:640px){ .fan{grid-template-columns:1fr;gap:10px} .fan .arrow{display:none} }
+  .fan .src{grid-row:1 / span 5;align-self:center}
+  .fan .arrow{color:var(--primary);text-align:center;font-size:20px;font-weight:700}
+  .fan .dst{margin:4px 0}
+
+  table{width:100%;border-collapse:collapse;background:var(--surface);border:1px solid var(--line);
+        border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow);font-size:13.5px}
+  th,td{text-align:start;padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{background:var(--surface-2);font-weight:600;font-size:12.5px;color:var(--muted)}
+  tr:last-child td{border-bottom:0}
+  td .mono{font-size:12.5px;color:var(--primary)}
+  .chk{color:var(--good);font-weight:700} .no2{color:var(--faint)}
+
+  /* ---- db groups ---- */
+  .dbgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px}
+  .tbl{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 16px;box-shadow:var(--shadow)}
+  .tbl h4{margin:0 0 4px;font-family:"IBM Plex Mono",monospace;font-size:13.5px;color:var(--primary);font-weight:600}
+  .tbl p{margin:0 0 8px;font-size:12.5px;color:var(--muted)}
+  .tbl .cols{font-family:"IBM Plex Mono",monospace;font-size:11.5px;color:var(--faint);line-height:1.7}
+  .grouphead{font-family:"Bai Jamjuree",sans-serif;font-weight:700;font-size:15px;margin:20px 0 10px;
+             padding-inline-start:10px;border-inline-start:4px solid var(--accent)}
+
+  .pill{display:inline-block;font-family:"IBM Plex Mono",monospace;font-size:11px;font-weight:600;
+        border-radius:6px;padding:2px 8px;margin:1px}
+  .pill.admin{background:var(--crit-soft);color:var(--crit)} .pill.plan{background:#fff0d6;color:var(--warn)}
+  .pill.user{background:var(--good-soft);color:var(--good)}
+  :root[data-theme="dark"] .pill.plan{background:#3a2c10}
+
+  footer{color:var(--faint);font-size:12.5px;text-align:center;padding:30px 20px 50px}
+  .themebtn{position:fixed;bottom:18px;inline-size:auto;right:18px;background:var(--surface);border:1px solid var(--line-strong);
+            border-radius:999px;padding:8px 14px;font:inherit;font-size:13px;cursor:pointer;box-shadow:var(--shadow);color:var(--ink)}
+</style>
+</head>
+<body>
+<button class="themebtn" id="themebtn">◐ สลับธีม</button>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="badge">เอกสารสถาปัตยกรรมระบบ</div>
+    <h1>Flight Operation — โครงสร้างเว็บแอป</h1>
+    <p>ระบบจัดบินรายวันของฝูงบิน (ฝูง.603 บน.6) สำหรับผู้ใช้ ~100 คน — จัดภารกิจ, คิวบิน, สถานภาพเครื่อง,
+       รายงานหลังบิน, ชั่วโมงบินสะสม และสถิติ · ต้นทุนโครงสร้างพื้นฐานเป้าหมาย ฿0</p>
+  </div>
+</header>
+
+<nav class="toc"><div class="wrap">
+  <a href="#stack">เทคโนโลยี</a>
+  <a href="#arch">สถาปัตยกรรม</a>
+  <a href="#auth">การล็อกอิน</a>
+  <a href="#flow">Data Flow</a>
+  <a href="#pages">หน้าเว็บ</a>
+  <a href="#db">ฐานข้อมูล</a>
+  <a href="#rbac">สิทธิ์ผู้ใช้</a>
+  <a href="#deploy">การ Deploy</a>
+</div></nav>
+
+<div class="wrap">
+
+<!-- ============ STACK ============ -->
+<section id="stack">
+  <h2><span class="no">1</span>ภาษาและเครื่องมือที่ใช้</h2>
+  <p class="lead">เว็บแบบ static ล้วน (ไม่มี build step / ไม่มี framework) + backend สำเร็จรูป Supabase</p>
+  <div class="cards">
+    <div class="card">
+      <h3>🖥️ Frontend</h3>
+      <ul>
+        <li><b>Vanilla JavaScript</b> (ES Modules, <code>import</code> ตรง ไม่มี bundler)</li>
+        <li><b>HTML5 + CSS3</b> (CSS variables, รองรับธีมสว่าง/มืด)</li>
+        <li>Supabase JS SDK v2 โหลดจาก <span class="tag">esm.sh</span> CDN</li>
+        <li>ฟอนต์: Google Fonts (Bai Jamjuree, IBM Plex Sans Thai/Mono)</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>🗄️ Backend (BaaS)</h3>
+      <ul>
+        <li><b>Supabase</b> — PostgreSQL 15</li>
+        <li><b>Auth</b>: Google OAuth (Sign in with Google)</li>
+        <li><b>RLS</b> (Row Level Security) บังคับสิทธิ์ระดับฐานข้อมูล</li>
+        <li><b>Triggers + Functions</b> (PL/pgSQL) คิดชั่วโมงบิน/สถานะอัตโนมัติ</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>☁️ Hosting / Deploy</h3>
+      <ul>
+        <li><b>GitHub Pages</b> — เสิร์ฟไฟล์ static จาก branch <code>main</code></li>
+        <li>Repo: <span class="tag">greensupawich/flight-operation</span></li>
+        <li>Dev server ท้องถิ่น: <code>static-server.cjs</code> (พอร์ต 5510)</li>
+        <li>ไม่มีเซิร์ฟเวอร์ backend ของตัวเอง (ทุกอย่างผ่าน Supabase)</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============ ARCHITECTURE ============ -->
+<section id="arch">
+  <h2><span class="no">2</span>ภาพรวมสถาปัตยกรรม</h2>
+  <p class="lead">เบราว์เซอร์โหลดไฟล์ static จาก GitHub Pages แล้วคุยกับ Supabase โดยตรงผ่าน HTTPS (REST/Realtime)
+     — ทุก request ถูกกรองด้วย RLS ตาม role ของผู้ใช้</p>
+  <div class="flow">
+    <div class="layer">
+      <div class="lh">ผู้ใช้ (Client)</div>
+      <div class="node pri"><b>เบราว์เซอร์</b><small>โหลด HTML/CSS/JS · เก็บ session (JWT)</small></div>
+      <div class="node"><b>Google OAuth</b><small>ยืนยันตัวตนด้วยบัญชี Google</small></div>
+    </div>
+    <div class="layer">
+      <div class="lh">Hosting</div>
+      <div class="node good"><b>GitHub Pages</b><small>ไฟล์ static (12 หน้า HTML + 14 JS module)</small></div>
+      <div class="node"><small>ไม่มีโค้ดฝั่งเซิร์ฟเวอร์ · deploy = git push</small></div>
+    </div>
+    <div class="layer">
+      <div class="lh">Backend — Supabase</div>
+      <div class="node warn"><b>Auth</b><small>จัดการ session + Google OAuth callback</small></div>
+      <div class="node"><b>PostgreSQL + RLS</b><small>19 ตาราง · policy กรองตาม role</small></div>
+      <div class="node"><b>Triggers / Functions</b><small>คิด ชม.บิน, currency, สถานะ อัตโนมัติ</small></div>
+    </div>
+  </div>
+  <p class="lead" style="margin-top:14px">🔑 <b>Anon key อยู่ในโค้ดฝั่ง client ได้อย่างปลอดภัย</b> เพราะข้อมูลถูกป้องกันด้วย RLS ทั้งหมด —
+     ไม่มี service-role key หรือรหัสลับใด ๆ ในไฟล์ที่ deploy</p>
+</section>
+
+<!-- ============ AUTH ============ -->
+<section id="auth">
+  <h2><span class="no">3</span>ขั้นตอนการล็อกอิน &amp; อนุมัติผู้ใช้</h2>
+  <p class="lead">ผู้ใช้คนแรกของระบบถูกตั้งเป็น admin อัตโนมัติ · คนถัดไปต้องรอ admin อนุมัติก่อนเข้าใช้งาน</p>
+  <div class="flow" style="align-items:center">
+    <div class="node pri" style="flex:1;min-width:150px"><b>1 · เข้า index.html</b><small>กด "Sign in with Google"</small></div>
+    <div class="layer" style="flex:0;min-width:36px;border:0;justify-content:center;align-items:center;font-size:20px;color:var(--primary)">→</div>
+    <div class="node" style="flex:1;min-width:150px"><b>2 · Google OAuth</b><small>→ Supabase สร้าง session + profile</small></div>
+    <div class="layer" style="flex:0;min-width:36px;border:0;justify-content:center;align-items:center;font-size:20px;color:var(--primary)">→</div>
+    <div class="node warn" style="flex:1;min-width:150px"><b>3 · เช็ค status</b><small>trigger <code>handle_new_user</code> ตั้งค่าเริ่มต้น</small></div>
+    <div class="layer" style="flex:0;min-width:36px;border:0;justify-content:center;align-items:center;font-size:20px;color:var(--primary)">→</div>
+    <div class="node good" style="flex:1;min-width:150px"><b>4 · เข้าใช้งาน</b><small>active → home.html · pending → pending.html</small></div>
+  </div>
+  <table style="margin-top:14px">
+    <tr><th>กรณี</th><th>ผลลัพธ์</th></tr>
+    <tr><td>ผู้ใช้<b>คนแรก</b>ของระบบ</td><td>ตั้งเป็น <span class="pill admin">admin</span> + active ทันที (trigger)</td></tr>
+    <tr><td>ผู้ใช้คนถัดไป</td><td>สร้างเป็น <code>pending</code> + <span class="pill user">viewer</span> → เด้งไป <code>pending.html</code> ให้กรอกชื่อ/ตำแหน่งขอใช้งาน</td></tr>
+    <tr><td>admin อนุมัติ</td><td>ตั้ง role + status=active ที่หน้า <code>admin.html</code> → ผู้ใช้เข้าระบบได้</td></tr>
+  </table>
+</section>
+
+<!-- ============ DATA FLOW ============ -->
+<section id="flow">
+  <h2><span class="no">4</span>กลไกหัวใจ — บันทึกรายงานหลังบิน 1 ครั้ง</h2>
+  <p class="lead">เมื่อผู้ใช้บันทึก <code>post_flight_reports</code> (ยืนยันว่าบินจริง) Postgres triggers จะกระจายข้อมูลไปหลายตารางอัตโนมัติ
+     — ไม่ต้องกรอกซ้ำ และกันข้อมูลเพี้ยน</p>
+  <div class="fan">
+    <div class="src node pri"><b>💾 บันทึกรายงานหลังบิน</b><small>post_flight_reports<br>(INSERT / UPDATE)</small></div>
+    <div class="arrow">→</div>
+    <div class="dst node good"><b>crew_hours</b><small>บวก ชม.บินรายคน (IP/P/CP) · ผูกกับรหัสนักบิน</small></div>
+    <div class="arrow">→</div>
+    <div class="dst node good"><b>aircraft.total_hours</b><small>บวก ชม.สะสมของเครื่องลำนั้น</small></div>
+    <div class="arrow">→</div>
+    <div class="dst node good"><b>crew_members.last_500/600_date</b><small>อัปเดตวันบินล่าสุดตามแบบเครื่อง (trigger <code>bump_crew_currency</code>)</small></div>
+    <div class="arrow">→</div>
+    <div class="dst node warn"><b>discrepancies</b><small>ข้อขัดข้องหลังบินผูกกับเครื่อง</small></div>
+  </div>
+  <p class="lead" style="margin-top:14px">อีกชุดหนึ่ง: เมื่อแก้ <b>สถานภาพเครื่อง</b> (aircraft.status) → trigger <code>snapshot_aircraft_status</code>
+     บันทึกลง <code>aircraft_status_history</code> เป็นประวัติรายวัน (ใช้ดู/แก้ย้อนหลังได้)</p>
+</section>
+
+<!-- ============ PAGES ============ -->
+<section id="pages">
+  <h2><span class="no">5</span>แผนผังหน้าเว็บ (12 หน้า)</h2>
+  <p class="lead">แต่ละหน้าเป็น HTML แยกไฟล์ + โหลด JS module ร่วมกัน (<code>auth.js</code>, <code>ui.js</code>, <code>supabase.js</code>)</p>
+  <table>
+    <tr><th style="width:150px">หน้า</th><th>หน้าที่</th><th style="width:150px">ใช้ module หลัก</th></tr>
+    <tr><td class="mono">index.html</td><td>ล็อกอิน Google</td><td class="mono">auth</td></tr>
+    <tr><td class="mono">pending.html</td><td>ลงทะเบียนขอใช้งาน (รออนุมัติ)</td><td class="mono">auth</td></tr>
+    <tr><td class="mono">home.html</td><td><b>หน้าหลัก</b> — กระดานจัดบินรายวัน + สถานภาพเครื่อง + STBY + น.จัดบิน · เลื่อนวัน + Export PDF</td><td class="mono">missions, mission-sheet, status</td></tr>
+    <tr><td class="mono">day.html</td><td>ภารกิจประจำวัน (การ์ด 3 ใบ/แถว) + แจ้งไม่ว่าง</td><td class="mono">missions, mission-sheet, availability</td></tr>
+    <tr><td class="mono">dashboard.html</td><td>ปฏิทินภารกิจ + ฟอร์มตั้งวันไม่ว่างเป็นช่วง</td><td class="mono">missions, queue</td></tr>
+    <tr><td class="mono">mission.html</td><td>ฟอร์มสร้าง/แก้ภารกิจ + จัดลูกเรือ</td><td class="mono">missions, combobox</td></tr>
+    <tr><td class="mono">report.html</td><td>บันทึกรายงานหลังบิน (ชม./ผล/ข้อขัดข้อง)</td><td class="mono">reports, missions</td></tr>
+    <tr><td class="mono">crew.html</td><td>ทะเบียนนักบิน + ความพร้อมบิน (currency) 500/600</td><td class="mono">crew, missions</td></tr>
+    <tr><td class="mono">queue.html</td><td>คิวบินรายเดือน (ลำดับตามบินจริง)</td><td class="mono">queue, queue-rank</td></tr>
+    <tr><td class="mono">status.html</td><td>สถานภาพเครื่อง + ข้อขัดข้อง + เช็ควงรอบ (แก้ย้อนหลังได้)</td><td class="mono">status</td></tr>
+    <tr><td class="mono">stats.html</td><td>สถิติ — ชม.สะสม, กราฟเส้น, แยกประเภทภารกิจ, ข้อขัดข้อง</td><td class="mono">missions</td></tr>
+    <tr><td class="mono">admin.html</td><td>อนุมัติผู้ใช้ + ให้สิทธิ์ role/status</td><td class="mono">admin, auth</td></tr>
+  </table>
+</section>
+
+<!-- ============ DATABASE ============ -->
+<section id="db">
+  <h2><span class="no">6</span>โครงสร้างฐานข้อมูล (19 ตาราง)</h2>
+  <p class="lead">PostgreSQL บน Supabase · เปิด RLS ทุกตาราง · จัดกลุ่มตามโดเมนการทำงาน</p>
+
+  <div class="grouphead">👤 ผู้ใช้ &amp; สิทธิ์</div>
+  <div class="dbgrid">
+    <div class="tbl"><h4>profiles</h4><p>บัญชีผู้ใช้ (ผูกกับ auth.users)</p><div class="cols">id · email · full_name · rank · <b>role</b> · <b>status</b></div></div>
+    <div class="tbl"><h4>user_invites</h4><p>คำเชิญ/กำหนด role ล่วงหน้าตามอีเมล</p><div class="cols">email · role · used</div></div>
+  </div>
+
+  <div class="grouphead">✈️ อากาศยาน &amp; สถานภาพ</div>
+  <div class="dbgrid">
+    <div class="tbl"><h4>aircraft</h4><p>ทะเบียนเครื่อง + ชม.สะสม + สถานภาพปัจจุบัน</p><div class="cols">id · tail_number · type · status · status_note · total_hours</div></div>
+    <div class="tbl"><h4>aircraft_status_history</h4><p>ประวัติสถานภาพรายวัน (ดู/แก้ย้อนหลัง)</p><div class="cols">aircraft_id · log_date · status · note</div></div>
+    <div class="tbl"><h4>aircraft_defects</h4><p>รายการข้อขัดข้องประจำเครื่อง</p><div class="cols">aircraft_id · seq · description</div></div>
+    <div class="tbl"><h4>aircraft_checks</h4><p>รายการเช็คตามวงรอบ (2M / A-Cx / C-Cx)</p><div class="cols">aircraft_id · seq · name · due_text</div></div>
+    <div class="tbl"><h4>discrepancies</h4><p>ข้อขัดข้องหลังบิน (ผูกเครื่อง/ภารกิจ)</p><div class="cols">aircraft_id · mission_id · description · status · reported_date</div></div>
+  </div>
+
+  <div class="grouphead">📋 ภารกิจ &amp; รายงาน</div>
+  <div class="dbgrid">
+    <div class="tbl"><h4>missions</h4><p>ภารกิจแต่ละเที่ยว (การ์ดจัดบิน)</p><div class="cols">id · mission_date · callsign · kind · aircraft_id · route · times · fuel · pax · poc · parking</div></div>
+    <div class="tbl"><h4>mission_crew</h4><p>ลูกเรือในภารกิจ (ตำแหน่ง IP/P/CP/N/FM…)</p><div class="cols">mission_id · position · crew_name · crew_member_id</div></div>
+    <div class="tbl"><h4>flight_legs</h4><p>ช่วงบินย่อยของภารกิจ</p><div class="cols">mission_id · from · to · times</div></div>
+    <div class="tbl"><h4>post_flight_reports</h4><p>รายงานหลังบิน — ต้นทางกระจาย ชม.</p><div class="cols">mission_id · total_hours · result · parking_return</div></div>
+    <div class="tbl"><h4>day_notes</h4><p>น.จัดบินภารกิจ รายวัน</p><div class="cols">log_date · duty_officer · duty_phone</div></div>
+  </div>
+
+  <div class="grouphead">🧑‍✈️ นักบิน &amp; คิวบิน</div>
+  <div class="dbgrid">
+    <div class="tbl"><h4>crew_members</h4><p>ทะเบียนนักบิน (รหัส = ตัวตนถาวร) + currency</p><div class="cols">id · code · full_name · position · in_queue · can_fly_500/600 · last_500/600_date</div></div>
+    <div class="tbl"><h4>crew_aliases</h4><p>ชื่อเดิม (กันเปลี่ยนชื่อแล้ว ชม.หาย)</p><div class="cols">crew_member_id · alias</div></div>
+    <div class="tbl"><h4>crew_hours</h4><p>ชม.บินสะสมรายคน/แบบเครื่อง (เขียนโดย trigger)</p><div class="cols">crew_member_id · aircraft_type · total_hours</div></div>
+    <div class="tbl"><h4>crew_unavailable</h4><p>วันไม่ว่างของนักบิน</p><div class="cols">crew_member_id · off_date · note</div></div>
+    <div class="tbl"><h4>queue_entries</h4><p>ช่องในตารางคิวบิน (แก้เอง/สี/แบบเครื่อง)</p><div class="cols">crew_member_id · entry_date · code · kind · ac_type</div></div>
+    <div class="tbl"><h4>holidays</h4><p>วันหยุด (ใช้คิดวันทำการถัดไป)</p><div class="cols">holiday_date · name</div></div>
+    <div class="tbl"><h4>airfields</h4><p>รหัสสนามบิน (ชื่อจุด → รหัสในคิว)</p><div class="cols">name · code</div></div>
+  </div>
+</section>
+
+<!-- ============ RBAC ============ -->
+<section id="rbac">
+  <h2><span class="no">7</span>สิทธิ์ผู้ใช้ (RBAC + RLS)</h2>
+  <p class="lead">บังคับที่ระดับฐานข้อมูลด้วย helper: <code>is_active()</code> · <code>can_plan()</code> (admin/planner) · <code>is_admin()</code></p>
+  <table>
+    <tr><th>ความสามารถ</th><th style="width:120px">viewer/pilot/crew</th><th style="width:90px">planner</th><th style="width:90px">admin</th></tr>
+    <tr><td>ดูข้อมูลทุกหน้า (ภารกิจ/เครื่อง/คิว/สถิติ)</td><td class="chk">👁️</td><td class="chk">✓</td><td class="chk">✓</td></tr>
+    <tr><td>สร้าง/แก้/ลบ ภารกิจ + จัดลูกเรือ</td><td class="no2">—</td><td class="chk">✓</td><td class="chk">✓</td></tr>
+    <tr><td>รายงานหลังบิน / เพิ่มข้อขัดข้อง</td><td class="chk">✓ เฉพาะภารกิจที่ตนบิน</td><td class="chk">✓</td><td class="chk">✓</td></tr>
+    <tr><td>สถานภาพเครื่อง · คิวบิน · ทะเบียนนักบิน · currency · น.จัดบิน</td><td class="no2">👁️ ดู</td><td class="chk">✓</td><td class="chk">✓</td></tr>
+    <tr><td>ตั้งวันไม่ว่าง</td><td class="chk">✓</td><td class="chk">✓</td><td class="chk">✓</td></tr>
+    <tr><td>แก้ ชม.บินสะสม (crew_hours)</td><td class="no2">—</td><td class="no2">— (ระบบคิดให้)</td><td class="chk">✓</td></tr>
+    <tr><td>จัดการผู้ใช้ (อนุมัติ/role/status) · ลบข้อขัดข้อง</td><td class="no2">—</td><td class="no2">—</td><td class="chk">✓</td></tr>
+  </table>
+  <p class="lead" style="margin-top:12px">
+    <span class="pill admin">admin</span> ทำได้ทุกอย่าง + คนเดียวที่จัดการผู้ใช้ ·
+    <span class="pill plan">planner</span> จัดบิน/คิว/ทะเบียน/สถานภาพ ·
+    <span class="pill user">viewer/pilot/crew</span> ดู + กรอกของภารกิจตัวเอง ·
+    <b>pending/disabled</b> เข้าใช้งานไม่ได้
+  </p>
+</section>
+
+<!-- ============ DEPLOY ============ -->
+<section id="deploy">
+  <h2><span class="no">8</span>การ Deploy &amp; สภาพแวดล้อม</h2>
+  <div class="cards">
+    <div class="card">
+      <h3>🚀 Deploy</h3>
+      <ul>
+        <li><code>git push</code> ขึ้น branch <code>main</code></li>
+        <li>GitHub Pages build อัตโนมัติ (~1 นาที)</li>
+        <li>Live: <span class="tag">greensupawich.github.io/flight-operation</span></li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>🔧 Supabase config</h3>
+      <ul>
+        <li>Auth → URL Configuration: ใส่ Site URL + Redirect (<code>/**</code>)</li>
+        <li>Google Cloud OAuth client (callback = Supabase)</li>
+        <li>รัน migration SQL ใน SQL Editor (schema → policies → triggers → migrations)</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>💻 พัฒนาในเครื่อง</h3>
+      <ul>
+        <li><code>node static-server.cjs</code> → <code>localhost:5510</code></li>
+        <li>เพิ่ม <code>localhost:5510/**</code> ใน Redirect URLs เพื่อทดสอบ OAuth</li>
+        <li>ไม่ต้องมี build/compile</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>💰 ต้นทุน</h3>
+      <ul>
+        <li>GitHub Pages: ฟรี</li>
+        <li>Supabase: Free tier</li>
+        <li>เป้าหมายรวม: <b>฿0 / เดือน</b></li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+</div>
+
+<footer>
+  Flight Operation · เอกสารสรุปโครงสร้างระบบ — สร้างจากโค้ดจริงในโปรเจกต์ (schema.sql, policies.sql, triggers.sql, migration_01–22)
+</footer>
+
+<script>
+  const btn = document.getElementById("themebtn");
+  const cur = () => document.documentElement.getAttribute("data-theme");
+  btn.addEventListener("click", () => {
+    const now = cur() || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+    document.documentElement.setAttribute("data-theme", now === "dark" ? "light" : "dark");
+  });
+</script>
+</body>
+</html>
