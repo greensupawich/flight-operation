@@ -1,7 +1,8 @@
 # CLAUDE.md — คู่มือสำหรับ AI agent (และคน) ที่มาพัฒนาต่อ
 
+> ไฟล์นี้อยู่ในโฟลเดอร์ `cowork/` · path ทั้งหมดในเอกสารอ้างอิงจาก **root ของ repo** (โฟลเดอร์แม่ `../`)
 > อ่านไฟล์นี้ก่อนเริ่มทำงานทุกครั้ง แล้วอ่าน **[WORKLOG.md](WORKLOG.md)** เพื่อดูว่ามีใครแก้อะไรไปแล้วบ้าง
-> ภาพรวมสถาปัตยกรรมแบบมองเห็นภาพ (flow chart) อยู่ที่ **[architecture.html](architecture.html)**
+> ภาพรวมสถาปัตยกรรมแบบมองเห็นภาพ (flow chart) อยู่ที่ **[../architecture.html](../architecture.html)**
 
 ---
 
@@ -84,7 +85,7 @@ node static-server.cjs      # → http://localhost:5510
 
 ## 8. เริ่มงานยังไง
 
-1. อ่าน `CLAUDE.md` (ไฟล์นี้) + `WORKLOG.md`
-2. เปิด `architecture.html` เพื่อเห็นภาพรวม + รายชื่อ 19 ตาราง
+1. อ่าน `cowork/CLAUDE.md` (ไฟล์นี้) + `cowork/WORKLOG.md`
+2. เปิด `architecture.html` (ที่ root) เพื่อเห็นภาพรวม + รายชื่อ 19 ตาราง
 3. หาไฟล์ที่เกี่ยวข้อง (หน้า .html + js/ module + db/ ถ้าแตะฐานข้อมูล)
 4. แก้ → ตรวจ syntax → commit+push → เขียน WORKLOG
