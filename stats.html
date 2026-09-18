@@ -48,6 +48,17 @@
   table.mt tr.sum td.k{background:var(--surface-2)}
   .pager{display:flex;align-items:center;justify-content:center;gap:12px;margin:10px 0}
   .pager .pinfo{font-size:12.5px;color:var(--muted)}
+  /* ---- รายการรายงานอันตราย ---- */
+  .sfitem{display:block;text-decoration:none;color:inherit;background:var(--surface);border:1px solid var(--line);
+          border-inline-start:4px solid var(--crit);border-radius:10px;padding:11px 14px;margin-bottom:8px;box-shadow:var(--shadow)}
+  .sfitem:hover{border-color:var(--primary)}
+  .sfitem .sf-top{display:flex;gap:10px;flex-wrap:wrap;align-items:baseline;font-size:12.5px;color:var(--muted);margin-bottom:4px}
+  .sfitem .sf-date{font-weight:700;color:var(--ink)}
+  .sfitem .sf-cs,.sfitem .sf-ac,.sfitem .sf-time{font-family:"IBM Plex Mono",monospace}
+  .sfitem .sf-time{color:var(--crit);font-weight:700}
+  .sfitem .sf-desc{font-size:14px;color:var(--ink);line-height:1.5;white-space:pre-wrap}
+  .sfitem .sf-route{font-size:12px;color:var(--faint);margin-top:3px}
+  .sfitem .go{float:inline-end;font-size:12px;color:var(--primary)}
   .legend{display:flex;gap:12px;flex-wrap:wrap;margin:8px 0 0;font-size:12px;color:var(--muted)}
   .legend .sw{display:inline-block;width:14px;height:14px;border-radius:4px;margin-inline-end:5px;vertical-align:-2px;border:1px solid var(--line)}
 </style>
@@ -87,6 +98,10 @@
       <tbody id="disc"><tr><td colspan="4" class="empty">กำลังโหลด…</td></tr></tbody></table>
     </div>
     <div class="pager" id="discPager"></div>
+
+    <h3 class="sec">⚠️ รายงานอันตราย (Safety Report)</h3>
+    <div id="safetyList"><div class="empty">กำลังโหลด…</div></div>
+    <div class="pager" id="safetyPager"></div>
   </div>
 </main>
 
@@ -268,6 +283,51 @@
   }
   sel.addEventListener("change",()=>{ discFilter=sel.value; discPage=1; renderDisc(); });
   renderDisc();
+
+  // ---------- รายงานอันตราย (safety) — 5 รายการ/หน้า · กดเข้าหน้ารายงานหลังบิน ----------
+  const TH_MON=["ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."];
+  const thD=(s)=>{ if(!s) return "-"; const [y,mo,da]=String(s).slice(0,10).split("-").map(Number); return `${da} ${TH_MON[mo-1]} ${y+543}`; };
+  const acLbl=(a)=> a ? `${a.type||""}/${a.tail_number||""}` : "";
+  const { data: safe, error: safeErr } = await supabase.from("safety_reports")
+    .select("id, occurred_time, description, created_at, mission_id, missions(mission_date, callsign, route, aircraft(tail_number,type))")
+    .order("created_at",{ascending:false});
+  if(safeErr) console.warn("safety_reports:", safeErr.message);
+  const safeRows=(safe||[]).slice().sort((a,b)=>
+    String(b.missions?.mission_date||b.created_at).localeCompare(String(a.missions?.mission_date||a.created_at))
+    || String(b.created_at).localeCompare(String(a.created_at)));
+
+  const SF_PAGE=5;
+  let sfPage=1;
+  function renderSafety(){
+    const box=document.getElementById("safetyList");
+    const pages=Math.max(1,Math.ceil(safeRows.length/SF_PAGE));
+    if(sfPage>pages) sfPage=pages;
+    const slice=safeRows.slice((sfPage-1)*SF_PAGE,(sfPage-1)*SF_PAGE+SF_PAGE);
+    box.innerHTML = slice.length
+      ? slice.map(s=>{ const m=s.missions||{};
+          return `<a class="sfitem" href="report.html?mission=${s.mission_id}">
+            <span class="go">ดูรายงานหลังบิน →</span>
+            <div class="sf-top">
+              <span class="sf-date">${thD(m.mission_date)}</span>
+              ${m.callsign?`<span class="sf-cs">${esc(m.callsign)}</span>`:""}
+              ${m.aircraft?`<span class="sf-ac">${esc(acLbl(m.aircraft))}</span>`:""}
+              ${s.occurred_time?`<span class="sf-time">⏱ ${esc(s.occurred_time)}</span>`:""}
+            </div>
+            <div class="sf-desc">${esc(s.description)}</div>
+            ${m.route?`<div class="sf-route">${esc(m.route)}</div>`:""}
+          </a>`;}).join("")
+      : `<div class="empty">— ยังไม่มีรายงานอันตราย —</div>`;
+    const pager=document.getElementById("safetyPager");
+    if(safeRows.length<=SF_PAGE){ pager.innerHTML=safeRows.length?`<span class="pinfo">${safeRows.length} รายการ</span>`:""; }
+    else{
+      pager.innerHTML=`<button class="btn sm ghost" ${sfPage<=1?"disabled":""} data-prev>‹ ก่อนหน้า</button>`
+        +`<span class="pinfo">หน้า ${sfPage}/${pages} · ${safeRows.length} รายการ</span>`
+        +`<button class="btn sm ghost" ${sfPage>=pages?"disabled":""} data-next>ถัดไป ›</button>`;
+      pager.querySelector("[data-prev]")?.addEventListener("click",()=>{ sfPage--; renderSafety(); });
+      pager.querySelector("[data-next]")?.addEventListener("click",()=>{ sfPage++; renderSafety(); });
+    }
+  }
+  renderSafety();
 </script>
 </body>
 </html>
