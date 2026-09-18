@@ -91,23 +91,18 @@
   .acp-foot .edit input.ph{flex:none;width:130px;font-family:"IBM Plex Mono",monospace}
   .acp-foot .tools{display:flex;justify-content:center;gap:8px;margin-top:6px}
 
-  /* ---- Export PDF (พิมพ์กระดานตาม layout เดิม แนวนอน) ---- */
+  /* ---- Export PDF: พิมพ์กระดานตาม layout เดิม แนวนอน 1 หน้า ---- */
+  /* (JS preparePrint() จะ scale #fit>.board ให้พอดี A4 แนวนอนก่อนพิมพ์) */
   @media print {
-    @page { size: A4 landscape; margin: 7mm; }
+    @page { size: A4 landscape; margin: 6mm; }
     * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
     .topbar, .home-head { display: none !important; }
     body { background: #fff !important; }
     main { padding: 0 !important; }
     main .wrap { max-width: none !important; padding: 0 !important; }
-    #fit { overflow: visible !important; height: auto !important; }
-    #fit > .board { transform: none !important; width: auto !important; }
-    .board { grid-template-columns: 300px minmax(0,1fr) !important; gap: 8px !important; }
-    .sheets.three { grid-template-columns: repeat(3, 1fr) !important; gap: 6px !important; }
     .acp { position: static !important; box-shadow: none !important; }
     .sheet { box-shadow: none !important; break-inside: avoid; }
     .acp-foot .tools, .acp-foot .edit, .sheet-actions { display: none !important; }
-    table.fm { font-size: 9px !important; }
-    table.fm td { padding: 2px 3px !important; }
   }
 </style>
 </head>
@@ -362,8 +357,26 @@
       const [y, mo, da] = e.target.value.split("-").map(Number);
       setView(new Date(y, mo - 1, da)); refresh();
     });
+    // ---- เตรียมกระดานให้พอดี 1 หน้า A4 แนวนอน ก่อนพิมพ์ ----
+    const baseTitle = document.title;
+    function preparePrint() {
+      const fit = document.getElementById("fit");
+      const board = fit && fit.querySelector(".board");
+      if (!board) return;
+      board.style.transform = "none"; board.style.width = DESIGN_W + "px"; fit.style.height = "";
+      const h = board.scrollHeight, w = DESIGN_W;
+      const pageW = 1040, pageH = 700;          // พื้นที่ใช้งานโดยประมาณของ A4 แนวนอน (px @96dpi ลบขอบ)
+      const s = Math.min(pageW / w, pageH / h);
+      board.style.transformOrigin = "top left";
+      board.style.transform = `scale(${s})`;
+      fit.style.height = (h * s) + "px";
+    }
+    addEventListener("beforeprint", preparePrint);
+    addEventListener("afterprint", () => { document.title = baseTitle; fitWidth(); });
+
     document.getElementById("pdfBtn").addEventListener("click", () => {
-      fitWidth();                 // ให้กระดานเป็นสัดส่วนปกติก่อนพิมพ์
+      document.title = `ใบจัดบิน วันที่ ${view.getDate()} ${TH_MON_SHORT[view.getMonth()]} ${view.getFullYear() + 543}`;
+      preparePrint();
       setTimeout(() => window.print(), 60);
     });
 
