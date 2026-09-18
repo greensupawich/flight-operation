@@ -94,3 +94,27 @@ export async function deleteDiscrepancy(id) {
   const { error } = await supabase.from("discrepancies").delete().eq("id", id);
   return error;
 }
+
+// ---------- รายงานอันตราย (safety report) — ไม่บังคับ · มีได้หลายรายการ/ภารกิจ ----------
+export async function loadSafety(missionId) {
+  const { data, error } = await supabase.from("safety_reports")
+    .select("*").eq("mission_id", missionId).order("created_at");
+  if (error) { console.warn("safety_reports:", error.message); return []; }
+  return data || [];
+}
+
+// แทนที่ทั้งชุด (คล้าย replaceLegs) · เก็บเฉพาะรายการที่มีลักษณะเหตุการณ์
+export async function replaceSafety(missionId, items) {
+  const { data: { session } } = await supabase.auth.getSession();
+  const rows = (items || []).map(it => ({
+    mission_id: missionId,
+    occurred_time: (it.occurred_time || "").trim() || null,
+    description: (it.description || "").trim(),
+    created_by: session?.user?.id,
+  })).filter(r => r.description);
+  const { error: delErr } = await supabase.from("safety_reports").delete().eq("mission_id", missionId);
+  if (delErr) return delErr;
+  if (!rows.length) return null;
+  const { error } = await supabase.from("safety_reports").insert(rows);
+  return error;
+}

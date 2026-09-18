@@ -18,6 +18,16 @@
 
 ## บันทึก
 
+### 2026-09-18 — เพิ่มรายงานอันตราย (Safety Report) ในหน้ารายงานหลังบิน
+- **ผู้ทำ:** Claude (Opus 4.8)
+- **ทำอะไร:** เพิ่ม panel "รายงานอันตราย" ใน report.html — ดึงวันที่/นักบิน/เส้นทางจากภารกิจ +
+  ปุ่ม "เพิ่มรายงานอันตราย" เพิ่มฟอร์มกรอก เวลา + ลักษณะเหตุการณ์ (หลายรายการได้, ไม่บังคับ)
+  บันทึกพร้อมปุ่ม "บันทึกรายงาน"
+- **ไฟล์:** report.html, js/reports.js, db/migration_23_safety_reports.sql
+- **commit:** (รายการนี้)
+- **ต้องรัน SQL:** db/migration_23_safety_reports.sql
+- **หมายเหตุ:** ตาราง safety_reports เก็บแค่ mission_id + occurred_time + description · สิทธิ์เขียน = planner หรือคนที่บินภารกิจนั้น
+
 ### 2026-09-18 — เอกสารระบบ + คู่มือ agent
 - **ผู้ทำ:** Claude (Opus 4.8)
 - **ทำอะไร:** สร้าง `architecture.html` (flow chart โครงสร้างเว็บ: stack/deploy/DB/RBAC),
