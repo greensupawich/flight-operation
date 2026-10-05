@@ -10,6 +10,7 @@ const LINKS = [
   { href: "crew.html",      label: "ทะเบียนนักบิน" },
   { href: "status.html",    label: "สถานภาพเครื่อง" },
   { href: "stats.html",     label: "สถิติ" },
+  { href: "archive.html",   label: "ย้อนหลัง" },
   { href: "admin.html",     label: "ผู้ดูแล", adminOnly: true },
 ];
 

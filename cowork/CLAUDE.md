@@ -26,13 +26,13 @@
 ## 3. โครงสร้างไฟล์
 
 ```
-*.html            12 หน้า (index, pending, home, day, dashboard, mission,
-                  report, crew, queue, status, stats, admin)
-js/*.js           14 module (supabase, auth, ui, missions, mission-sheet,
+*.html            13 หน้า (index, pending, home, day, dashboard, mission,
+                  report, crew, queue, status, stats, admin, archive)
+js/*.js           16 module (supabase, auth, ui, missions, mission-sheet,
                   reports, crew, queue, queue-rank, availability, status,
-                  admin, combobox, local-auth[เลิกใช้])
+                  admin, combobox, media, archive, local-auth[เลิกใช้])
 css/style.css     สไตล์กลาง · css/sheet.css การ์ดภารกิจ
-db/*.sql          schema, policies, triggers + migration_01..22 + import_* + seed_*
+db/*.sql          schema, policies, triggers + migration_01..25 + import_* + seed_*
 static-server.cjs dev server (static)
 architecture.html เอกสารสถาปัตยกรรม (self-contained)
 ```
@@ -65,6 +65,14 @@ architecture.html เอกสารสถาปัตยกรรม (self-cont
 - บันทึก `post_flight_reports` → กระจาย **ชม.บิน** ไป `crew_hours` + `aircraft.total_hours`,
   อัปเดต **currency** `crew_members.last_500/600_date` (trigger `bump_crew_currency`), และ `discrepancies`
 - แก้ `aircraft.status` → บันทึกประวัติลง `aircraft_status_history` (snapshot รายวัน)
+- `recompute_all_hours()` = **ยอดยกมา** (`crew_hours_carry`, `aircraft.hours_carry`) + รายงานที่ยังอยู่ (migration_25)
+
+### ไฟล์แนบ & ข้อมูลย้อนหลัง (migration_24/25)
+- รูป/วีดีโอ: Storage bucket `report-media` (private) path `<mission_id>/<uuid>.<ext>` + ตาราง `report_media`
+  (ผูก discrepancy_id **หรือ** safety_report_id) · โค้ดอยู่ `js/media.js` · ลบแถวไม่ลบไฟล์ → ต้อง `removeFiles()` เอง
+- `safety_reports` ต้องบันทึกแบบคง id (`saveSafety`) — ห้ามกลับไปลบ-สร้างใหม่ ไฟล์แนบจะหลุด
+- เคลียร์ข้อมูลรายเดือนผ่าน `archive_purge_month()` เท่านั้น (archive.html) — **ห้ามลบ missions/reports เก่าตรง ๆ**
+  ไม่งั้น ชม.สะสมจะลดลง (ไม่ได้ยกยอด) · สถิติเดือนที่เคลียร์แล้วอ่านจาก `stats_daily` / `stats_crew_monthly`
 
 ## 6. กับดักที่เคยพลาด (อ่านก่อนแตะ SQL)
 

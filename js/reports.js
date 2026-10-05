@@ -1,8 +1,9 @@
 // =====================================================================
-//  reports.js — รายงานหลังบิน + ขาการบิน + ข้อขัดข้อง
+//  reports.js — รายงานหลังบิน + ขาการบิน + ข้อขัดข้อง + รายงานอันตราย
 //  บันทึกรายงาน → trigger ในฐานข้อมูลกระจาย ชม. ไปลูกเรือ/เครื่องเอง
 // =====================================================================
 import { supabase } from "./supabase.js";
+import { removeFiles } from "./media.js";
 
 export async function getMission(id) {
   const { data } = await supabase
@@ -82,16 +83,20 @@ export async function loadDiscrepancies(missionId) {
   return data || [];
 }
 
+// คืน { error, id } — id ใช้ผูกรูป/วีดีโอที่เลือกไว้ตอนเพิ่ม
 export async function addDiscrepancy(missionId, aircraftId, description) {
   const { data: { session } } = await supabase.auth.getSession();
-  const { error } = await supabase.from("discrepancies").insert({
+  const { data, error } = await supabase.from("discrepancies").insert({
     mission_id: missionId, aircraft_id: aircraftId, description, created_by: session?.user?.id,
-  });
-  return error;
+  }).select("id").single();
+  return { error, id: data?.id };
 }
 
+// ลบไฟล์แนบใน Storage ก่อน (แถว report_media หายตาม cascade)
 export async function deleteDiscrepancy(id) {
+  const { data: media } = await supabase.from("report_media").select("storage_path").eq("discrepancy_id", id);
   const { error } = await supabase.from("discrepancies").delete().eq("id", id);
+  if (!error && media?.length) await removeFiles(media.map((m) => m.storage_path));
   return error;
 }
 
@@ -103,18 +108,41 @@ export async function loadSafety(missionId) {
   return data || [];
 }
 
-// แทนที่ทั้งชุด (คล้าย replaceLegs) · เก็บเฉพาะรายการที่มีลักษณะเหตุการณ์
-export async function replaceSafety(missionId, items) {
+// บันทึกทั้งชุดแบบคง id เดิม (ไฟล์แนบผูกกับ id จึงห้ามลบ-สร้างใหม่)
+//  items: [{ id?, occurred_time, description }] · รายการที่ไม่มีลักษณะเหตุการณ์จะไม่ถูกเก็บ
+//  คืน { error, ids } — ids[i] = id ของ items[i] (null ถ้าไม่ได้เก็บ)
+export async function saveSafety(missionId, items) {
   const { data: { session } } = await supabase.auth.getSession();
-  const rows = (items || []).map(it => ({
-    mission_id: missionId,
-    occurred_time: (it.occurred_time || "").trim() || null,
-    description: (it.description || "").trim(),
-    created_by: session?.user?.id,
-  })).filter(r => r.description);
-  const { error: delErr } = await supabase.from("safety_reports").delete().eq("mission_id", missionId);
-  if (delErr) return delErr;
-  if (!rows.length) return null;
-  const { error } = await supabase.from("safety_reports").insert(rows);
-  return error;
+  const ids = (items || []).map(() => null);
+  const keep = new Set((items || []).filter((it) => it.id && (it.description || "").trim()).map((it) => it.id));
+
+  // 1) ลบรายการที่ถูกเอาออก (รวมไฟล์แนบใน Storage)
+  const { data: old, error: oldErr } = await supabase.from("safety_reports").select("id").eq("mission_id", missionId);
+  if (oldErr) return { error: oldErr, ids };
+  const gone = (old || []).map((r) => r.id).filter((id) => !keep.has(id));
+  if (gone.length) {
+    const { data: media } = await supabase.from("report_media").select("storage_path").in("safety_report_id", gone);
+    const { error } = await supabase.from("safety_reports").delete().in("id", gone);
+    if (error) return { error, ids };
+    if (media?.length) await removeFiles(media.map((m) => m.storage_path));
+  }
+
+  // 2) แก้ของเดิม / เพิ่มของใหม่
+  for (let i = 0; i < (items || []).length; i++) {
+    const it = items[i];
+    const description = (it.description || "").trim();
+    if (!description) continue;
+    const row = { occurred_time: (it.occurred_time || "").trim() || null, description };
+    if (it.id) {
+      const { error } = await supabase.from("safety_reports").update(row).eq("id", it.id);
+      if (error) return { error, ids };
+      ids[i] = it.id;
+    } else {
+      const { data, error } = await supabase.from("safety_reports")
+        .insert({ ...row, mission_id: missionId, created_by: session?.user?.id }).select("id").single();
+      if (error) return { error, ids };
+      ids[i] = data.id;
+    }
+  }
+  return { error: null, ids };
 }

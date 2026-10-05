@@ -74,6 +74,16 @@ export async function loadMonthlyStats(year, month /* 0-11 */) {
     st.flights += 1;
     if ([...positions].some((p) => HOUR_POSITIONS.includes(p))) st.hours += Number(report.total_hours || 0);
   });
+
+  // เดือนที่เคลียร์ข้อมูลดิบแล้ว → บวกยอดสรุปที่เก็บไว้ (migration_25 · ข้อมูลดิบส่วนนั้นไม่มีแล้ว จึงไม่นับซ้ำ)
+  const { data: arc, error: arcErr } = await supabase.from("stats_crew_monthly")
+    .select("crew_member_id, flights, hours").eq("ym", first);
+  if (arcErr) console.warn("stats_crew_monthly:", arcErr.message);
+  (arc || []).forEach((x) => {
+    const st = by[x.crew_member_id] || (by[x.crew_member_id] = { hours: 0, flights: 0 });
+    st.flights += Number(x.flights || 0);
+    st.hours += Number(x.hours || 0);
+  });
   return by;
 }
 

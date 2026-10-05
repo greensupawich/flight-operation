@@ -181,3 +181,30 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--primary);outline
 .muted{color:var(--muted)}
 .empty{padding:40px;text-align:center;color:var(--faint);font-size:14px}
 @media(prefers-reduced-motion:reduce){*{transition:none!important}}
+
+/* ---------- รูป / วีดีโอแนบ (js/media.js) ---------- */
+.media-grid{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.mthumb{position:relative;width:84px;height:84px;border-radius:9px;overflow:hidden;
+  border:1px solid var(--line-strong);background:var(--surface-2)}
+.mthumb .mopen{all:unset;cursor:zoom-in;display:block;width:100%;height:100%}
+.mthumb img,.mthumb video{width:100%;height:100%;object-fit:cover;display:block}
+.mthumb .play{position:absolute;inset:0;display:grid;place-items:center;color:#fff;font-size:22px;
+  text-shadow:0 1px 6px rgba(0,0,0,.7);pointer-events:none}
+.mthumb .mdel{position:absolute;top:3px;right:3px;width:22px;height:22px;border-radius:50%;border:0;
+  background:rgba(0,0,0,.6);color:#fff;font-size:14px;line-height:1;cursor:pointer}
+.mthumb .mdel:hover{background:var(--crit)}
+.mthumb.pending{opacity:.75;border-style:dashed}
+.attach-btn{font-size:12.5px}
+.upl-note{font-size:12px;color:var(--faint);margin-top:4px}
+.upl-note.err{color:var(--crit)}
+.lightbox{position:fixed;inset:0;z-index:100;background:rgba(5,9,14,.92);display:grid;
+  grid-template-columns:56px 1fr 56px;grid-template-rows:1fr auto;align-items:center}
+.lightbox .lb-body{grid-column:2;grid-row:1;display:grid;place-items:center;height:100%;min-height:0;padding:16px 0}
+.lightbox .lb-body img,.lightbox .lb-body video{max-width:100%;max-height:calc(100vh - 80px);border-radius:6px}
+.lightbox .lb-cap{grid-column:1/4;grid-row:2;text-align:center;color:#cfd7e1;font-size:13px;padding:0 16px 14px}
+.lightbox button{background:none;border:0;color:#fff;cursor:pointer;font-family:inherit}
+.lightbox .lb-x{position:absolute;top:8px;right:12px;font-size:32px;line-height:1;z-index:1}
+.lightbox .lb-nav{font-size:40px;height:100%;opacity:.7}
+.lightbox .lb-nav:hover{opacity:1}
+.lightbox .lb-prev{grid-column:1;grid-row:1} .lightbox .lb-next{grid-column:3;grid-row:1}
+@media(max-width:560px){ .lightbox{grid-template-columns:36px 1fr 36px} .mthumb{width:72px;height:72px} }

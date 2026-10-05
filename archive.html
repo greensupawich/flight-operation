@@ -1,0 +1,381 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Flight Operation · ข้อมูลย้อนหลัง</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bai+Jamjuree:wght@600;700&family=IBM+Plex+Sans+Thai:wght@400;500;600&family=IBM+Plex+Mono&display=swap">
+<link rel="stylesheet" href="css/style.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  h2.sec{font-family:"Bai Jamjuree",sans-serif;font-weight:600;font-size:18px;margin:0 0 4px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .hint{font-size:12.5px;color:var(--faint);margin:0 0 14px;line-height:1.6}
+  .panel + .panel{margin-top:18px}
+  .mtab{width:100%;border-collapse:collapse;font-size:13.5px}
+  .mtab th{text-align:start;font-size:11.5px;color:var(--faint);font-weight:600;letter-spacing:.04em;padding:6px 8px;border-bottom:1px solid var(--line)}
+  .mtab td{padding:8px;border-bottom:1px solid var(--line);vertical-align:middle}
+  .mtab td.num{font-variant-numeric:tabular-nums;text-align:end}
+  .mtab .acts{display:flex;gap:6px;justify-content:end;flex-wrap:wrap}
+  .tag{display:inline-block;font-size:11.5px;font-weight:600;border-radius:6px;padding:2px 8px;white-space:nowrap}
+  .tag.ok{background:var(--good-soft);color:var(--good)}
+  .tag.warn{background:var(--accent-soft);color:var(--warn)}
+  .tag.off{background:var(--surface-2);color:var(--faint);border:1px solid var(--line)}
+  .tag.keep{background:var(--primary-soft);color:var(--primary)}
+  .btn.danger{color:var(--crit);border-color:var(--crit)}
+  .btn.danger:hover{background:var(--crit-soft)}
+  .btn:disabled{opacity:.45;cursor:default}
+  .prog{font-size:13px;margin-top:10px;min-height:18px;color:var(--muted)}
+  .prog.ok{color:var(--good)} .prog.err{color:var(--crit)}
+  .tablewrap{overflow-x:auto}
+
+  .drop{border:2px dashed var(--line-strong);border-radius:12px;padding:22px;text-align:center;color:var(--muted);cursor:pointer}
+  .drop.over{border-color:var(--primary);background:var(--primary-soft)}
+  .drop b{color:var(--ink)}
+  .kpi{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0}
+  .kpi .card{background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:10px 16px;min-width:110px}
+  .kpi .card .n{font-family:"Bai Jamjuree",sans-serif;font-weight:700;font-size:22px}
+  .kpi .card .l{font-size:12px;color:var(--muted)}
+  .vbar{display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin:6px 0 12px}
+  .vbar > div{flex:1;min-width:160px}
+  .vbar label{margin:0 0 5px}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:6px}
+  @media(max-width:760px){ .two{grid-template-columns:1fr} }
+  .two h4{margin:4px 0 6px;font-size:13.5px}
+
+  .day{margin-top:18px}
+  .day-h{font-family:"Bai Jamjuree",sans-serif;font-weight:600;font-size:16px;margin:0 0 8px;display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
+  .day-h small{font-family:"IBM Plex Sans Thai",sans-serif;font-weight:400;font-size:12.5px;color:var(--muted)}
+  .mcard{border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:10px;background:var(--surface)}
+  .mcard .top{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:6px}
+  .mcard .cs{font-family:"IBM Plex Mono",monospace;font-weight:700}
+  .mcard .kind{font-size:11.5px;font-weight:600;border-radius:5px;padding:1px 8px}
+  .mcard .res{margin-inline-start:auto;font-weight:700;font-size:13px}
+  .mcard .meta{font-size:13px;color:var(--muted);display:flex;gap:14px;flex-wrap:wrap}
+  .mcard .crew{font-size:13px;margin-top:6px}
+  .mcard .crew b{font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--faint);font-weight:600}
+  .mcard .sub{margin-top:10px;border-top:1px dashed var(--line);padding-top:8px}
+  .mcard .sub h5{margin:0 0 4px;font-size:12.5px;color:var(--muted);font-weight:600}
+  .mcard .item{font-size:13.5px;margin:4px 0 8px}
+  .mcard .legs{font-size:12.5px;color:var(--muted);font-family:"IBM Plex Mono",monospace}
+  .nomedia{font-size:12px;color:var(--faint)}
+</style>
+</head>
+<body>
+<main>
+  <div class="wrap" style="max-width:1100px">
+    <div class="page-head">
+      <h1>ข้อมูลย้อนหลัง</h1>
+      <div class="sub">Export ข้อมูลจัดบินรายเดือน · เคลียร์ข้อมูลเก่ากว่า 3 เดือน · เปิดไฟล์เดือนเก่าเพื่อตรวจย้อนหลัง</div>
+    </div>
+
+    <!-- ===== Export / เคลียร์ (admin/planner) ===== -->
+    <div class="panel" id="mgr" hidden>
+      <h2 class="sec">📦 Export / เคลียร์ข้อมูลรายเดือน</h2>
+      <p class="hint">
+        <b>Export</b> = ดาวน์โหลด 2 ไฟล์: <code>.zip</code> (ข้อมูลครบ + รูป/วีดีโอ — ใช้เปิดดูย้อนหลังในหน้านี้) และ <code>.xlsx</code> (เปิดอ่านใน Excel) — เก็บไฟล์ไว้ให้ดี<br>
+        <b>เคลียร์</b> = ลบข้อมูลดิบของเดือนนั้นออกจากระบบ (ภารกิจ ลูกเรือ รายงานหลังบิน ข้อขัดข้อง รายงานอันตราย ไฟล์แนบ น.จัดบิน คิวบิน วันไม่ว่าง)
+        ทำได้เมื่อ <b>export แล้ว</b> และเป็นเดือนที่ <b>เก่ากว่า 3 เดือนเต็มล่าสุด</b> —
+        <b>ชม.บินสะสม รายคน/รายเครื่อง · สถิติรายเดือน · สถานภาพเครื่อง · currency</b> ยังอยู่ครบ (ระบบยกยอดไว้ให้)
+      </p>
+      <div id="migWarn" class="prog err" hidden>ยังไม่ได้รัน <code>db/migration_25_archive.sql</code> — export ได้ แต่ยังบันทึกสถานะ/เคลียร์ไม่ได้</div>
+      <div class="vbar" style="margin-top:0">
+        <div style="flex:0 0 auto;min-width:0"><label for="anyMonth">Export เดือนอื่น</label>
+          <input type="month" id="anyMonth"></div>
+        <button class="btn" id="anyExport">⬇ Export</button>
+      </div>
+      <div class="tablewrap">
+        <table class="mtab">
+          <thead><tr><th>เดือน</th><th style="text-align:end">ภารกิจ</th><th>Export</th><th>สถานะ</th><th></th></tr></thead>
+          <tbody id="months"><tr><td colspan="5" class="empty">กำลังโหลด…</td></tr></tbody>
+        </table>
+      </div>
+      <div class="prog" id="prog"></div>
+    </div>
+
+    <!-- ===== เปิดไฟล์ย้อนหลัง (ทุกคน) ===== -->
+    <div class="panel">
+      <h2 class="sec">🗂 เปิดไฟล์เดือนเก่า</h2>
+      <p class="hint">เลือกไฟล์ <code>flight-ops-YYYY-MM.zip</code> ที่ export ไว้ (หรือ <code>.json</code>) — เปิดดูในเครื่องนี้เท่านั้น ไม่ได้นำกลับเข้าฐานข้อมูล</p>
+      <label class="drop" id="drop">
+        <input type="file" id="file" accept=".zip,.json,application/zip,application/json" hidden>
+        <b>เลือกไฟล์</b> หรือลากไฟล์มาวางที่นี่
+      </label>
+      <div class="prog" id="vprog"></div>
+      <div id="viewer" hidden>
+        <div class="day-h" id="vTitle"></div>
+        <div class="kpi" id="vKpi"></div>
+        <div class="two">
+          <div><h4>สรุปรายเครื่อง</h4><div class="tablewrap"><table class="mtab" id="vAc"></table></div></div>
+          <div><h4>สรุปรายนักบิน</h4><div class="tablewrap"><table class="mtab" id="vCrew"></table></div></div>
+        </div>
+        <div class="vbar">
+          <div><label for="vDay">วันที่</label><select id="vDay"></select></div>
+          <div><label for="vQ">ค้นหา</label><input id="vQ" placeholder="callsign / ชื่อนักบิน / เครื่อง / ข้อความ"></div>
+          <div style="flex:0 0 auto;min-width:0"><label for="vOnly">แสดง</label>
+            <select id="vOnly"><option value="">ทุกภารกิจ</option><option value="disc">มีข้อขัดข้อง</option>
+              <option value="safety">มีรายงานอันตราย</option><option value="media">มีรูป/วีดีโอ</option></select></div>
+        </div>
+        <div id="vDays"></div>
+      </div>
+    </div>
+    <div style="height:40px"></div>
+  </div>
+</main>
+
+<script type="module">
+  import { requireAuth, canPlan } from "./js/auth.js";
+  import { renderTopbar } from "./js/ui.js";
+  import { KINDS, KIND_COLORS, DEFAULT_KIND, esc } from "./js/missions.js";
+  import { thumbsHtml, bindThumbs } from "./js/media.js";
+  import { listMonths, fetchMonth, buildZip, buildXlsx, downloadBlob, markExported, purgeMonth,
+           purgeLimitYm, readArchiveFile, reportOf } from "./js/archive.js";
+
+  const profile = await requireAuth();
+  if (!profile) throw new Error("no auth");
+  renderTopbar(profile);
+
+  const TH_MON = ["ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."];
+  const TH_MON_FULL = ["มกราคม","กุมภาพันธ์","มีนาคม","เมษายน","พฤษภาคม","มิถุนายน","กรกฎาคม","สิงหาคม","กันยายน","ตุลาคม","พฤศจิกายน","ธันวาคม"];
+  const TH_DOW = ["อาทิตย์","จันทร์","อังคาร","พุธ","พฤหัสบดี","ศุกร์","เสาร์"];
+  const ymLabel = (ym) => { const [y, m] = ym.split("-").map(Number); return `${TH_MON_FULL[m - 1]} ${y + 543}`; };
+  const dLabel = (s) => { const [y, m, d] = String(s).slice(0, 10).split("-").map(Number); return `${d} ${TH_MON[m - 1]} ${y + 543}`; };
+  const dtLabel = (s) => s ? new Date(s).toLocaleString("th-TH", { dateStyle: "medium", timeStyle: "short" }) : "";
+  const kindLabel = (k) => KINDS[k] || k || "";
+
+  // ================= Export / เคลียร์ =================
+  if (canPlan(profile)) {
+    const mgr = document.getElementById("mgr"); mgr.hidden = false;
+    const prog = document.getElementById("prog");
+    const say = (t, cls = "") => { prog.className = "prog " + cls; prog.textContent = t; };
+    let busy = false;
+    const now = new Date();
+    document.getElementById("anyMonth").value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+
+    async function doExport(ym) {
+      if (busy) return; busy = true; setBtns(true);
+      try {
+        say(`กำลังรวบรวมข้อมูล ${ymLabel(ym)}…`);
+        const data = await fetchMonth(ym, profile);
+        const { blob, failed } = await buildZip(data, (t) => say(t));
+        downloadBlob(blob, `flight-ops-${ym}.zip`);
+        downloadBlob(buildXlsx(data, kindLabel), `flight-ops-${ym}.xlsx`);
+        const s = data.summary;
+        const counts = { missions: s.missions, flights: s.flights, hours: s.hours, discrepancies: s.discrepancies,
+                         safety_reports: s.safety_reports, media: s.media, media_failed: failed.length };
+        const err = await markExported(ym, counts);
+        if (failed.length) say(`⚠ export แล้ว แต่ดาวน์โหลดไฟล์แนบไม่ได้ ${failed.length} ไฟล์ (${failed.slice(0, 3).join(", ")}…) — ลอง export ใหม่ก่อนเคลียร์`, "err");
+        else if (err) say(`ดาวน์โหลดแล้ว แต่บันทึกสถานะ export ไม่สำเร็จ: ${err.message}`, "err");
+        else say(`✓ export ${ymLabel(ym)} แล้ว · ภารกิจ ${s.missions} · ${s.hours} ชม. · ข้อขัดข้อง ${s.discrepancies} · รายงานอันตราย ${s.safety_reports} · ไฟล์แนบ ${s.media}`, "ok");
+      } catch (e) { say("export ไม่สำเร็จ: " + (e.message || e), "err"); }
+      busy = false; await refreshMonths();
+    }
+
+    async function doPurge(row) {
+      if (busy) return;
+      const label = ymLabel(row.ym);
+      const typed = prompt(`เคลียร์ข้อมูลดิบของ ${label} ออกจากระบบ?\n\n` +
+        `• ภารกิจ ${row.missions} รายการ พร้อมรายงาน ข้อขัดข้อง รายงานอันตราย และรูป/วีดีโอ จะถูกลบถาวร\n` +
+        `• ดูย้อนหลังได้จากไฟล์ที่ export ไว้เท่านั้น\n• ชม.บินสะสมและสถิติรายเดือนยังอยู่ครบ\n\nพิมพ์ ${row.ym} เพื่อยืนยัน`);
+      if (typed === null) return;
+      if (typed.trim() !== row.ym) { say("ยกเลิก — พิมพ์เดือนไม่ตรง", "err"); return; }
+      busy = true; setBtns(true);
+      const { data, error } = await purgeMonth(row.ym, (t) => say(t));
+      busy = false;
+      if (error) say("เคลียร์ไม่สำเร็จ: " + error.message, "err");
+      else say(`✓ เคลียร์ ${label} แล้ว · ภารกิจ ${data?.missions ?? 0} · ข้อขัดข้อง ${data?.discrepancies ?? 0} · รายงานอันตราย ${data?.safety_reports ?? 0} · ไฟล์แนบ ${data?.media ?? 0}`, "ok");
+      await refreshMonths();
+    }
+
+    function setBtns(dis) { mgr.querySelectorAll("button").forEach((b) => { if (dis) b.disabled = true; }); }
+    document.getElementById("anyExport").addEventListener("click", () => {
+      const ym = document.getElementById("anyMonth").value; if (ym) doExport(ym);
+    });
+
+    async function refreshMonths() {
+      const tb = document.getElementById("months");
+      let res;
+      try { res = await listMonths(); } catch (e) { tb.innerHTML = `<tr><td colspan="5" class="empty">โหลดไม่สำเร็จ: ${esc(e.message)}</td></tr>`; return; }
+      const { months, needsMigration } = res;
+      document.getElementById("migWarn").hidden = !needsMigration;
+      const limit = purgeLimitYm();
+      document.getElementById("anyExport").disabled = false;
+      if (!months.length) { tb.innerHTML = `<tr><td colspan="5" class="empty">ยังไม่มีข้อมูล</td></tr>`; return; }
+      tb.innerHTML = months.map((r, i) => {
+        const l = r.log, exported = !!l?.exported_at;
+        const expN = l?.export_counts?.missions;
+        const stale = exported && expN != null && r.missions > expN;     // มีภารกิจเพิ่มหลัง export
+        const partial = exported && Number(l.export_counts?.media_failed) > 0;   // ไฟล์แนบบางไฟล์ไม่ได้อยู่ใน zip
+        const old = r.ym <= limit;
+        let status;
+        if (!r.missions && l?.purged_at) status = `<span class="tag off">เคลียร์แล้ว ${esc(dtLabel(l.purged_at))}</span>`;
+        else if (!old) status = `<span class="tag keep">เก็บไว้ (3 เดือนล่าสุด)</span>`;
+        else if (!exported) status = `<span class="tag warn">ต้อง export ก่อนเคลียร์</span>`;
+        else if (stale) status = `<span class="tag warn">มีข้อมูลเพิ่มหลัง export — export ใหม่</span>`;
+        else if (partial) status = `<span class="tag warn">ไฟล์แนบไม่ครบใน zip — export ใหม่</span>`;
+        else status = `<span class="tag ok">พร้อมเคลียร์</span>`;
+        const canPurge = !needsMigration && old && exported && !stale && !partial && r.missions > 0;
+        return `<tr data-i="${i}">
+          <td><b>${ymLabel(r.ym)}</b></td>
+          <td class="num">${r.missions}</td>
+          <td>${exported ? `<span class="tag ok">✓ ${esc(dtLabel(l.exported_at))}</span>` : `<span class="tag off">ยังไม่ export</span>`}</td>
+          <td>${status}</td>
+          <td><div class="acts">
+            <button class="btn sm" data-exp ${r.missions ? "" : "disabled"}>⬇ Export</button>
+            <button class="btn sm danger" data-purge ${canPurge ? "" : "disabled"}>🗑 เคลียร์</button>
+          </div></td></tr>`;
+      }).join("");
+      tb.querySelectorAll("tr[data-i]").forEach((tr) => {
+        const r = months[+tr.dataset.i];
+        tr.querySelector("[data-exp]").addEventListener("click", () => doExport(r.ym));
+        tr.querySelector("[data-purge]").addEventListener("click", () => doPurge(r));
+      });
+    }
+    refreshMonths();
+  }
+
+  // ================= เปิดไฟล์ย้อนหลัง =================
+  const vprog = document.getElementById("vprog");
+  const fileInp = document.getElementById("file"), drop = document.getElementById("drop");
+  let mediaUrls = new Map();
+
+  fileInp.addEventListener("change", () => { if (fileInp.files[0]) openFile(fileInp.files[0]); fileInp.value = ""; });
+  ["dragenter", "dragover"].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.add("over"); }));
+  ["dragleave", "drop"].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.remove("over"); }));
+  drop.addEventListener("drop", (e) => { const f = e.dataTransfer.files[0]; if (f) openFile(f); });
+
+  async function openFile(file) {
+    vprog.className = "prog"; vprog.textContent = `กำลังเปิด ${file.name}…`;
+    mediaUrls.forEach((u) => URL.revokeObjectURL(u));
+    try {
+      const { data, mediaUrl } = await readArchiveFile(file);
+      mediaUrls = mediaUrl;
+      vprog.textContent = "";
+      renderArchive(data);
+    } catch (e) {
+      document.getElementById("viewer").hidden = true;
+      vprog.className = "prog err"; vprog.textContent = "เปิดไฟล์ไม่ได้: " + (e.message || e);
+    }
+  }
+
+  function renderArchive(data) {
+    const s = data.summary;
+    document.getElementById("viewer").hidden = false;
+    document.getElementById("vTitle").innerHTML =
+      `${ymLabel(data.month)} <small>export ${esc(dtLabel(data.exported_at))}${data.exported_by ? " โดย " + esc(data.exported_by) : ""}</small>`;
+    document.getElementById("vKpi").innerHTML = [
+      [s.missions, "ภารกิจ"], [s.flights, "เที่ยวที่มีรายงาน"], [s.hours, "ชม.บินรวม"],
+      [s.discrepancies, "ข้อขัดข้อง"], [s.safety_reports, "รายงานอันตราย"], [s.media, "รูป/วีดีโอ"],
+    ].map(([n, l]) => `<div class="card"><div class="n">${n}</div><div class="l">${l}</div></div>`).join("");
+    document.getElementById("vAc").innerHTML =
+      `<thead><tr><th>เครื่อง</th><th style="text-align:end">เที่ยว</th><th style="text-align:end">ชม.</th><th style="text-align:end">ข้อขัดข้อง</th></tr></thead><tbody>` +
+      (s.per_aircraft.map((a) => `<tr><td class="mono">${esc(a.type ? a.type + "/" : "")}${esc(a.tail)}</td><td class="num">${a.flights}</td><td class="num">${a.hours}</td><td class="num">${a.discrepancies}</td></tr>`).join("")
+        || `<tr><td colspan="4" class="empty">—</td></tr>`) + `</tbody>`;
+    document.getElementById("vCrew").innerHTML =
+      `<thead><tr><th>นักบิน</th><th style="text-align:end">เที่ยว</th><th style="text-align:end">ชม.</th></tr></thead><tbody>` +
+      (s.per_crew.map((c) => `<tr><td>${esc([c.rank, c.name].filter(Boolean).join(" ") || c.code)} <span class="mono" style="color:var(--faint);font-size:12px">${esc(c.code)}</span></td><td class="num">${c.flights}</td><td class="num">${c.hours}</td></tr>`).join("")
+        || `<tr><td colspan="3" class="empty">—</td></tr>`) + `</tbody>`;
+
+    // วันที่ทั้งหมด (จากภารกิจ + ข้อขัดข้องที่ไม่ผูกภารกิจ)
+    const dates = [...new Set([...data.missions.map((m) => m.mission_date),
+      ...data.discrepancies.filter((d) => !d.mission_id).map((d) => d.reported_date)])].sort();
+    const daySel = document.getElementById("vDay");
+    daySel.innerHTML = `<option value="">ทั้งเดือน (${dates.length} วัน)</option>` +
+      dates.map((d) => `<option value="${d}">${dLabel(d)}</option>`).join("");
+    const draw = () => renderDays(data, daySel.value, document.getElementById("vQ").value.trim().toLowerCase(), document.getElementById("vOnly").value);
+    daySel.onchange = draw;
+    document.getElementById("vQ").oninput = draw;
+    document.getElementById("vOnly").onchange = draw;
+    draw();
+  }
+
+  function renderDays(data, day, q, only) {
+    const discBy = new Map(), mediaBy = new Map();
+    data.discrepancies.forEach((d) => { const k = d.mission_id || "_" + d.reported_date; (discBy.get(k) || discBy.set(k, []).get(k)).push(d); });
+    (data.media || []).forEach((x) => {
+      const k = x.discrepancy_id || x.safety_report_id;
+      (mediaBy.get(k) || mediaBy.set(k, []).get(k)).push({ ...x, url: mediaUrls.get(x.storage_path) || "" });
+    });
+    const notes = new Map((data.day_notes || []).map((n) => [n.log_date, n]));
+    const hasMedia = (id) => (mediaBy.get(id) || []).length > 0;
+
+    const box = document.getElementById("vDays");
+    const bind = [];   // [กล่องรูป, รายการ] ผูกปุ่มหลังวาด
+    const mediaBlock = (id) => {
+      const items = mediaBy.get(id) || [];
+      if (!items.length) return "";
+      const ok = items.filter((x) => x.url);
+      if (!ok.length) return `<div class="nomedia">📎 ${items.length} ไฟล์ (เปิดไฟล์ .zip เพื่อดูรูป/วีดีโอ)</div>`;
+      bind.push(ok);
+      return `<div data-mbox="${bind.length - 1}">${thumbsHtml(ok)}</div>`;
+    };
+
+    const text = (m) => [m.callsign, m.mission_name, m.route, m.aircraft?.tail_number, m.aircraft?.type,
+      ...(m.mission_crew || []).map((c) => c.crew_name), reportOf(m)?.remarks,
+      ...(discBy.get(m.id) || []).map((d) => d.description), ...(m.safety_reports || []).map((x) => x.description)]
+      .filter(Boolean).join(" ").toLowerCase();
+
+    const missions = data.missions.filter((m) => {
+      if (day && m.mission_date !== day) return false;
+      if (q && !text(m).includes(q)) return false;
+      if (only === "disc" && !(discBy.get(m.id) || []).length) return false;
+      if (only === "safety" && !(m.safety_reports || []).length) return false;
+      if (only === "media" && !(discBy.get(m.id) || []).some((d) => hasMedia(d.id)) && !(m.safety_reports || []).some((x) => hasMedia(x.id))) return false;
+      return true;
+    });
+    const loose = data.discrepancies.filter((d) => !d.mission_id && (!day || d.reported_date === day)
+      && (!q || String(d.description).toLowerCase().includes(q) || String(d.aircraft?.tail_number || "").includes(q))
+      && only !== "safety" && (only !== "media" || hasMedia(d.id)));
+
+    const days = [...new Set([...missions.map((m) => m.mission_date), ...loose.map((d) => d.reported_date)])].sort();
+    if (!days.length) { box.innerHTML = `<div class="empty">ไม่พบข้อมูลตามเงื่อนไข</div>`; return; }
+
+    box.innerHTML = days.map((d) => {
+      const dow = TH_DOW[new Date(d + "T00:00:00").getDay()];
+      const n = notes.get(d);
+      const ms = missions.filter((m) => m.mission_date === d);
+      const cards = ms.map((m) => {
+        const r = reportOf(m);
+        const c = KIND_COLORS[m.kind] || KIND_COLORS[DEFAULT_KIND];
+        const crew = (m.mission_crew || []).slice().sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))
+          .map((x) => `<b>${esc(x.position || "")}</b> ${esc(x.crew_name || "")}`).join(" · ");
+        const legs = (m.flight_legs || []).slice().sort((a, b) => (a.leg_no || 0) - (b.leg_no || 0))
+          .map((l) => `${esc(l.from_point)}→${esc(l.to_point)} ${Number(l.hours || 0)}`).join("  ·  ");
+        const discs = discBy.get(m.id) || [];
+        const safety = m.safety_reports || [];
+        const res = r ? `${esc(r.result || "รายงานแล้ว")} · ${Number(r.total_hours || 0)} ชม.` : `<span style="color:var(--faint)">ไม่มีรายงานหลังบิน</span>`;
+        return `<div class="mcard">
+          <div class="top">
+            <span class="cs">${esc(m.callsign || "")}</span>
+            <span class="kind" style="background:${c.bg};color:${c.fg}">${esc(kindLabel(m.kind))}</span>
+            <span>${esc(m.mission_name || "")}</span>
+            <span class="res">${res}</span>
+          </div>
+          <div class="meta">
+            ${m.aircraft ? `<span>✈ ${esc(m.aircraft.type || "")}/${esc(m.aircraft.tail_number)}</span>` : ""}
+            ${m.route ? `<span>🧭 ${esc(m.route)}</span>` : ""}
+            ${m.brief_time ? `<span>BRIEF ${esc(m.brief_time)}</span>` : ""}
+            ${m.takeoff_time ? `<span>T/O ${esc(m.takeoff_time)}</span>` : ""}
+            ${r?.parking_return ? `<span>จอดกลับ ${esc(r.parking_return)}</span>` : ""}
+          </div>
+          ${crew ? `<div class="crew">${crew}</div>` : ""}
+          ${legs ? `<div class="legs" style="margin-top:4px">${legs}</div>` : ""}
+          ${r?.remarks ? `<div class="item" style="margin-top:6px">📝 ${esc(r.remarks)}</div>` : ""}
+          ${discs.length ? `<div class="sub"><h5>🔧 ข้อขัดข้อง (${discs.length})</h5>${discs.map((x) =>
+              `<div class="item">${esc(x.description)}${mediaBlock(x.id)}</div>`).join("")}</div>` : ""}
+          ${safety.length ? `<div class="sub"><h5>⚠️ รายงานอันตราย (${safety.length})</h5>${safety.map((x) =>
+              `<div class="item">${x.occurred_time ? `<b class="mono">⏱ ${esc(x.occurred_time)}</b> ` : ""}${esc(x.description)}${mediaBlock(x.id)}</div>`).join("")}</div>` : ""}
+        </div>`;
+      }).join("");
+      const ld = loose.filter((x) => x.reported_date === d);
+      const looseHtml = ld.length ? `<div class="mcard"><div class="sub" style="border:0;margin:0;padding:0"><h5>🔧 ข้อขัดข้องประจำเครื่อง (ไม่ผูกภารกิจ)</h5>${ld.map((x) =>
+          `<div class="item"><b class="mono">${esc(x.aircraft?.tail_number || "-")}</b> ${esc(x.description)}${mediaBlock(x.id)}</div>`).join("")}</div></div>` : "";
+      return `<div class="day"><div class="day-h">${dLabel(d)} <small>วัน${dow} · ${ms.length} ภารกิจ${n?.duty_officer ? ` · น.จัดบิน ${esc(n.duty_officer)}` : ""}</small></div>${cards}${looseHtml}</div>`;
+    }).join("");
+    box.querySelectorAll("[data-mbox]").forEach((el) => bindThumbs(el, bind[+el.dataset.mbox]));
+  }
+</script>
+</body>
+</html>

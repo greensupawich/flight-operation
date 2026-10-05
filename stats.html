@@ -123,7 +123,17 @@
     .select("total_hours, missions(mission_date, kind)");
   if (repErr) console.warn("reports:", repErr.message);
   const rows = (reps||[]).filter(r=>r.missions && r.missions.mission_date)
-    .map(r=>({ date:String(r.missions.mission_date).slice(0,10), kind:r.missions.kind||DEFAULT_KIND, h:fx(r.total_hours) }));
+    .map(r=>({ date:String(r.missions.mission_date).slice(0,10), kind:r.missions.kind||DEFAULT_KIND, h:fx(r.total_hours), f:1 }));
+
+  // เดือนที่เคลียร์ข้อมูลดิบแล้ว (archive.html) → ใช้สถิติสรุปรายวันแทน (migration_25)
+  //  วันที่ยังมีข้อมูลดิบอยู่ใช้ข้อมูลดิบ กันนับซ้ำ
+  const { data: sd, error: sdErr } = await supabase.from("stats_daily").select("stat_date,kind,flights,hours");
+  if (sdErr) console.warn("stats_daily:", sdErr.message);
+  const rawDates=new Set(rows.map(r=>r.date));
+  for(const x of sd||[]){
+    const date=String(x.stat_date).slice(0,10);
+    if(!rawDates.has(date)) rows.push({ date, kind:x.kind||DEFAULT_KIND, h:fx(x.hours), f:Number(x.flights)||0 });
+  }
 
   const daysIn=(y,m)=>new Date(y,m,0).getDate();   // m=1..12
 
@@ -139,10 +149,10 @@
     for(const r of inMonth){
       const d=Number(r.date.slice(8,10));
       if(d<1||d>nd) continue;
-      perDay[d]+=r.h; perDayF[d]+=1;
+      perDay[d]+=r.h; perDayF[d]+=r.f;
       if(!perKindH.has(r.kind)){ perKindH.set(r.kind, Array(nd+1).fill(0)); perKindF.set(r.kind, Array(nd+1).fill(0)); }
       perKindH.get(r.kind)[d]+=r.h;
-      perKindF.get(r.kind)[d]+=1;
+      perKindF.get(r.kind)[d]+=r.f;
     }
     const monthTotal=perDay.reduce((a,b)=>a+b,0);
     const monthFlights=perDayF.reduce((a,b)=>a+b,0);
@@ -153,7 +163,7 @@
     document.getElementById("kpi").innerHTML=`
       <div class="card"><div class="n">${Math.round(monthTotal*10)/10}</div><div class="l">ชม.รวมทั้งเดือน</div></div>
       <div class="card"><div class="n">${flyingDays}</div><div class="l">วันที่มีบิน</div></div>
-      <div class="card"><div class="n">${inMonth.length}</div><div class="l">เที่ยวบิน</div></div>`;
+      <div class="card"><div class="n">${monthFlights}</div><div class="l">เที่ยวบิน</div></div>`;
 
     // ----- กราฟเส้น ชม.สะสม (รวมเพิ่มขึ้นเรื่อย ๆ ตลอดเดือน) -----
     const chart=document.getElementById("chart");
@@ -288,9 +298,13 @@
   const TH_MON=["ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."];
   const thD=(s)=>{ if(!s) return "-"; const [y,mo,da]=String(s).slice(0,10).split("-").map(Number); return `${da} ${TH_MON[mo-1]} ${y+543}`; };
   const acLbl=(a)=> a ? `${a.type||""}/${a.tail_number||""}` : "";
-  const { data: safe, error: safeErr } = await supabase.from("safety_reports")
-    .select("id, occurred_time, description, created_at, mission_id, missions(mission_date, callsign, route, aircraft(tail_number,type))")
-    .order("created_at",{ascending:false});
+  const SF_COLS="id, occurred_time, description, created_at, mission_id, missions(mission_date, callsign, route, aircraft(tail_number,type))";
+  let { data: safe, error: safeErr } = await supabase.from("safety_reports")
+    .select(SF_COLS+", report_media(id)").order("created_at",{ascending:false});
+  if(safeErr){   // ยังไม่ได้รัน migration_24 (ไม่มีตาราง report_media) → โหลดแบบเดิม
+    ({ data: safe, error: safeErr } = await supabase.from("safety_reports")
+      .select(SF_COLS).order("created_at",{ascending:false}));
+  }
   if(safeErr) console.warn("safety_reports:", safeErr.message);
   const safeRows=(safe||[]).slice().sort((a,b)=>
     String(b.missions?.mission_date||b.created_at).localeCompare(String(a.missions?.mission_date||a.created_at))
@@ -312,6 +326,7 @@
               ${m.callsign?`<span class="sf-cs">${esc(m.callsign)}</span>`:""}
               ${m.aircraft?`<span class="sf-ac">${esc(acLbl(m.aircraft))}</span>`:""}
               ${s.occurred_time?`<span class="sf-time">⏱ ${esc(s.occurred_time)}</span>`:""}
+              ${s.report_media?.length?`<span class="sf-time" title="รูป/วีดีโอแนบ">📎 ${s.report_media.length}</span>`:""}
             </div>
             <div class="sf-desc">${esc(s.description)}</div>
             ${m.route?`<div class="sf-route">${esc(m.route)}</div>`:""}

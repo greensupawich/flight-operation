@@ -59,6 +59,10 @@
                background:var(--surface-2);border:1px solid var(--line);border-radius:9px;padding:10px 12px;margin-bottom:8px}
   .safety-item .sf-time{font-family:"IBM Plex Mono",monospace}
   .safety-item textarea{margin:0;resize:vertical}
+  .safety-item .sf-media,.disc-item .d-media{grid-column:1/-1}
+  .disc-item{flex-wrap:wrap}
+  .disc-item .d-media,.disc-item .upl-note{flex-basis:100%}
+  .att-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:6px}
   @media(max-width:560px){ .safety-item{grid-template-columns:1fr 34px} .safety-item .sf-time{grid-column:1/2} .safety-item textarea{grid-column:1/3} }
   @media(max-width:640px){
     .leg,.leg-head{grid-template-columns:22px 1fr 16px 1fr;row-gap:6px}
@@ -124,13 +128,15 @@
     <!-- ข้อขัดข้อง -->
     <div class="panel" style="margin-top:16px">
       <h3>🔧 ข้อขัดข้อง</h3>
-      <p class="hint">บันทึกแล้วจะเข้าไปรวมในสถิติของเครื่องลำนี้</p>
+      <p class="hint">บันทึกแล้วจะเข้าไปรวมในสถิติของเครื่องลำนี้ · แนบรูป/วีดีโอได้ (รูปย่ออัตโนมัติ · วีดีโอไม่เกิน 50 MB)</p>
       <div id="discList"></div>
       <div style="display:flex;gap:8px;align-items:end;margin-top:10px">
         <div style="flex:1"><label style="margin-top:0">รายละเอียด</label>
           <input id="discText" placeholder="เช่น ไฟสัญญาณ HYD ติดค้าง"></div>
+        <button class="btn ghost attach-btn" id="discPick" title="แนบรูป/วีดีโอ">📎 แนบ</button>
         <button class="btn" id="addDisc">+ บันทึก</button>
       </div>
+      <div id="discPending"></div>
     </div>
 
     <!-- รายงานอันตราย (Safety Report) -->
@@ -138,7 +144,7 @@
       <h3>⚠️ รายงานอันตราย (Safety Report)
         <button class="btn sm ghost" id="addSafety" style="margin-inline-start:auto">+ เพิ่มรายงานอันตราย</button>
       </h3>
-      <p class="hint">ไม่บังคับ — กรอกเฉพาะเมื่อมีเหตุการณ์ · วันที่/นักบิน/เส้นทางบิน ดึงจากจัดบินอัตโนมัติ · กด "เพิ่มรายงานอันตราย" แล้วกรอกเวลาและลักษณะเหตุการณ์</p>
+      <p class="hint">ไม่บังคับ — กรอกเฉพาะเมื่อมีเหตุการณ์ · วันที่/นักบิน/เส้นทางบิน ดึงจากจัดบินอัตโนมัติ · กด "เพิ่มรายงานอันตราย" แล้วกรอกเวลาและลักษณะเหตุการณ์ · แนบรูป/วีดีโอได้</p>
       <div class="routebox safety-meta">
         <span><span class="lbl">วันที่</span> <b id="sfDate">-</b></span>
         <span><span class="lbl">นักบิน</span> <b id="sfPilots">-</b></span>
@@ -160,7 +166,9 @@
   import { renderTopbar } from "./js/ui.js";
   import { getMission, routeToLegs, loadLegs, replaceLegs, saveReport, getReport,
            loadDiscrepancies, addDiscrepancy, deleteDiscrepancy,
-           loadSafety, replaceSafety } from "./js/reports.js";
+           loadSafety, saveSafety } from "./js/reports.js";
+  import { loadMissionMedia, uploadMany, deleteMedia, thumbsHtml, bindThumbs, pickFiles,
+           checkFile, fmtSize } from "./js/media.js";
   import { esc } from "./js/missions.js";
 
   const profile = await requireAuth();
@@ -306,29 +314,91 @@
     }
     paintResult();
 
+    // ---------- รูป/วีดีโอแนบ (ข้อขัดข้อง + รายงานอันตราย) ----------
+    let media = await loadMissionMedia(missionId);
+    const mediaOf = (key, id) => id ? media.filter(x => x[key] === id) : [];
+    const reloadMedia = async () => { media = await loadMissionMedia(missionId); };
+    // พรีวิวไฟล์ที่เลือกไว้แต่ยังไม่อัปโหลด
+    const previewOf = (files) => files.map(f => ({ url: URL.createObjectURL(f), mime_type: f.type, file_name: f.name, size_bytes: f.size }));
+    // คัดไฟล์ที่ใช้ไม่ได้ออก พร้อมแจ้งเตือน
+    const validFiles = (files) => {
+      const bad = files.map(checkFile).filter(Boolean);
+      if (bad.length) alert(bad.join("\n"));
+      return files.filter(f => !checkFile(f));
+    };
+    async function removeMedia(row) {
+      if (!confirm(`ลบไฟล์ ${row.file_name || ""}?`)) return false;
+      const err = await deleteMedia(row);
+      if (err) { alert("ลบไฟล์ไม่สำเร็จ: " + err.message); return false; }
+      await reloadMedia(); return true;
+    }
+    async function uploadWithNote(noteEl, parent, files) {
+      if (!files.length) return;
+      noteEl.className = "upl-note";
+      const errs = await uploadMany(missionId, parent, files,
+        (i, n) => { noteEl.textContent = `กำลังอัปโหลด ${i}/${n}…`; });
+      noteEl.className = errs.length ? "upl-note err" : "upl-note";
+      noteEl.textContent = errs.length ? "อัปโหลดไม่สำเร็จ: " + errs.join(" · ") : "";
+      await reloadMedia();
+    }
+
     // ---------- ข้อขัดข้อง ----------
+    let discFiles = [];                                 // ไฟล์ที่เลือกไว้กับรายการใหม่ (อัปโหลดหลังกดบันทึก)
+    function renderDiscPending() {
+      const box = document.getElementById("discPending");
+      const pv = previewOf(discFiles);
+      box.innerHTML = discFiles.length
+        ? thumbsHtml(pv, { canDelete: true }) + `<div class="upl-note">${discFiles.length} ไฟล์ · ${fmtSize(discFiles.reduce((t, f) => t + f.size, 0))} — จะอัปโหลดเมื่อกด "+ บันทึก"</div>`
+        : "";
+      box.querySelectorAll(".mthumb").forEach(t => t.classList.add("pending"));
+      bindThumbs(box, pv, (row) => { discFiles.splice(pv.indexOf(row), 1); renderDiscPending(); });
+    }
+    document.getElementById("discPick").addEventListener("click", async () => {
+      discFiles.push(...validFiles(await pickFiles())); renderDiscPending();
+    });
+
     async function refreshDisc() {
       const list = await loadDiscrepancies(missionId);
-      document.getElementById("discList").innerHTML = list.length
+      const listBox = document.getElementById("discList");
+      listBox.innerHTML = list.length
         ? list.map(d => `<div class="disc-item" data-id="${d.id}">
              <span class="txt">${esc(d.description)}</span>
-             <button class="ibtn del" data-deldisc title="ลบ">×</button></div>`).join("")
+             <button class="btn sm ghost attach-btn" data-attdisc title="แนบรูป/วีดีโอ">📎</button>
+             <button class="ibtn del" data-deldisc title="ลบ">×</button>
+             <div class="d-media"></div><div class="upl-note"></div></div>`).join("")
         : `<div class="muted" style="font-size:13px">— ยังไม่มีข้อขัดข้อง —</div>`;
-      document.querySelectorAll("[data-deldisc]").forEach(b =>
-        b.addEventListener("click", async (e) => {
-          const id = e.target.closest(".disc-item").dataset.id;
-          if (!confirm("ลบข้อขัดข้องนี้?")) return;
-          await deleteDiscrepancy(id); refreshDisc();
-        }));
+      listBox.querySelectorAll(".disc-item").forEach(el => {
+        const id = el.dataset.id, mbox = el.querySelector(".d-media"), items = mediaOf("discrepancy_id", id);
+        mbox.innerHTML = thumbsHtml(items, { canDelete: true });
+        bindThumbs(mbox, items, async (row) => { if (await removeMedia(row)) refreshDisc(); });
+        el.querySelector("[data-attdisc]").addEventListener("click", async () => {
+          const files = validFiles(await pickFiles());
+          await uploadWithNote(el.querySelector(".upl-note"), { discrepancy_id: id }, files);
+          if (!el.querySelector(".upl-note").textContent) refreshDisc();
+        });
+        el.querySelector("[data-deldisc]").addEventListener("click", async () => {
+          if (!confirm("ลบข้อขัดข้องนี้? (ไฟล์แนบจะถูกลบด้วย)")) return;
+          const err = await deleteDiscrepancy(id);
+          if (err) { alert("ลบไม่สำเร็จ: " + err.message); return; }
+          await reloadMedia(); refreshDisc();
+        });
+      });
     }
     refreshDisc();
 
     document.getElementById("addDisc").addEventListener("click", async () => {
       const t = document.getElementById("discText");
       const text = t.value.trim(); if (!text) return;
-      const err = await addDiscrepancy(missionId, m.aircraft_id, text);
-      if (err) { alert("บันทึกไม่สำเร็จ: " + err.message); return; }
-      t.value = ""; refreshDisc();
+      const btn = document.getElementById("addDisc"); btn.disabled = true;
+      const { error, id } = await addDiscrepancy(missionId, m.aircraft_id, text);
+      if (error) { btn.disabled = false; alert("บันทึกไม่สำเร็จ: " + error.message); return; }
+      t.value = "";
+      const files = discFiles; discFiles = []; renderDiscPending();
+      const note = document.createElement("div"); note.className = "upl-note";
+      document.getElementById("discPending").appendChild(note);
+      await uploadWithNote(note, { discrepancy_id: id }, files);
+      btn.disabled = false;
+      refreshDisc();
     });
 
     // ---------- รายงานอันตราย (safety) ----------
@@ -341,7 +411,7 @@
     document.getElementById("sfRoute").textContent = m.route || "-";
 
     let safety = (await loadSafety(missionId)).map(s => ({
-      occurred_time: s.occurred_time || "", description: s.description || "" }));
+      id: s.id, occurred_time: s.occurred_time || "", description: s.description || "", pending: [] }));
     const safetyBox = document.getElementById("safetyBox");
     function renderSafety() {
       safetyBox.innerHTML = safety.map((s, i) => `
@@ -349,7 +419,35 @@
           <input class="sf-time" data-sf="occurred_time" value="${esc(s.occurred_time)}" placeholder="เวลา เช่น 1015">
           <textarea data-sf="description" rows="2" placeholder="ลักษณะเหตุการณ์…">${esc(s.description)}</textarea>
           <button class="ibtn del" data-sfdel title="ลบรายงานนี้">×</button>
+          <div class="sf-media">
+            <div class="sf-saved"></div><div class="sf-pend"></div>
+            <div class="att-row">
+              <button class="btn sm ghost attach-btn" data-sfatt>📎 แนบรูป/วีดีโอ</button>
+              <span class="upl-note"></span>
+            </div>
+          </div>
         </div>`).join("");
+      safetyBox.querySelectorAll(".safety-item").forEach(el => {
+        const i = +el.dataset.i, s = safety[i];
+        const saved = mediaOf("safety_report_id", s.id);
+        const sBox = el.querySelector(".sf-saved");
+        sBox.innerHTML = thumbsHtml(saved, { canDelete: true });
+        bindThumbs(sBox, saved, async (row) => { if (await removeMedia(row)) renderSafety(); });
+        const pBox = el.querySelector(".sf-pend"), pv = previewOf(s.pending);
+        pBox.innerHTML = thumbsHtml(pv, { canDelete: true });
+        pBox.querySelectorAll(".mthumb").forEach(t => t.classList.add("pending"));
+        bindThumbs(pBox, pv, (row) => { s.pending.splice(pv.indexOf(row), 1); renderSafety(); });
+        const note = el.querySelector(".upl-note");
+        if (s.pending.length) note.textContent = `${s.pending.length} ไฟล์รออัปโหลด — กด "บันทึกรายงาน"`;
+        el.querySelector("[data-sfatt]").addEventListener("click", async () => {
+          const files = validFiles(await pickFiles());
+          if (!files.length) return;
+          if (s.id) {                                    // รายการที่บันทึกแล้ว → อัปโหลดทันที
+            await uploadWithNote(note, { safety_report_id: s.id }, files);
+            if (!note.textContent) renderSafety();
+          } else { s.pending.push(...files); renderSafety(); }
+        });
+      });
       safetyBox.querySelectorAll("[data-sf]").forEach(inp =>
         inp.addEventListener("input", (e) => {
           const i = +e.target.closest(".safety-item").dataset.i;
@@ -357,12 +455,15 @@
         }));
       safetyBox.querySelectorAll("[data-sfdel]").forEach(b =>
         b.addEventListener("click", (e) => {
-          safety.splice(+e.target.closest(".safety-item").dataset.i, 1); renderSafety();
+          const s = safety[+e.target.closest(".safety-item").dataset.i];
+          const n = mediaOf("safety_report_id", s.id).length;
+          if (n && !confirm(`รายการนี้มีไฟล์แนบ ${n} ไฟล์ — จะถูกลบเมื่อกด "บันทึกรายงาน" ดำเนินการต่อ?`)) return;
+          safety.splice(safety.indexOf(s), 1); renderSafety();
         }));
     }
     renderSafety();
     document.getElementById("addSafety").addEventListener("click", () => {
-      safety.push({ occurred_time: "", description: "" }); renderSafety();
+      safety.push({ occurred_time: "", description: "", pending: [] }); renderSafety();
       const last = safetyBox.querySelector(".safety-item:last-child textarea"); if (last) last.focus();
     });
 
@@ -385,9 +486,29 @@
       if (repErr && !repErr.warning) { btn.disabled = false; btn.textContent = "บันทึกรายงาน";
         msg.className = "msg err"; msg.textContent = "บันทึกรายงานไม่สำเร็จ: " + repErr.message; return; }
 
-      const sfErr = await replaceSafety(missionId, safety);
+      const { error: sfErr, ids } = await saveSafety(missionId, safety);
+      if (sfErr) { btn.disabled = false; btn.textContent = "บันทึกรายงาน";
+        msg.className = "msg err"; msg.textContent = "บันทึก ชม.แล้ว แต่รายงานอันตรายไม่สำเร็จ: " + sfErr.message; return; }
+
+      // ไฟล์ที่เลือกไว้กับรายการใหม่ → อัปโหลดหลังได้ id · รายการว่าง (ไม่ได้เก็บ) ตัดทิ้ง
+      const upErrs = [];
+      safety.forEach((s, i) => { s.id = ids[i]; });
+      const skipped = safety.filter(s => !s.id && s.pending.length).length;
+      for (const s of safety.filter(s => s.id && s.pending.length)) {
+        btn.textContent = "กำลังอัปโหลดไฟล์…";
+        upErrs.push(...await uploadMany(missionId, { safety_report_id: s.id }, s.pending,
+          (i, n) => { msg.className = "msg"; msg.textContent = `กำลังอัปโหลด ${i}/${n}…`; }));
+        s.pending = [];
+      }
+      safety = safety.filter(s => s.id);
+      await reloadMedia(); renderSafety();
       btn.disabled = false; btn.textContent = "บันทึกรายงาน";
-      if (sfErr) { msg.className = "msg err"; msg.textContent = "บันทึก ชม.แล้ว แต่รายงานอันตรายไม่สำเร็จ: " + sfErr.message; return; }
+      if (upErrs.length || skipped) {
+        msg.className = "msg err";
+        msg.textContent = "บันทึกรายงานแล้ว แต่" + [upErrs.length ? " อัปโหลดไม่สำเร็จ: " + upErrs.join(" · ") : "",
+          skipped ? ` ไฟล์ของรายงานอันตรายที่ไม่ได้กรอกลักษณะเหตุการณ์ (${skipped} รายการ) ไม่ถูกเก็บ` : ""].join("");
+        return;
+      }
 
       const sfN = safety.filter(s => (s.description||"").trim()).length;
       msg.className = repErr?.warning ? "msg err" : "msg ok";

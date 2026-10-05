@@ -18,6 +18,33 @@
 
 ## บันทึก
 
+### 2026-10-05 — รูป/วีดีโอในข้อขัดข้อง+รายงานอันตราย · Export/เคลียร์ข้อมูลรายเดือน · หน้าข้อมูลย้อนหลัง
+- **ผู้ทำ:** Claude (Opus 5.5)
+- **ทำอะไร:**
+  1. **แนบรูป/วีดีโอ** ในหน้ารายงานหลังบิน ทั้งข้อขัดข้อง (📎 ตอนเพิ่ม หรือแนบภายหลังรายการ) และรายงานอันตราย
+     (รายการใหม่ → อัปโหลดหลังกด "บันทึกรายงาน" · รายการที่บันทึกแล้ว → อัปโหลดทันที) · รูปย่อในเบราว์เซอร์
+     (≤1600px JPEG 80%) · วีดีโอ ≤ 50 MB · กดรูปย่อเปิดเต็มจอ (lightbox ←/→/Esc) · ลบไฟล์ได้ ·
+     Storage bucket `report-media` (private, signed URL) + ตาราง `report_media`
+  2. `saveSafety` แทน `replaceSafety` — คง id เดิม (เดิมลบ-สร้างใหม่ทุกครั้ง ไฟล์แนบจะหลุด) ·
+     `addDiscrepancy` คืน `{error,id}` · ลบข้อขัดข้อง/รายงานอันตรายจะลบไฟล์ใน Storage ด้วย
+  3. **archive.html (เมนู "ย้อนหลัง")** — admin/planner: ตารางรายเดือน Export (.zip = data.json + รูป/วีดีโอ,
+     .xlsx 7 ชีต) และ "เคลียร์" (พิมพ์เดือนยืนยัน) · ทุกคน: เปิดไฟล์ .zip/.json ของเดือนเก่ามาดู
+     (KPI, สรุปรายเครื่อง/รายนักบิน, การ์ดภารกิจรายวัน + ข้อขัดข้อง + รายงานอันตราย + รูป/วีดีโอ, ค้นหา/กรอง) — ไม่เขียนกลับฐานข้อมูล
+  4. **เคลียร์ข้อมูลดิบ** (`archive_purge_month`) — ต้อง export ก่อน + เก่ากว่า 3 เดือนเต็ม (ต.ค. → เคลียร์ได้ถึง มิ.ย.) ·
+     ลบ missions(+cascade) / discrepancies / day_notes / queue_entries / crew_unavailable ของเดือน ·
+     **ยกยอด** ชม.สะสมไป `crew_hours_carry` + `aircraft.hours_carry` (recompute_all_hours = ยอดยกมา + รายงานที่เหลือ) ·
+     เก็บสถิติสรุป `stats_daily` (stats.html ใช้แทนวันที่ไม่มีข้อมูลดิบ) · `stats_crew_monthly` (crew.html บวกเพิ่ม) ·
+     `stats_aircraft_monthly` · บันทึกใน `archive_log`
+  5. stats.html: รายงานอันตรายแสดง 📎 จำนวนไฟล์แนบ
+- **ไฟล์:** report.html, stats.html, archive.html, js/media.js, js/archive.js, js/reports.js, js/crew.js, js/ui.js,
+  css/style.css, db/migration_24_report_media.sql, db/migration_25_archive.sql
+- **commit:** (รายการนี้)
+- **ต้องรัน SQL:** migration_24_report_media.sql → migration_25_archive.sql (ตามลำดับ · รันซ้ำได้)
+- **ทดสอบ:** SQL ด้วย PGlite (เคลียร์แล้ว ชม.รายคน/รายเครื่องเท่าเดิม · รายงานใหม่หลังเคลียร์ยังบวกถูก · guard export/3 เดือน ·
+  รันซ้ำได้) · export→zip/xlsx→เปิดกลับ ด้วย Node (jszip/xlsx) · ยังไม่ได้ทดสอบอัปโหลดจริงบน Supabase (ต้องล็อกอิน)
+- **หมายเหตุ/ค้างไว้:** คิวบินมองย้อน 120 วัน — นักบินที่ไม่ได้บินเกิน ~4 เดือนหลังเคลียร์จะถูกมองว่า "ไม่ได้บินเลยในช่วง 120 วัน"
+  (ลำดับคิวยังสมเหตุสมผล) · architecture.html ยังไม่ได้อัปเดตตารางใหม่ 7 ตาราง
+
 ### 2026-09-18 — หน้าสถิติ: หัวข้อรายงานอันตราย (list + แบ่งหน้า)
 - **ผู้ทำ:** Claude (Opus 4.8)
 - **ทำอะไร:** เพิ่มหัวข้อ "⚠️ รายงานอันตราย" ท้ายหน้า stats — list 5 รายการล่าสุด/หน้า มีปุ่มเลื่อนหน้า
@@ -101,9 +128,9 @@
 ---
 
 ## สถานะ migration ล่าสุด (ต้องรันครบก่อนใช้ฟีเจอร์ใหม่)
-- schema.sql → policies.sql → triggers.sql → migration_01..22 (idempotent) + catchup_2026_09_14.sql
+- schema.sql → policies.sql → triggers.sql → migration_01..25 (idempotent) + catchup_2026_09_14.sql
 - **ห้ามรันซ้ำ:** migration_03, migration_08
-- ล่าสุดที่เพิ่ม: **migration_21, 22** (currency + trigger) · migration_20 (day_notes)
+- ล่าสุดที่เพิ่ม: **migration_24, 25** (ไฟล์แนบ + archive/ยกยอด) · migration_23 (safety_reports) · migration_21, 22 (currency)
 
 ## งานที่ค้าง / ไอเดียต่อยอด
 - ลิงก์ `architecture.html` เข้า topbar เมนู (ยังไม่ทำ)
