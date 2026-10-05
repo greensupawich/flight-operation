@@ -11,6 +11,7 @@ export const KINDS = {
   rtaf: "ภารกิจ ทอ.",
   training: "ฝึกบิน",
   stby: "STBY (Standby)",
+  stby_dechochai: "STBY เดโชชัย",
 };
 export const DEFAULT_KIND = "rtaf";
 // bg = สีพื้นตามกระดาน, fg = สีตัวอักษรที่อ่านออกบนพื้นนั้น
@@ -21,7 +22,12 @@ export const KIND_COLORS = {
   rtaf:      { bg: "#4DA3E8", fg: "#08202F" },
   training:  { bg: "#FFFFFF", fg: "#16202E" },
   stby:      { bg: "#FFFFFF", fg: "#16202E" },   // ช่อง ST ในกระดานคิวบินเป็นพื้นขาว
+  stby_dechochai: { bg: "#FDE0DE", fg: "#B71C1C" },   // STBY ที่รอเรียกเป็นเดโชชัย (ชมพูอ่อน ต่างจากเดโชชัยจริง)
 };
+// ชนิด STBY = เตรียมพร้อม ยังไม่ปฏิบัติจริง (ไม่ขึ้นการ์ดภารกิจ/ไม่นับคิว/ไม่อยู่ในสถิติ)
+//  ถ้าถูกเรียกใช้ ผู้เกี่ยวข้องเปลี่ยนชนิดเป็นภารกิจจริง (เช่น stby_dechochai → dechochai) เอง
+export const STBY_KINDS = ["stby", "stby_dechochai"];
+export const isStby = (k) => STBY_KINDS.includes(k);
 export const kindStyle = (k) => {
   const c = KIND_COLORS[k] || KIND_COLORS[DEFAULT_KIND];
   return `background:${c.bg};color:${c.fg}`;

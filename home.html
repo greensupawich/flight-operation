@@ -138,7 +138,7 @@
 <script type="module">
   import { getCurrentProfile, canPlan } from "./js/auth.js";
   import { renderTopbar } from "./js/ui.js";
-  import { loadMissionsByDate, reportOf } from "./js/missions.js";
+  import { loadMissionsByDate, reportOf, isStby } from "./js/missions.js";
   import { sheetHTML, sortByTakeoff, wireSheetDelete } from "./js/mission-sheet.js";
   import { loadAircraft, loadDefects, loadChecks } from "./js/status.js";
   import { supabase } from "./js/supabase.js";
@@ -228,7 +228,7 @@
         }).join("");
         const acType = m.aircraft ? esc(m.aircraft.type || "ATR72-500/600") : "ATR72-500/600";
         return `<div class="acp-stby">
-          <div class="hd">STBY <span class="tag">${acType}</span> <span class="tag">COWBOY ${esc(m.callsign || "-")}</span></div>
+          <div class="hd">${m.kind === "stby_dechochai" ? "STBY เดโชชัย" : "STBY"} <span class="tag">${acType}</span> <span class="tag">COWBOY ${esc(m.callsign || "-")}</span></div>
           ${lines ? `<div class="cw">${lines}</div>` : `<div class="poc">— ยังไม่ระบุลูกเรือ —</div>`}
         </div>`;
       }).join("");
@@ -312,8 +312,8 @@
         loadMissionsByDate(date), loadAircraft(), loadDefects(), loadChecks(),
         loadDayNote(date), loadDayNote(nextDate)
       ]);
-      const stbys = all.filter(m => m.kind === "stby");
-      const list = sortByTakeoff(all.filter(m => m.kind !== "stby"));
+      const stbys = all.filter(m => isStby(m.kind));
+      const list = sortByTakeoff(all.filter(m => !isStby(m.kind)));
 
       renderAcp(aircraft, defMap, chkMap, stbys, noteToday, noteNext);
 

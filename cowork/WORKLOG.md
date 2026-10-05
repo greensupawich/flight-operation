@@ -18,6 +18,17 @@
 
 ## บันทึก
 
+### 2026-10-05 — เพิ่มชนิดภารกิจ "STBY เดโชชัย" (stby_dechochai)
+- **ผู้ทำ:** Claude (Opus 5.5)
+- **ทำอะไร:** ชนิดใหม่ทำงานแบบ STBY (ยังไม่ปฏิบัติจริง): หน้าหลักขึ้นในบล็อก STBY (หัว "STBY เดโชชัย") ไม่เป็นการ์ดภารกิจ ·
+  คิวบินเป็นช่อง ST สีชมพูอ่อน (นับในคอลัมน์ ST ไม่นับบินจริง) + คำอธิบายสี · ไม่อยู่ในตารางสถิติแยกประเภท ·
+  เลือกได้ในฟอร์มภารกิจ — ถ้าถูกเรียกใช้ ผู้เกี่ยวข้องเปลี่ยนชนิดเป็น "เดโชชัย" เอง ·
+  เพิ่ม `STBY_KINDS` / `isStby()` ใน js/missions.js แทนการเทียบ `=== "stby"` ทุกจุด ·
+  แก้รายการชนิดใน migration_07/09/12/catchup ให้มี stby_dechochai (กันรันซ้ำแล้วชนิดใหม่ถูกเปลี่ยนเป็น rtaf)
+- **ไฟล์:** js/missions.js, home.html, queue.html, stats.html, db/migration_27_stby_dechochai.sql, db/migration_07/09/12, db/catchup_2026_09_14.sql
+- **commit:** (รายการนี้)
+- **ต้องรัน SQL:** migration_27_stby_dechochai.sql
+
 ### 2026-10-05 — ติ๊ก "คณะวัง" รายขา (ภารกิจวัง/เดโชชัย) → แยก ชม.ในหน้าสถิติ
 - **ผู้ทำ:** Claude (Opus 5.5)
 - **ทำอะไร:** รายงานหลังบินของภารกิจ palace / dechochai มีช่องติ๊ก "คณะวัง" ในแต่ละขา + แสดงผลแยก
@@ -140,9 +151,9 @@
 ---
 
 ## สถานะ migration ล่าสุด (ต้องรันครบก่อนใช้ฟีเจอร์ใหม่)
-- schema.sql → policies.sql → triggers.sql → migration_01..26 (idempotent) + catchup_2026_09_14.sql
+- schema.sql → policies.sql → triggers.sql → migration_01..27 (idempotent) + catchup_2026_09_14.sql
 - **ห้ามรันซ้ำ:** migration_03, migration_08
-- ล่าสุดที่เพิ่ม: **migration_26** (คณะวังรายขา) · migration_24, 25 (ไฟล์แนบ + archive/ยกยอด) · migration_23 (safety_reports) · migration_21, 22 (currency)
+- ล่าสุดที่เพิ่ม: **migration_27** (STBY เดโชชัย) · migration_26 (คณะวังรายขา) · migration_24, 25 (ไฟล์แนบ + archive/ยกยอด) · migration_23 (safety_reports) · migration_21, 22 (currency)
 
 ## งานที่ค้าง / ไอเดียต่อยอด
 - ลิงก์ `architecture.html` เข้า topbar เมนู (ยังไม่ทำ)

@@ -32,7 +32,7 @@ js/*.js           16 module (supabase, auth, ui, missions, mission-sheet,
                   reports, crew, queue, queue-rank, availability, status,
                   admin, combobox, media, archive, local-auth[เลิกใช้])
 css/style.css     สไตล์กลาง · css/sheet.css การ์ดภารกิจ
-db/*.sql          schema, policies, triggers + migration_01..26 + import_* + seed_*
+db/*.sql          schema, policies, triggers + migration_01..27 + import_* + seed_*
 static-server.cjs dev server (static)
 architecture.html เอกสารสถาปัตยกรรม (self-contained)
 ```
@@ -78,6 +78,8 @@ architecture.html เอกสารสถาปัตยกรรม (self-cont
 
 ## 6. กับดักที่เคยพลาด (อ่านก่อนแตะ SQL)
 
+- ชนิด STBY มี 2 ตัว (`stby`, `stby_dechochai`) — เช็คด้วย `isStby(kind)` จาก js/missions.js เสมอ ห้ามเทียบ `=== "stby"` ·
+  เพิ่มชนิดใหม่ต้องแก้ check constraint ของ `missions` และ `queue_entries` + รายการใน migration_07/09/12/catchup
 - `missions.status` เป็น **enum** `mission_status` — ห้าม `coalesce(m.status,'')` (ใช้ `is distinct from 'cancelled'`)
 - **ห้ามรันซ้ำ** `migration_03` (สร้างทะเบียนซ้ำ) และ `migration_08` (ย้อนกฎ admin)
 - import ภารกิจจับคู่นักบิน **ด้วยชื่อ** (helper `match_pilot`: ตัดช่องว่าง → alias → ชื่อล้วนถ้าไม่ซ้ำ) —

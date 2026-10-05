@@ -18,13 +18,13 @@ alter table public.missions alter column kind type text using kind::text;
 update public.missions
    set kind = 'rtaf'
  where kind is null
-    or kind not in ('fcf', 'dechochai', 'palace', 'rtaf', 'training', 'stby');
+    or kind not in ('fcf', 'dechochai', 'palace', 'rtaf', 'training', 'stby', 'stby_dechochai');
 
 alter table public.missions alter column kind set default 'rtaf';
 alter table public.missions alter column kind set not null;
 
 alter table public.missions drop constraint if exists missions_kind_check;
 alter table public.missions add constraint missions_kind_check
-  check (kind in ('fcf', 'dechochai', 'palace', 'rtaf', 'training', 'stby'));
+  check (kind in ('fcf', 'dechochai', 'palace', 'rtaf', 'training', 'stby', 'stby_dechochai'));
 
 drop type if exists mission_kind;

@@ -258,14 +258,14 @@ alter table public.missions alter column kind type text using kind::text;
 update public.missions
    set kind = 'rtaf'
  where kind is null
-    or kind not in ('fcf', 'dechochai', 'palace', 'rtaf', 'training', 'stby');
+    or kind not in ('fcf', 'dechochai', 'palace', 'rtaf', 'training', 'stby', 'stby_dechochai');
 
 alter table public.missions alter column kind set default 'rtaf';
 alter table public.missions alter column kind set not null;
 
 alter table public.missions drop constraint if exists missions_kind_check;
 alter table public.missions add constraint missions_kind_check
-  check (kind in ('fcf', 'dechochai', 'palace', 'rtaf', 'training', 'stby'));
+  check (kind in ('fcf', 'dechochai', 'palace', 'rtaf', 'training', 'stby', 'stby_dechochai'));
 
 drop type if exists mission_kind;
 
@@ -286,7 +286,7 @@ drop type if exists mission_kind;
 -- ---------- 1) STBY ----------
 alter table public.missions drop constraint if exists missions_kind_check;
 alter table public.missions add constraint missions_kind_check
-  check (kind in ('fcf', 'dechochai', 'palace', 'rtaf', 'training', 'stby'));
+  check (kind in ('fcf', 'dechochai', 'palace', 'rtaf', 'training', 'stby', 'stby_dechochai'));
 
 -- ---------- 2) รหัสสนามบิน ----------
 -- name เก็บแบบตัดช่องว่างออกทั้งหมด เช่น "บน.41"
@@ -356,7 +356,7 @@ create table if not exists public.queue_entries (
   entry_date      date not null,
   code            text,
   kind            text not null default 'rtaf'
-                  check (kind in ('fcf','dechochai','palace','rtaf','training','stby')),
+                  check (kind in ('fcf','dechochai','palace','rtaf','training','stby','stby_dechochai')),
   ac_type         text check (ac_type in ('600','500')),
   updated_by      uuid references public.profiles(id) on delete set null,
   updated_at      timestamptz not null default now(),

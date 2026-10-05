@@ -109,7 +109,7 @@
   import { requireAuth } from "./js/auth.js";
   import { renderTopbar } from "./js/ui.js";
   import { supabase } from "./js/supabase.js";
-  import { KINDS, KIND_COLORS, DEFAULT_KIND } from "./js/missions.js";
+  import { KINDS, KIND_COLORS, DEFAULT_KIND, isStby } from "./js/missions.js";
 
   const profile = await requireAuth();
   if (!profile) throw new Error("no auth");
@@ -217,7 +217,7 @@
     }
 
     // ----- ตารางแยกประเภท -----
-    const kindsShown=Object.keys(KINDS).filter(k=>k!=="stby");   // ทุกประเภท (ยกเว้น STBY) แม้ไม่มีข้อมูล
+    const kindsShown=Object.keys(KINDS).filter(k=>!isStby(k));   // ทุกประเภท (ยกเว้น STBY) แม้ไม่มีข้อมูล
     const box=document.getElementById("mtable");
 
     const head=`<tr><th class="k">ประเภทภารกิจ</th><th class="sub"></th>`+

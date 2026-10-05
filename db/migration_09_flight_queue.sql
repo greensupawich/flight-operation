@@ -11,7 +11,7 @@
 -- ---------- 1) STBY ----------
 alter table public.missions drop constraint if exists missions_kind_check;
 alter table public.missions add constraint missions_kind_check
-  check (kind in ('fcf', 'dechochai', 'palace', 'rtaf', 'training', 'stby'));
+  check (kind in ('fcf', 'dechochai', 'palace', 'rtaf', 'training', 'stby', 'stby_dechochai'));
 
 -- ---------- 2) รหัสสนามบิน ----------
 -- name เก็บแบบตัดช่องว่างออกทั้งหมด เช่น "บน.41"

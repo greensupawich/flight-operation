@@ -146,7 +146,7 @@
 <script type="module">
   import { requireAuth, canPlan } from "./js/auth.js";
   import { renderTopbar } from "./js/ui.js";
-  import { KINDS, KIND_COLORS, qualStyle, esc } from "./js/missions.js";
+  import { KINDS, KIND_COLORS, qualStyle, esc, isStby } from "./js/missions.js";
   import { loadQueueMonth, loadEntries, saveEntry, deleteEntry, monthRange, secondPoint, airfieldKey,
            PILOT_POSITIONS, setHoliday, clearHoliday, saveAirfield,
            setInQueue, loadHistory, loadHolidaysBetween } from "./js/queue.js";
@@ -160,7 +160,7 @@
     const TH_MONTH = ["มกราคม","กุมภาพันธ์","มีนาคม","เมษายน","พฤษภาคม","มิถุนายน",
                       "กรกฎาคม","สิงหาคม","กันยายน","ตุลาคม","พฤศจิกายน","ธันวาคม"];
     const TH_DOW = ["อา","จ","อ","พ","พฤ","ศ","ส"];
-    const KIND_SHORT = { fcf:"F.C.F", dechochai:"เดโชชัย", palace:"พระราชวัง", rtaf:"ทอ.", training:"ฝึกบิน", stby:"ST" };
+    const KIND_SHORT = { fcf:"F.C.F", dechochai:"เดโชชัย", palace:"พระราชวัง", rtaf:"ทอ.", training:"ฝึกบิน", stby:"ST", stby_dechochai:"ST เดโชฯ" };
     const pad = (n) => String(n).padStart(2, "0");
     const now = new Date();
     const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
@@ -178,9 +178,10 @@
 
     // ---------- คำอธิบาย ----------
     document.getElementById("legend").innerHTML =
-      Object.entries(KINDS).filter(([k]) => k !== "stby").map(([k, l]) =>
+      Object.entries(KINDS).filter(([k]) => !isStby(k)).map(([k, l]) =>
         `<span><i class="sw" style="background:${KIND_COLORS[k].bg};color:${KIND_COLORS[k].fg}">&nbsp;</i>${esc(l)}</span>`).join("") +
       `<span><i class="sw" style="background:#fff;color:#111">ST</i>Standby</span>
+       <span><i class="sw" style="background:${KIND_COLORS.stby_dechochai.bg};color:${KIND_COLORS.stby_dechochai.fg}">ST</i>STBY เดโชชัย</span>
        <span><i class="sw" style="background:#fff;color:var(--q-600)">CNX</i>ATR72-600</span>
        <span><i class="sw" style="background:#fff;color:var(--q-500)">CNX</i>ATR72-500</span>
        <span><i class="sw" style="background:var(--q-hol)">&nbsp;</i>วันหยุด</span>
@@ -234,7 +235,7 @@
           if (!missionCell.has(ck)) missionCell.set(ck, []);
           missionCell.get(ck).push(ms);
         });
-        if (ms.kind !== "stby" && ms.mission_date.slice(0, 7) === dates[0]?.slice(0, 7)) {
+        if (!isStby(ms.kind) && ms.mission_date.slice(0, 7) === dates[0]?.slice(0, 7)) {
           const p = secondPoint(ms.route); if (p && !codeMap.has(p)) missingCodes.add(p);
         }
       });
@@ -248,13 +249,13 @@
       const ms = maps.missionCell.get(k) || [];
       if (e) return { manual: true, override: ms.length > 0, missions: ms,
         items: [{ text: e.code || "", kind: e.kind, ac: e.ac_type || "600",
-                  st: String(e.code || "").trim().toUpperCase() === "ST" || e.kind === "stby" && !e.code }] };
+                  st: String(e.code || "").trim().toUpperCase() === "ST" || isStby(e.kind) && !e.code }] };
       return { manual: false, override: false, missions: ms,
         items: ms.map(m => {
           const p = secondPoint(m.route);
-          return { text: m.kind === "stby" ? "ST" : (maps.codeMap.get(p) || ""),   // ไม่มีรหัส → แสดงแต่สี
+          return { text: isStby(m.kind) ? "ST" : (maps.codeMap.get(p) || ""),   // ไม่มีรหัส → แสดงแต่สี
                    kind: m.kind, ac: /500/.test(m.aircraft?.type || "") ? "500" : "600",
-                   st: m.kind === "stby",
+                   st: isStby(m.kind),
                    cancelled: m.status === "cancelled",          // ยกเลิก → แสดงจาง ไม่นับคิว
                    tip: `${KINDS[m.kind] || ""} · ${m.callsign || ""} · ${m.route || ""}` };
         }) };
