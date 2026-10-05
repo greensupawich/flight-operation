@@ -119,11 +119,27 @@
   const fmt=(h)=>{ const v=Math.round(fx(h)*10)/10; return v ? String(v) : ""; };
 
   // ---------- ดึงชั่วโมงบินทั้งหมด (ผูกกับวันที่ + ประเภทภารกิจ) ----------
-  const { data: reps, error: repErr } = await supabase.from("post_flight_reports")
-    .select("total_hours, missions(mission_date, kind)");
+  let { data: reps, error: repErr } = await supabase.from("post_flight_reports")
+    .select("total_hours, missions(mission_date, kind, flight_legs(hours, vip))");
+  if (repErr) {   // ยังไม่ได้รัน migration_26 (ไม่มีคอลัมน์ vip) → โหลดแบบเดิม
+    ({ data: reps, error: repErr } = await supabase.from("post_flight_reports")
+      .select("total_hours, missions(mission_date, kind)"));
+  }
   if (repErr) console.warn("reports:", repErr.message);
-  const rows = (reps||[]).filter(r=>r.missions && r.missions.mission_date)
-    .map(r=>({ date:String(r.missions.mission_date).slice(0,10), kind:r.missions.kind||DEFAULT_KIND, h:fx(r.total_hours), f:1 }));
+  // ภารกิจวัง/เดโชชัยที่ติ๊ก "คณะวัง" รายขา: ชม.ขาที่ติ๊ก → ประเภทภารกิจ · ส่วนที่เหลือ → ฝึกบิน
+  //  (เที่ยวนับในประเภทภารกิจ · ไม่มีขาไหนติ๊ก = นับทั้งภารกิจเป็นประเภทเดิม) — ตรงกับ archive_purge_month
+  const VIP_KINDS=["palace","dechochai"];
+  const rows=[];
+  for(const r of reps||[]){
+    const m=r.missions; if(!m||!m.mission_date) continue;
+    const date=String(m.mission_date).slice(0,10), kind=m.kind||DEFAULT_KIND, total=fx(r.total_hours);
+    const legs=m.flight_legs||[];
+    if(VIP_KINDS.includes(kind) && legs.some(l=>l.vip)){
+      const vh=legs.reduce((t,l)=>t+(l.vip?fx(l.hours):0),0);
+      rows.push({ date, kind, h:vh, f:1 });
+      if(total>vh) rows.push({ date, kind:"training", h:total-vh, f:0 });
+    } else rows.push({ date, kind, h:total, f:1 });
+  }
 
   // เดือนที่เคลียร์ข้อมูลดิบแล้ว (archive.html) → ใช้สถิติสรุปรายวันแทน (migration_25)
   //  วันที่ยังมีข้อมูลดิบอยู่ใช้ข้อมูลดิบ กันนับซ้ำ

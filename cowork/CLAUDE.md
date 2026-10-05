@@ -32,7 +32,7 @@ js/*.js           16 module (supabase, auth, ui, missions, mission-sheet,
                   reports, crew, queue, queue-rank, availability, status,
                   admin, combobox, media, archive, local-auth[เลิกใช้])
 css/style.css     สไตล์กลาง · css/sheet.css การ์ดภารกิจ
-db/*.sql          schema, policies, triggers + migration_01..25 + import_* + seed_*
+db/*.sql          schema, policies, triggers + migration_01..26 + import_* + seed_*
 static-server.cjs dev server (static)
 architecture.html เอกสารสถาปัตยกรรม (self-contained)
 ```
@@ -73,6 +73,8 @@ architecture.html เอกสารสถาปัตยกรรม (self-cont
 - `safety_reports` ต้องบันทึกแบบคง id (`saveSafety`) — ห้ามกลับไปลบ-สร้างใหม่ ไฟล์แนบจะหลุด
 - เคลียร์ข้อมูลรายเดือนผ่าน `archive_purge_month()` เท่านั้น (archive.html) — **ห้ามลบ missions/reports เก่าตรง ๆ**
   ไม่งั้น ชม.สะสมจะลดลง (ไม่ได้ยกยอด) · สถิติเดือนที่เคลียร์แล้วอ่านจาก `stats_daily` / `stats_crew_monthly`
+- `flight_legs.vip` (migration_26) = ขามีคณะวัง — ภารกิจ palace/dechochai: สถิติแยก ชม.ขาที่ติ๊ก → ประเภทภารกิจ, ที่เหลือ → training
+  กฎนี้อยู่ 2 ที่ต้องแก้คู่กัน: `stats.html` และ `archive_purge_month` (migration_26 · ห้ามรัน 25 ซ้ำโดยไม่รัน 26 ตาม)
 
 ## 6. กับดักที่เคยพลาด (อ่านก่อนแตะ SQL)
 

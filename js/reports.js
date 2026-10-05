@@ -48,9 +48,15 @@ export async function replaceLegs(missionId, legs) {
     from_point: (l.from_point || "").trim(),
     to_point: (l.to_point || "").trim(),
     hours: Number(l.hours) || 0,
+    vip: !!l.vip,                                     // ขานี้มีคณะวัง (migration_26)
   }));
   if (!rows.length) return null;
-  const { error } = await supabase.from("flight_legs").insert(rows);
+  let { error } = await supabase.from("flight_legs").insert(rows);
+  // ยังไม่ได้รัน migration_26 → บันทึกขาโดยไม่มีช่องคณะวัง แล้วแจ้งเตือน
+  if (error && /vip/.test(error.message)) {
+    ({ error } = await supabase.from("flight_legs").insert(rows.map(({ vip, ...r }) => r)));
+    if (!error && rows.some((r) => r.vip)) return { warning: "บันทึกแล้ว แต่ช่อง \"คณะวัง\" ยังไม่ถูกเก็บ — ต้องรัน migration_26_vip_legs.sql" };
+  }
   return error;
 }
 

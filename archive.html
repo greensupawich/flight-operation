@@ -342,7 +342,7 @@
         const crew = (m.mission_crew || []).slice().sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))
           .map((x) => `<b>${esc(x.position || "")}</b> ${esc(x.crew_name || "")}`).join(" · ");
         const legs = (m.flight_legs || []).slice().sort((a, b) => (a.leg_no || 0) - (b.leg_no || 0))
-          .map((l) => `${esc(l.from_point)}→${esc(l.to_point)} ${Number(l.hours || 0)}`).join("  ·  ");
+          .map((l) => `${l.vip ? "👑" : ""}${esc(l.from_point)}→${esc(l.to_point)} ${Number(l.hours || 0)}`).join("  ·  ");
         const discs = discBy.get(m.id) || [];
         const safety = m.safety_reports || [];
         const res = r ? `${esc(r.result || "รายงานแล้ว")} · ${Number(r.total_hours || 0)} ชม.` : `<span style="color:var(--faint)">ไม่มีรายงานหลังบิน</span>`;

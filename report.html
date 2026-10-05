@@ -36,6 +36,14 @@
             font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);
             font-family:"IBM Plex Mono",monospace;margin-bottom:6px}
   .leg-head span:nth-child(5){text-align:end}
+  /* ภารกิจวัง/เดโชชัย: คอลัมน์ติ๊ก "คณะวัง" */
+  .vipmode .leg,.vipmode .leg-head{grid-template-columns:26px 1fr 22px 1fr 88px 62px auto}
+  .leg .vip{display:flex;align-items:center;justify-content:center;gap:4px;font-size:12px;color:var(--muted);
+            margin:0;cursor:pointer;white-space:nowrap}
+  .leg .vip input{width:18px;height:18px;margin:0;accent-color:var(--accent)}
+  .leg.is-vip{background:var(--accent-soft);border-radius:8px}
+  .vip-split{display:flex;gap:16px;flex-wrap:wrap;font-size:13px;margin-top:8px;color:var(--muted)}
+  .vip-split b{color:var(--ink);font-variant-numeric:tabular-nums}
   .result-grid{display:grid;grid-template-columns:1.3fr 1fr 1fr;gap:12px;align-items:end}
   @media(max-width:640px){ .result-grid{grid-template-columns:1fr} }
   .result-grid label{margin:0 0 5px}
@@ -67,7 +75,10 @@
   @media(max-width:640px){
     .leg,.leg-head{grid-template-columns:22px 1fr 16px 1fr;row-gap:6px}
     .leg .hrs{grid-column:2/4} .leg .ops{grid-column:4/5;justify-content:end}
-    .leg-head span:nth-child(5),.leg-head span:nth-child(6){display:none}
+    .leg-head span:nth-child(5),.leg-head span:nth-child(6),.leg-head span:nth-child(7){display:none}
+    .vipmode .leg,.vipmode .leg-head{grid-template-columns:22px 1fr 16px 1fr}
+    .vipmode .leg .hrs{grid-column:2/3} .vipmode .leg .vip{grid-column:3/5;justify-content:start}
+    .vipmode .leg .ops{grid-column:4/5}
   }
 </style>
 </head>
@@ -107,16 +118,21 @@
       <p class="hint">ระบบแตกขาให้อัตโนมัติจากเส้นทางบิน — กรอกแค่ <b>ชม.</b> ของแต่ละขา · เพิ่ม/ลบ/สลับลำดับได้</p>
       <div class="routebox"><span class="lbl">เส้นทางบิน</span><span id="routeTxt">-</span></div>
 
+      <p class="hint" id="vipHint" hidden>👑 ภารกิจนี้เป็น<b id="vipKind"></b> — ติ๊ก <b>คณะวัง</b> ในขาที่มีคณะอยู่บนเครื่อง ·
+        ชม.ขาที่ติ๊กนับเป็นภารกิจนี้ในหน้าสถิติ ขาที่เหลือนับเป็น <b>ฝึกบิน</b></p>
+      <div id="legsWrap">
       <div class="leg-head">
-        <span>#</span><span>จาก</span><span></span><span>ถึง</span><span>ชม.</span><span></span>
+        <span>#</span><span>จาก</span><span></span><span>ถึง</span><span>ชม.</span><span class="vip-h" hidden style="text-align:center">คณะวัง</span><span></span>
       </div>
       <div id="legsBox"></div>
+      </div>
       <button class="btn sm" id="addLeg" style="margin-top:4px">+ เพิ่มขา</button>
 
       <div class="total">
         <span class="lb">รวม ชม.รายขา</span>
         <span class="val" id="totalVal">0.0</span>
       </div>
+      <div class="vip-split" id="vipSplit" hidden></div>
     </div>
 
     <!-- หมายเหตุ -->
@@ -192,11 +208,21 @@
     document.getElementById("back").href = `day.html?date=${m.mission_date}`;
 
     // ---------- state ของขาการบิน ----------
+    // ภารกิจวัง/เดโชชัย → มีช่องติ๊ก "คณะวัง" รายขา (migration_26)
+    const VIP_KINDS = { palace: "ภารกิจสำนักพระราชวัง", dechochai: "ภารกิจเดโชชัย" };
+    const vipMode = !!VIP_KINDS[m.kind];
+    if (vipMode) {
+      document.getElementById("legsWrap").classList.add("vipmode");
+      document.getElementById("vipHint").hidden = false;
+      document.getElementById("vipKind").textContent = VIP_KINDS[m.kind];
+      document.querySelector(".vip-h").hidden = false;
+    }
     const fromRoute = routeToLegs(m.route);          // ขาที่คิดจากเส้นทางบิน
     const saved = (await loadLegs(missionId)).map(l => ({
       from_point: (l.from_point || "").trim(),
       to_point:   (l.to_point   || "").trim(),
       hours: Number(l.hours) || 0,
+      vip: !!l.vip,
     }));
 
     // แถวที่บันทึกไว้ว่างทั้งหมด (ไม่มีทั้งจาก/ถึง/ชม.) → ถือว่ายังไม่ได้กรอก
@@ -212,6 +238,7 @@
         from_point: l.from_point || fromRoute[i]?.from_point || "",
         to_point:   l.to_point   || fromRoute[i]?.to_point   || "",
         hours: l.hours,
+        vip: l.vip,
       }));
     }
     if (!legs.length) legs = [{ from_point: "", to_point: "", hours: 0 }];
@@ -225,6 +252,15 @@
     function recalcTotal() {
       const t = legs.reduce((s, l) => s + (Number(l.hours) || 0), 0);
       document.getElementById("totalVal").textContent = fmt(t);
+      if (vipMode) {                                   // แสดงการแยก ชม. ที่จะไปหน้าสถิติ
+        const vh = legs.reduce((s, l) => s + (l.vip ? Number(l.hours) || 0 : 0), 0);
+        const any = legs.some(l => l.vip);
+        const split = document.getElementById("vipSplit");
+        split.hidden = false;
+        split.innerHTML = any
+          ? `<span>👑 ${VIP_KINDS[m.kind]} <b>${fmt(vh)}</b> ชม.</span><span>ฝึกบิน <b>${fmt(Math.max(t - vh, 0))}</b> ชม.</span>`
+          : `<span>ยังไม่ได้ติ๊กขาที่มีคณะวัง — ตอนนี้นับทั้งหมดเป็น${VIP_KINDS[m.kind]}</span>`;
+      }
       if (t > 0) {                                     // มี ชม.รายขา → ใช้ผลรวมรายขา
         totalInput.value = fmt(t);
         totalInput.readOnly = true;
@@ -239,12 +275,13 @@
 
     function render() {
       box.innerHTML = legs.map((l, i) => `
-        <div class="leg" data-i="${i}">
+        <div class="leg${vipMode && l.vip ? " is-vip" : ""}" data-i="${i}">
           <span class="no">${i + 1}</span>
           <input data-f="from_point" value="${esc(l.from_point)}" placeholder="จาก">
           <span class="arrow">→</span>
           <input data-f="to_point" value="${esc(l.to_point)}" placeholder="ถึง">
           <input class="hrs" data-f="hours" type="number" step="0.1" min="0" value="${l.hours ?? 0}">
+          ${vipMode ? `<label class="vip" title="ขานี้มีคณะวังอยู่บนเครื่อง"><input type="checkbox" data-vip ${l.vip ? "checked" : ""}><span class="vip-lbl">คณะวัง</span></label>` : ""}
           <span class="ops">
             <button class="ibtn" data-up title="เลื่อนขึ้น" ${i === 0 ? "disabled" : ""}>↑</button>
             <button class="ibtn" data-down title="เลื่อนลง" ${i === legs.length - 1 ? "disabled" : ""}>↓</button>
@@ -252,7 +289,14 @@
           </span>
         </div>`).join("");
 
-      box.querySelectorAll("input").forEach((inp) =>
+      box.querySelectorAll("[data-vip]").forEach((cb) =>
+        cb.addEventListener("change", (e) => {
+          const row = e.target.closest(".leg");
+          legs[+row.dataset.i].vip = e.target.checked;
+          row.classList.toggle("is-vip", e.target.checked);
+          recalcTotal();
+        }));
+      box.querySelectorAll("input[data-f]").forEach((inp) =>
         inp.addEventListener("input", (e) => {
           const i = +e.target.closest(".leg").dataset.i;
           const f = e.target.dataset.f;
@@ -286,7 +330,7 @@
 
     document.getElementById("addLeg").addEventListener("click", () => {
       const last = legs[legs.length - 1];
-      legs.push({ from_point: last ? last.to_point : "", to_point: "", hours: 0 });
+      legs.push({ from_point: last ? last.to_point : "", to_point: "", hours: 0, vip: false });
       render();
     });
 
@@ -474,7 +518,7 @@
 
       const clean = legs.filter(l => (l.from_point||"").trim() || (l.to_point||"").trim() || Number(l.hours));
       const legErr = await replaceLegs(missionId, clean);
-      if (legErr) { msg.className = "msg err"; msg.textContent = "บันทึกขาไม่สำเร็จ: " + legErr.message;
+      if (legErr && !legErr.warning) { msg.className = "msg err"; msg.textContent = "บันทึกขาไม่สำเร็จ: " + legErr.message;
                     btn.disabled = false; btn.textContent = "บันทึกรายงาน"; return; }
 
       const legSum = clean.reduce((s, l) => s + (Number(l.hours) || 0), 0);
@@ -511,8 +555,8 @@
       }
 
       const sfN = safety.filter(s => (s.description||"").trim()).length;
-      msg.className = repErr?.warning ? "msg err" : "msg ok";
-      msg.textContent = repErr?.warning ||
+      msg.className = repErr?.warning || legErr?.warning ? "msg err" : "msg ok";
+      msg.textContent = repErr?.warning || legErr?.warning ||
         `✓ บันทึกแล้ว · ${result || "ยังไม่ระบุผล"} · ${fmt(total)} ชม.${sfN ? ` · รายงานอันตราย ${sfN} รายการ` : ""} — กระจายไปลูกเรือและเครื่องอัตโนมัติ`;
     });
   }

@@ -183,7 +183,7 @@ export function buildXlsx(data, kindLabel = (k) => k) {
     .map((c) => ({ "วันที่": m.mission_date, "Callsign": m.callsign || "", "ตำแหน่ง": c.position || "", "ชื่อ": c.crew_name || "",
                    "รหัสทะเบียน": data.crew_members.find((x) => x.id === c.crew_member_id)?.code || "" }))));
   add("ขาการบิน", data.missions.flatMap((m) => (m.flight_legs || []).slice().sort((a, b) => (a.leg_no || 0) - (b.leg_no || 0))
-    .map((l) => ({ "วันที่": m.mission_date, "Callsign": m.callsign || "", "ขา": l.leg_no, "จาก": l.from_point || "", "ถึง": l.to_point || "", "ชม.": Number(l.hours || 0) }))));
+    .map((l) => ({ "วันที่": m.mission_date, "Callsign": m.callsign || "", "ขา": l.leg_no, "จาก": l.from_point || "", "ถึง": l.to_point || "", "ชม.": Number(l.hours || 0), "คณะวัง": l.vip ? "✓" : "" }))));
   add("ข้อขัดข้อง", data.discrepancies.map((d) => {
     const m = mById.get(d.mission_id);
     return { "วันที่": m?.mission_date || d.reported_date, "เครื่อง": ac(d.aircraft), "Callsign": m?.callsign || "",

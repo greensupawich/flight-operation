@@ -18,6 +18,18 @@
 
 ## บันทึก
 
+### 2026-10-05 — ติ๊ก "คณะวัง" รายขา (ภารกิจวัง/เดโชชัย) → แยก ชม.ในหน้าสถิติ
+- **ผู้ทำ:** Claude (Opus 5.5)
+- **ทำอะไร:** รายงานหลังบินของภารกิจ palace / dechochai มีช่องติ๊ก "คณะวัง" ในแต่ละขา + แสดงผลแยก
+  (👑 ภารกิจ X ชม. · ฝึกบิน Y ชม.) · stats.html ตาราง "ชั่วโมงบินแยกประเภทภารกิจ": ชม.ขาที่ติ๊ก → ประเภทภารกิจ,
+  ส่วนที่เหลือ (ชม.รวมรายงาน − ชม.ขาที่ติ๊ก) → ฝึกบิน · **เที่ยว** นับในประเภทภารกิจเท่านั้น (ฝึกบินได้แค่ ชม.) ·
+  ภารกิจที่ไม่มีขาไหนติ๊กเลย (รวมข้อมูลเก่า) = นับทั้งหมดเป็นประเภทเดิม · ชม.สะสมรายคน/รายเครื่อง ไม่เปลี่ยน ·
+  archive_purge_month เก็บ stats_daily ตามกฎเดียวกัน · export xlsx ชีตขาการบินมีคอลัมน์ "คณะวัง"
+- **ไฟล์:** report.html, stats.html, js/reports.js, js/archive.js, archive.html, db/migration_26_vip_legs.sql
+- **commit:** (รายการนี้)
+- **ต้องรัน SQL:** migration_26_vip_legs.sql (หลัง 25 · ถ้ารัน 25 ซ้ำ ต้องรัน 26 ซ้ำด้วย เพราะ 25 เขียนทับ archive_purge_month)
+- **ทดสอบ:** PGlite — วัง 1.0(ติ๊ก)+1.5 → palace 1.0 / training 1.5 · เดโชชัยไม่ติ๊ก → dechochai 2.0 · rtaf ติ๊กไม่มีผล
+
 ### 2026-10-05 — รูป/วีดีโอในข้อขัดข้อง+รายงานอันตราย · Export/เคลียร์ข้อมูลรายเดือน · หน้าข้อมูลย้อนหลัง
 - **ผู้ทำ:** Claude (Opus 5.5)
 - **ทำอะไร:**
@@ -128,9 +140,9 @@
 ---
 
 ## สถานะ migration ล่าสุด (ต้องรันครบก่อนใช้ฟีเจอร์ใหม่)
-- schema.sql → policies.sql → triggers.sql → migration_01..25 (idempotent) + catchup_2026_09_14.sql
+- schema.sql → policies.sql → triggers.sql → migration_01..26 (idempotent) + catchup_2026_09_14.sql
 - **ห้ามรันซ้ำ:** migration_03, migration_08
-- ล่าสุดที่เพิ่ม: **migration_24, 25** (ไฟล์แนบ + archive/ยกยอด) · migration_23 (safety_reports) · migration_21, 22 (currency)
+- ล่าสุดที่เพิ่ม: **migration_26** (คณะวังรายขา) · migration_24, 25 (ไฟล์แนบ + archive/ยกยอด) · migration_23 (safety_reports) · migration_21, 22 (currency)
 
 ## งานที่ค้าง / ไอเดียต่อยอด
 - ลิงก์ `architecture.html` เข้า topbar เมนู (ยังไม่ทำ)
