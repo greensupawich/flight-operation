@@ -97,7 +97,7 @@ begin
         left join public.aircraft a on a.id = m.aircraft_id
         join public.mission_crew mc on mc.mission_id = m.id
        where mc.crew_member_id is not null
-         and coalesce(upper(btrim(mc.position)), '') in ('IP', 'P', 'CP')
+         and coalesce(upper(btrim(mc.position)), '') in ('AC', 'IP', 'P', 'CP')   -- AC นับ ชม. ถ้าอยู่ในทะเบียน (migration_28)
     ) s
     union all
     select c.crew_member_id, c.aircraft_type, c.hours
@@ -162,12 +162,12 @@ begin
         hours   = public.stats_daily.hours   + excluded.hours;
 
   -- (ข) สถิติรายเดือนรายคน — ตรงกับ crew.js loadMonthlyStats
-  --     เที่ยว = ทุกตำแหน่งนักบิน (AC/IP/P/CP/N) · ชม. = เฉพาะ IP/P/CP · ไม่นับภารกิจยกเลิก
+  --     เที่ยว = ทุกตำแหน่งนักบิน (AC/IP/P/CP/N) · ชม. = AC/IP/P/CP · ไม่นับภารกิจยกเลิก
   insert into public.stats_crew_monthly (ym, crew_member_id, flights, hours, last_flight)
   select v_start, x.crew_member_id, count(*), coalesce(sum(case when x.counts_hours then x.h end), 0), max(x.d)
     from (
       select mc.crew_member_id, m.id, m.mission_date as d, r.total_hours as h,
-             bool_or(upper(btrim(coalesce(mc.position, ''))) in ('IP','P','CP')) as counts_hours
+             bool_or(upper(btrim(coalesce(mc.position, ''))) in ('AC','IP','P','CP')) as counts_hours
         from _pm m
         join public.post_flight_reports r on r.mission_id = m.id
         join public.mission_crew mc on mc.mission_id = m.id

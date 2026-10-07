@@ -10,7 +10,7 @@ import { BUCKET, removeFiles } from "./media.js";
 
 export const FORMAT = "flight-operation-archive";
 const PILOT_POS = ["AC", "IP", "P", "CP", "N"];
-const HOUR_POS = ["IP", "P", "CP"];
+const HOUR_POS = ["AC", "IP", "P", "CP"];
 
 const pad = (n) => String(n).padStart(2, "0");
 export function monthRange(ym /* 'YYYY-MM' */) {
@@ -113,7 +113,7 @@ export function summarize(data) {
     const a = perAc.get(tail) || perAc.set(tail, { tail, type: m.aircraft?.type || "", flights: 0, hours: 0, discrepancies: 0 }).get(tail);
     a.flights++; a.hours += h;
     if (m.status === "cancelled") continue;
-    // เหมือน crew.js: เที่ยว = ตำแหน่งนักบินทุกตำแหน่ง · ชม. = IP/P/CP · คนเดียวหลายตำแหน่ง = 1 เที่ยว
+    // เหมือน crew.js: เที่ยว = ตำแหน่งนักบินทุกตำแหน่ง · ชม. = AC/IP/P/CP · คนเดียวหลายตำแหน่ง = 1 เที่ยว
     const pos = new Map();
     for (const c of m.mission_crew || []) {
       const p = String(c.position || "").trim().toUpperCase();
@@ -195,7 +195,7 @@ export function buildXlsx(data, kindLabel = (k) => k) {
   add("สรุปรายเครื่อง", data.summary.per_aircraft.map((a) => ({
     "เครื่อง": a.tail, "แบบ": a.type, "เที่ยวบิน": a.flights, "ชม.บิน": a.hours, "ข้อขัดข้อง": a.discrepancies })));
   add("สรุปรายนักบิน", data.summary.per_crew.map((c) => ({
-    "รหัส": c.code, "ยศ": c.rank, "ชื่อ": c.name, "เที่ยวบิน": c.flights, "ชม.บิน (IP/P/CP)": c.hours })));
+    "รหัส": c.code, "ยศ": c.rank, "ชื่อ": c.name, "เที่ยวบิน": c.flights, "ชม.บิน (AC/IP/P/CP)": c.hours })));
   const out = XLSX.write(wb, { bookType: "xlsx", type: "array" });
   return new Blob([out], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
 }

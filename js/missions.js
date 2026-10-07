@@ -49,8 +49,8 @@ export const qualStyle = (q) => {
 export const PILOT_ROLES = ["AC", "IP", "P", "CP", "N"];
 export const OTHER_ROLES = ["FM", "RO", "LM", "AH"];
 export const CREW_ROLES  = [...PILOT_ROLES, ...OTHER_ROLES];
-// AC และ N ไม่นับ ชม.บิน
-export const NO_HOURS_ROLES = ["AC", "N"];
+// N ไม่นับ ชม.บิน (AC นับเมื่อผูกทะเบียนนักบิน · ไม่อยู่ในทะเบียนก็ได้)
+export const NO_HOURS_ROLES = ["N"];
 
 const MISSION_SELECT =
   "*, aircraft(id,tail_number,type), mission_crew(id,position,crew_name,crew_member_id,sort_order), post_flight_reports(id,total_hours)";

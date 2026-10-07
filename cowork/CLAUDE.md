@@ -32,7 +32,7 @@ js/*.js           16 module (supabase, auth, ui, missions, mission-sheet,
                   reports, crew, queue, queue-rank, availability, status,
                   admin, combobox, media, archive, local-auth[เลิกใช้])
 css/style.css     สไตล์กลาง · css/sheet.css การ์ดภารกิจ
-db/*.sql          schema, policies, triggers + migration_01..27 + import_* + seed_*
+db/*.sql          schema, policies, triggers + migration_01..28 + import_* + seed_*
 static-server.cjs dev server (static)
 architecture.html เอกสารสถาปัตยกรรม (self-contained)
 ```
@@ -65,6 +65,7 @@ architecture.html เอกสารสถาปัตยกรรม (self-cont
 - บันทึก `post_flight_reports` → กระจาย **ชม.บิน** ไป `crew_hours` + `aircraft.total_hours`,
   อัปเดต **currency** `crew_members.last_500/600_date` (trigger `bump_crew_currency`), และ `discrepancies`
 - แก้ `aircraft.status` → บันทึกประวัติลง `aircraft_status_history` (snapshot รายวัน)
+- ตำแหน่งนับ ชม.บิน = **AC/IP/P/CP** (AC นับเมื่อผูกทะเบียน · ไม่อยู่ในทะเบียนได้) · N ไม่นับ — กฎนี้อยู่ใน recompute_all_hours, archive_purge_month, js/crew.js, js/archive.js
 - `recompute_all_hours()` = **ยอดยกมา** (`crew_hours_carry`, `aircraft.hours_carry`) + รายงานที่ยังอยู่ (migration_25)
 
 ### ไฟล์แนบ & ข้อมูลย้อนหลัง (migration_24/25)

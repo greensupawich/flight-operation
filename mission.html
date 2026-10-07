@@ -117,7 +117,8 @@
         <b>นักบิน (นบ.)</b> ต้องเลือกจาก<b>ทะเบียนนักบิน</b> (พิมพ์ชื่อ รหัส หรือ IP/P/CP เพื่อกรอง) — ชม.บินสะสมให้อัตโนมัติ ·
         ยังไม่มีชื่อ? <a href="crew.html">เพิ่มในทะเบียนนักบิน</a><br>
         <b>FM / RO / LM / AH</b> พิมพ์ชื่อได้อิสระ (ลงกระดานอย่างเดียว ไม่เก็บทะเบียน/ไม่สะสม ชม.)<br>
-        <b style="color:var(--crit)">AC และ N ไม่นับชั่วโมงบิน</b>
+        <b>AC</b> ไม่จำเป็นต้องอยู่ในทะเบียน (พิมพ์ชื่อได้) — ถ้าอยู่ในทะเบียน นับ ชม.บินให้ด้วย ·
+        <b style="color:var(--crit)">N ไม่นับชั่วโมงบิน</b>
       </p>
       <div id="crewBox"></div>
     </div>
@@ -339,7 +340,11 @@
         const name = (p.name || "").trim();
         if (!name) return;
         const m = p.crew_member_id ? roster.find(x => x.id === p.crew_member_id) : resolveCrew(name);
-        if (!m) { unknown.push(name); return; }
+        if (!m) {
+          // AC ไม่อยู่ในทะเบียนได้ → เก็บชื่อล้วน (ไม่นับ ชม.)
+          if (p.role === "AC") { crew.push({ position: "AC", crew_name: name, crew_member_id: null }); return; }
+          unknown.push(name); return;
+        }
         crew.push({ position: p.role, crew_name: m.full_name, crew_member_id: m.id });
       });
       // FM/RO/LM/AH → ชื่อล้วน ไม่ผูกทะเบียน

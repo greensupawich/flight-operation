@@ -1,23 +1,47 @@
 -- =====================================================================
---  Flight Operation · migration_26_vip_legs.sql
---  ภารกิจสำนักพระราชวัง / เดโชชัย: ติ๊ก "คณะวัง" รายขาในรายงานหลังบิน
---   • flight_legs.vip = ขานี้มีคณะวังอยู่บนเครื่อง
---   • หน้า สถิติ: ชม.ขาที่ติ๊ก → ประเภทภารกิจ (วัง/เดโชชัย) · ชม.ที่เหลือ → ฝึกบิน
---     จำนวนเที่ยวยังนับในประเภทภารกิจ · ภารกิจที่ไม่มีขาไหนติ๊กเลย = นับทั้งหมดเป็นประเภทเดิม
---   • archive_purge_month เก็บสถิติสรุปตามกฎเดียวกัน
---  ต้องรัน migration_25 มาก่อน · รันซ้ำได้ ปลอดภัย
+--  Flight Operation · migration_28_ac_hours.sql
+--  ตำแหน่ง AC นับ ชม.บิน — เฉพาะเมื่อชื่อผูกกับทะเบียนนักบิน (crew_member_id ไม่ว่าง)
+--   • AC ไม่จำเป็นต้องอยู่ในทะเบียน (พิมพ์ชื่ออิสระได้) — ไม่อยู่ = ไม่ทำอะไร
+--   • ตำแหน่งนับ ชม. = AC / IP / P / CP  (N ยังไม่นับ)
+--   • คำนวณ ชม.สะสมใหม่ทันที (รวม AC ของภารกิจที่มีอยู่แล้วด้วย)
+--   • archive_purge_month เก็บสถิติรายคนตามกฎเดียวกัน
+--  ต้องรัน migration_25, 26 มาก่อน · รันซ้ำได้ ปลอดภัย
 -- =====================================================================
-alter table public.flight_legs add column if not exists vip boolean not null default false;
 
--- ชม.ขาที่มีคณะวัง ของภารกิจ (เฉพาะประเภท palace / dechochai)
-create or replace function public.mission_vip_hours(p_mission uuid, p_kind text)
-returns table (any_vip boolean, vip_h numeric)
-language sql stable security definer set search_path = public as $$
-  select coalesce(bool_or(l.vip), false) and p_kind in ('palace', 'dechochai'),
-         coalesce(sum(l.hours) filter (where l.vip), 0)
-    from public.flight_legs l
-   where l.mission_id = p_mission;
-$$;
+create or replace function public.recompute_all_hours()
+returns void language plpgsql security definer set search_path = public as $$
+begin
+  delete from public.crew_hours where id is not null;   -- WHERE ครอบทุกแถว (กัน pg-safeupdate)
+
+  insert into public.crew_hours (crew_member_id, aircraft_type, total_hours, updated_at)
+  select k.crew_member_id, k.ac_type, sum(k.h), now()
+  from (
+    select s.crew_member_id, s.ac_type, s.total_hours as h
+    from (
+      select distinct m.id as mission_id, mc.crew_member_id,
+             coalesce(a.type, '-') as ac_type, r.total_hours
+        from public.post_flight_reports r
+        join public.missions m      on m.id = r.mission_id
+        left join public.aircraft a on a.id = m.aircraft_id
+        join public.mission_crew mc on mc.mission_id = m.id
+       where mc.crew_member_id is not null
+         and coalesce(upper(btrim(mc.position)), '') in ('AC', 'IP', 'P', 'CP')   -- AC นับ ชม. ถ้าอยู่ในทะเบียน (migration_28)
+    ) s
+    union all
+    select c.crew_member_id, c.aircraft_type, c.hours
+      from public.crew_hours_carry c
+     where c.hours <> 0
+  ) k
+  group by k.crew_member_id, k.ac_type;
+
+  update public.aircraft a
+     set total_hours = a.hours_carry + coalesce((
+           select sum(r.total_hours)
+             from public.post_flight_reports r
+             join public.missions m on m.id = r.mission_id
+            where m.aircraft_id = a.id), 0)
+   where a.id is not null;
+end $$;
 
 create or replace function public.archive_purge_month(p_ym date)
 returns jsonb language plpgsql security definer set search_path = public as $$
@@ -160,3 +184,5 @@ end $$;
 
 revoke all on function public.archive_purge_month(date) from public, anon;
 grant execute on function public.archive_purge_month(date) to authenticated;
+
+select public.recompute_all_hours();

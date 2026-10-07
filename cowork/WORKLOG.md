@@ -18,6 +18,16 @@
 
 ## บันทึก
 
+### 2026-10-07 — AC นับ ชม.บิน (เมื่ออยู่ในทะเบียน) · AC พิมพ์ชื่ออิสระได้
+- **ผู้ทำ:** Claude (Opus 5.5)
+- **ทำอะไร:** ตำแหน่งนับ ชม. = **AC / IP / P / CP** (เดิม IP/P/CP) — AC นับเฉพาะเมื่อผูก crew_member_id ·
+  ฟอร์มภารกิจ: AC ที่ไม่อยู่ในทะเบียนบันทึกเป็นชื่อล้วนได้ (ไม่บล็อก) · import ไม่เตือน AC ที่ไม่อยู่ในทะเบียน ·
+  แก้ครบ 4 จุด: recompute_all_hours, archive_purge_month (stats_crew_monthly), js/crew.js, js/archive.js
+  (แก้ใน migration_25/26 ต้นฉบับด้วย ให้รันซ้ำแล้วได้ผลเดียวกัน)
+- **ไฟล์:** db/migration_28_ac_hours.sql, db/migration_25/26, db/import_missions_2026_10_*.sql, mission.html, js/crew.js, js/archive.js, js/missions.js
+- **commit:** (รายการนี้)
+- **ต้องรัน SQL:** migration_28_ac_hours.sql (คำนวณ ชม.สะสมใหม่ทันที — AC ในภารกิจเดิมจะได้ ชม. ย้อนหลัง)
+
 ### 2026-10-07 — ลิงก์ Flight Plan Generator ในแถบเมนู
 - **ผู้ทำ:** Claude (Opus 5.5)
 - **ทำอะไร:** เพิ่มเมนู "Flight Plan ↗" (https://greensupawich.github.io/flightplan/) เปิดแท็บใหม่ · รองรับ `external: true` ใน LINKS
@@ -180,9 +190,9 @@
 ---
 
 ## สถานะ migration ล่าสุด (ต้องรันครบก่อนใช้ฟีเจอร์ใหม่)
-- schema.sql → policies.sql → triggers.sql → migration_01..27 (idempotent) + catchup_2026_09_14.sql
+- schema.sql → policies.sql → triggers.sql → migration_01..28 (idempotent) + catchup_2026_09_14.sql
 - **ห้ามรันซ้ำ:** migration_03, migration_08
-- ล่าสุดที่เพิ่ม: **migration_27** (STBY เดโชชัย) · migration_26 (คณะวังรายขา) · migration_24, 25 (ไฟล์แนบ + archive/ยกยอด) · migration_23 (safety_reports) · migration_21, 22 (currency)
+- ล่าสุดที่เพิ่ม: **migration_28** (AC นับ ชม.) · migration_27 (STBY เดโชชัย) · migration_26 (คณะวังรายขา) · migration_24, 25 (ไฟล์แนบ + archive/ยกยอด) · migration_23 (safety_reports) · migration_21, 22 (currency)
 
 ## งานที่ค้าง / ไอเดียต่อยอด
 - ลิงก์ `architecture.html` เข้า topbar เมนู (ยังไม่ทำ)

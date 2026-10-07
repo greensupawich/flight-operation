@@ -34,12 +34,12 @@ export async function deleteCrew(id) {
 // =====================================================================
 //  สถิติประจำเดือนของนักบิน — จากภารกิจที่บินในเดือนนั้น (ภารกิจที่มีรายงานหลังบินแล้ว)
 //   • flights = จำนวนเที่ยวบิน: นับทุกตำแหน่งนักบิน (AC / IP / P / CP / N)
-//   • hours   = ชม.บิน: นับเฉพาะ IP / P / CP (AC และ N ไม่นับ ชม.)
+//   • hours   = ชม.บิน: นับ AC / IP / P / CP (N ไม่นับ · AC นับเมื่อผูกทะเบียน)
 //   คนเดียวหลายตำแหน่งในภารกิจเดียว นับเป็น 1 เที่ยว
 //  คืน { crew_member_id: { hours, flights } }
 // =====================================================================
 const PILOT_POSITIONS = ["AC", "IP", "P", "CP", "N"];
-const HOUR_POSITIONS  = ["IP", "P", "CP"];
+const HOUR_POSITIONS  = ["AC", "IP", "P", "CP"];
 
 export async function loadMonthlyStats(year, month /* 0-11 */) {
   const pad = (n) => String(n).padStart(2, "0");

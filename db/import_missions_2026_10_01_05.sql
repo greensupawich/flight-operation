@@ -45,7 +45,8 @@ begin
   select id into v_ac from public.aircraft where tail_number = m->>'tail';
 
   select array_agg(pg_temp.match_pilot(c->>'name')) filter (where pg_temp.match_pilot(c->>'name') is not null),
-         string_agg(c->>'name', ', ')            filter (where pg_temp.match_pilot(c->>'name') is null)
+         string_agg(c->>'name', ', ')            filter (where pg_temp.match_pilot(c->>'name') is null
+                                                          and upper(c->>'pos') <> 'AC')   -- AC ไม่อยู่ในทะเบียนได้
     into v_ids, missing
     from jsonb_array_elements(m->'crew') c
    where upper(c->>'pos') in ('AC','IP','P','CP','N');
