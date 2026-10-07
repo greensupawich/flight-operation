@@ -11,6 +11,7 @@ const LINKS = [
   { href: "status.html",    label: "สถานภาพเครื่อง" },
   { href: "stats.html",     label: "สถิติ" },
   { href: "archive.html",   label: "ย้อนหลัง" },
+  { href: "https://greensupawich.github.io/flightplan/", label: "Flight Plan ↗", external: true },
   { href: "admin.html",     label: "ผู้ดูแล", adminOnly: true },
 ];
 
@@ -19,7 +20,9 @@ export function renderTopbar(profile) {
   const here = location.pathname.split("/").pop() || "dashboard.html";
   const links = LINKS
     .filter((l) => !l.adminOnly || isAdmin(profile))
-    .map((l) => `<a href="${l.href}" class="${l.href === here ? "active" : ""}">${l.label}</a>`)
+    .map((l) => l.external
+      ? `<a href="${l.href}" target="_blank" rel="noopener" title="เปิด Flight Plan Generator ในแท็บใหม่">${l.label}</a>`
+      : `<a href="${l.href}" class="${l.href === here ? "active" : ""}">${l.label}</a>`)
     .join("");
 
   const bar = document.createElement("div");
