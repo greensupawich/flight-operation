@@ -86,7 +86,7 @@
   import { loadRoster, loadUnavailableOn, setUnavailable, clearUnavailable } from "./js/availability.js";
   import { renderTopbar } from "./js/ui.js";
   import { loadMissionsByDate, esc } from "./js/missions.js";
-  import { sheetHTML, sortByTakeoff, wireSheetDelete } from "./js/mission-sheet.js";
+  import { sheetHTML, orderMissions, hasCustomOrder, wireReorder, resetOrder, wireSheetDelete } from "./js/mission-sheet.js";
 
   const profile = await requireAuth();
   if (profile) {
@@ -192,13 +192,27 @@
     async function refresh() {
       const box = document.getElementById("sheets");
       box.innerHTML = `<div class="empty">กำลังโหลด…</div>`;
-      // เรียงตาม T/O เหมือนหน้าหลัก · T/O ไม่ใช่เวลา (STBY) อยู่ท้าย
-      const list = sortByTakeoff(await loadMissionsByDate(date));
-      document.getElementById("sub").textContent =
-        list.length ? `${list.length} ภารกิจ` : "ยังไม่มีภารกิจในวันนี้";
+      // ลำดับที่ผู้วางแผนจัดเอง หรือเรียงตาม T/O (T/O ไม่ใช่เวลา เช่น STBY อยู่ท้าย)
+      const list = orderMissions(await loadMissionsByDate(date));
+      const custom = hasCustomOrder(list);
+      const sub = document.getElementById("sub");
+      sub.textContent = list.length
+        ? `${list.length} ภารกิจ · ${custom ? "เรียงตามที่จัดเอง" : "เรียงตามเวลา T/O"}${planner && list.length > 1 ? " (ลาก ⠿ เพื่อย้าย)" : ""}`
+        : "ยังไม่มีภารกิจในวันนี้";
+      if (planner && custom) {
+        const b = document.createElement("button");
+        b.className = "btn sm ghost order-reset"; b.textContent = "↺ เรียงตาม T/O";
+        b.addEventListener("click", async () => {
+          if (!confirm("ล้างลำดับที่จัดเอง แล้วเรียงการ์ดตามเวลา T/O?")) return;
+          const err = await resetOrder(list.map(m => m.id));
+          if (err) alert("ไม่สำเร็จ: " + err.message); refresh();
+        });
+        sub.appendChild(b);
+      }
       box.innerHTML = list.length ? list.map(m => sheetHTML(m, { planner })).join("")
         : `<div class="empty">ยังไม่มีภารกิจในวันนี้${planner ? ' · กด "+ เพิ่มภารกิจ" เพื่อสร้าง' : ""}</div>`;
       wireSheetDelete(box, refresh);
+      if (planner) wireReorder(box, (err) => { if (err) alert("บันทึกลำดับไม่สำเร็จ: " + err.message); refresh(); });
     }
     refresh();
   }

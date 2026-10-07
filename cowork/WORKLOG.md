@@ -18,6 +18,17 @@
 
 ## บันทึก
 
+### 2026-10-07 — ลากวางจัดลำดับการ์ดภารกิจ (ผู้วางแผน/admin)
+- **ผู้ทำ:** Claude (Opus 5.5)
+- **ทำอะไร:** จุดจับ ⠿ ที่หัวการ์ด (เฉพาะ can_plan) — ลากแล้วการ์ดแทรกตำแหน่งนั้น การ์ดอื่นเลื่อนถัดไป ·
+  pointer events (เมาส์+นิ้ว) · ทำงานบนกระดานที่ถูก scale · บันทึก `missions.display_order` (1..n ของวันนั้น) ·
+  `orderMissions()`: มีลำดับที่จัดเอง → ตาม display_order แล้วต่อท้ายด้วยที่ยังไม่จัดตาม T/O · ไม่มี → ตาม T/O ·
+  ปุ่ม "↺ เรียงตาม T/O" ล้างลำดับ · ใช้ทั้ง home.html และ day.html · ซ่อน ⠿ ตอนพิมพ์ PDF
+- **ไฟล์:** js/mission-sheet.js, css/sheet.css, home.html, day.html, db/migration_29_display_order.sql
+- **commit:** (รายการนี้)
+- **ต้องรัน SQL:** migration_29_display_order.sql
+- **ทดสอบ:** ลากจริงด้วย headless Chrome (puppeteer) บนหน้าทดสอบที่ scale 0.8
+
 ### 2026-10-07 — หน้าภารกิจรายวัน (day.html) เรียงตาม T/O
 - **ผู้ทำ:** Claude (Opus 5.5)
 - **ทำอะไร:** เดิมเรียงตามเวลาสร้าง (created_at) → ใช้ `sortByTakeoff` เหมือนหน้าหลัก (T/O → BRIEF → callsign · STBY ท้าย)
@@ -204,9 +215,9 @@
 ---
 
 ## สถานะ migration ล่าสุด (ต้องรันครบก่อนใช้ฟีเจอร์ใหม่)
-- schema.sql → policies.sql → triggers.sql → migration_01..28 (idempotent) + catchup_2026_09_14.sql
+- schema.sql → policies.sql → triggers.sql → migration_01..29 (idempotent) + catchup_2026_09_14.sql
 - **ห้ามรันซ้ำ:** migration_03, migration_08
-- ล่าสุดที่เพิ่ม: **migration_28** (AC นับ ชม.) · migration_27 (STBY เดโชชัย) · migration_26 (คณะวังรายขา) · migration_24, 25 (ไฟล์แนบ + archive/ยกยอด) · migration_23 (safety_reports) · migration_21, 22 (currency)
+- ล่าสุดที่เพิ่ม: **migration_29** (ลำดับการ์ด) · migration_28 (AC นับ ชม.) · migration_27 (STBY เดโชชัย) · migration_26 (คณะวังรายขา) · migration_24, 25 (ไฟล์แนบ + archive/ยกยอด) · migration_23 (safety_reports) · migration_21, 22 (currency)
 
 ## งานที่ค้าง / ไอเดียต่อยอด
 - ลิงก์ `architecture.html` เข้า topbar เมนู (ยังไม่ทำ)

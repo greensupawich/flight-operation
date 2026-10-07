@@ -139,7 +139,7 @@
   import { getCurrentProfile, canPlan } from "./js/auth.js";
   import { renderTopbar } from "./js/ui.js";
   import { loadMissionsByDate, reportOf, isStby } from "./js/missions.js";
-  import { sheetHTML, sortByTakeoff, wireSheetDelete } from "./js/mission-sheet.js";
+  import { sheetHTML, orderMissions, hasCustomOrder, wireReorder, resetOrder, wireSheetDelete } from "./js/mission-sheet.js";
   import { loadAircraft, loadDefects, loadChecks } from "./js/status.js";
   import { supabase } from "./js/supabase.js";
 
@@ -305,6 +305,18 @@
       });
     }
 
+    // ปุ่มล้างลำดับที่จัดเอง → กลับไปเรียงตาม T/O
+    function addResetButton(ids) {
+      const b = document.createElement("button");
+      b.className = "btn sm ghost order-reset"; b.textContent = "↺ เรียงตาม T/O";
+      b.addEventListener("click", async () => {
+        if (!confirm("ล้างลำดับที่จัดเอง แล้วเรียงการ์ดตามเวลา T/O?")) return;
+        const err = await resetOrder(ids);
+        if (err) alert("ไม่สำเร็จ: " + err.message); refresh();
+      });
+      document.getElementById("sub").appendChild(b);
+    }
+
     async function refresh() {
       updateHeader();
       const box = document.getElementById("sheets");
@@ -313,19 +325,24 @@
         loadDayNote(date), loadDayNote(nextDate)
       ]);
       const stbys = all.filter(m => isStby(m.kind));
-      const list = sortByTakeoff(all.filter(m => !isStby(m.kind)));
+      const list = orderMissions(all.filter(m => !isStby(m.kind)));   // ลำดับที่จัดเอง หรือ T/O
 
       renderAcp(aircraft, defMap, chkMap, stbys, noteToday, noteNext);
 
       const done = list.filter(m => m.status !== "cancelled" && reportOf(m)).length;
       const cancelled = list.filter(m => m.status === "cancelled").length;
+      const custom = hasCustomOrder(list);
       document.getElementById("sub").textContent = list.length
-        ? `${list.length} ภารกิจ · เรียงตามเวลา T/O · รายงานแล้ว ${done}${cancelled ? ` · ยกเลิก ${cancelled}` : ""}${stbys.length ? ` · STBY ${stbys.length}` : ""}`
+        ? `${list.length} ภารกิจ · ${custom ? "เรียงตามที่จัดเอง" : "เรียงตามเวลา T/O"}${planner && list.length > 1 ? " (ลาก ⠿ เพื่อย้าย)" : ""} · รายงานแล้ว ${done}${cancelled ? ` · ยกเลิก ${cancelled}` : ""}${stbys.length ? ` · STBY ${stbys.length}` : ""}`
         : "ยังไม่มีภารกิจในวันนี้";
       box.innerHTML = list.length
         ? list.map(m => sheetHTML(m, { planner })).join("")
         : `<div class="empty" style="grid-column:1/-1">ยังไม่มีภารกิจในวันนี้${planner ? ' · กด "+ เพิ่มภารกิจ" เพื่อสร้าง' : ""}</div>`;
       wireSheetDelete(box, refresh);
+      if (planner) {
+        wireReorder(box, (err) => { if (err) { alert("บันทึกลำดับไม่สำเร็จ: " + err.message); refresh(); } else refresh(); });
+        if (custom) addResetButton(list.map(m => m.id));
+      }
       fitWidth();
       setTimeout(fitWidth, 250);   // เผื่อฟอนต์/เลย์เอาต์ปรับตัวหลังโหลด
     }

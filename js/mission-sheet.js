@@ -3,6 +3,7 @@
 //  คู่กับ css/sheet.css
 // =====================================================================
 import { KINDS, DEFAULT_KIND, kindStyle, PILOT_ROLES, OTHER_ROLES, acLabel, esc, reportOf, deleteMission } from "./missions.js";
+import { supabase } from "./supabase.js";
 
 // ---------- แถวลูกเรือ ----------
 // ตำแหน่งที่ไม่มีคน → ไม่แสดงแถวเลย
@@ -32,6 +33,7 @@ export function sheetHTML(m, { planner = false } = {}) {
   <div class="sheet ${state}" data-id="${m.id}">
     <div class="sheet-top" style="${kindStyle(m.kind)}">
       <span class="kind">${esc(KINDS[m.kind] || KINDS[DEFAULT_KIND])}</span>
+      ${planner ? `<button type="button" class="drag-h" data-drag title="ลากเพื่อย้ายตำแหน่งการ์ด" aria-label="ลากเพื่อย้าย">⠿</button>` : ""}
       <span style="font-weight:700;font-size:13px">${esc(m.callsign || "-")}</span>
       <div class="sheet-actions">
         ${planner ? `<a class="btn sm" href="mission.html?id=${m.id}">แก้ไข</a>
@@ -97,4 +99,78 @@ export function wireSheetDelete(container, onDone) {
       if (err) { alert("ลบไม่สำเร็จ: " + err.message); b.disabled = false; }
       else onDone();
     }));
+}
+
+// =====================================================================
+//  ลำดับการ์ดที่ผู้วางแผนจัดเอง (migration_29 · missions.display_order)
+//   • มีการ์ดที่จัดลำดับแล้ว → เรียงตาม display_order ก่อน · ที่ยังไม่จัด (เพิ่มทีหลัง) ต่อท้ายตาม T/O
+//   • ไม่มีเลย → เรียงตาม T/O (sortByTakeoff)
+// =====================================================================
+export const hasCustomOrder = (list) => list.some((m) => m.display_order != null);
+
+export function orderMissions(list) {
+  if (!hasCustomOrder(list)) return sortByTakeoff(list);
+  const set = list.filter((m) => m.display_order != null).sort((a, b) => a.display_order - b.display_order);
+  return [...set, ...sortByTakeoff(list.filter((m) => m.display_order == null))];
+}
+
+async function saveOrder(ids) {
+  const res = await Promise.all(ids.map((id, i) =>
+    supabase.from("missions").update({ display_order: i + 1 }).eq("id", id)));
+  const err = res.find((r) => r.error)?.error;
+  if (err && /display_order/.test(err.message)) return { message: "ต้องรัน migration_29_display_order.sql ก่อน" };
+  return err || null;
+}
+
+// ล้างลำดับที่จัดเอง → กลับไปเรียงตาม T/O
+export async function resetOrder(ids) {
+  if (!ids.length) return null;
+  const { error } = await supabase.from("missions").update({ display_order: null }).in("id", ids);
+  return error;
+}
+
+// ลากวางการ์ด (จับที่ ⠿) · การ์ดแทรกตำแหน่งที่ลากไป การ์ดอื่นเลื่อนถัดไป
+//  ใช้ pointer events → ได้ทั้งเมาส์และนิ้ว · ใช้ getBoundingClientRect จึงทำงานได้แม้กระดานถูก scale
+//  onSaved(err) เรียกหลังบันทึกลำดับ
+export function wireReorder(container, onSaved) {
+  container.querySelectorAll("[data-drag]").forEach((h) => {
+    h.addEventListener("pointerdown", (e) => {
+      if (e.button !== 0) return;
+      e.preventDefault();
+      const card = h.closest(".sheet");
+      const before = [...container.querySelectorAll(".sheet")].map((x) => x.dataset.id).join();
+      card.classList.add("dragging");
+      container.classList.add("reordering");
+      // ฟังที่ window (ไม่ใช้ pointer capture — การย้ายการ์ดใน DOM ทำให้ capture หลุด)
+
+      const move = (ev) => {
+        const others = [...container.querySelectorAll(".sheet")].filter((x) => x !== card);
+        for (const o of others) {
+          const r = o.getBoundingClientRect();
+          if (ev.clientX < r.left || ev.clientX > r.right || ev.clientY < r.top || ev.clientY > r.bottom) continue;
+          // การ์ดเรียงหลายคอลัมน์ → ตัดสินด้วยครึ่งซ้าย/ขวา · คอลัมน์เดียว → ครึ่งบน/ล่าง
+          const cw = container.getBoundingClientRect().width;
+          const after = r.width < cw * 0.7 ? ev.clientX > r.left + r.width / 2 : ev.clientY > r.top + r.height / 2;
+          const ref = after ? o.nextElementSibling : o;
+          if (ref !== card && card.nextElementSibling !== ref) container.insertBefore(card, ref);
+          break;
+        }
+        // ลากใกล้ขอบจอ → เลื่อนหน้าตาม
+        if (ev.clientY < 60) scrollBy(0, -12); else if (ev.clientY > innerHeight - 60) scrollBy(0, 12);
+      };
+      const up = async () => {
+        removeEventListener("pointermove", move);
+        removeEventListener("pointerup", up);
+        removeEventListener("pointercancel", up);
+        card.classList.remove("dragging");
+        container.classList.remove("reordering");
+        const ids = [...container.querySelectorAll(".sheet")].map((x) => x.dataset.id);
+        if (ids.join() === before) return;
+        onSaved?.(await saveOrder(ids));
+      };
+      addEventListener("pointermove", move);
+      addEventListener("pointerup", up);
+      addEventListener("pointercancel", up);
+    });
+  });
 }

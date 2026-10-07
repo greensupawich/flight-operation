@@ -40,3 +40,13 @@ table.fm td.c{text-align:center}
   table.fm td{padding:4px 4px}
   table.fm td.lb{font-size:10px}
 }
+
+/* ---- ลากวางการ์ด (ผู้วางแผน) ---- */
+.drag-h{all:unset;cursor:grab;touch-action:none;font-size:16px;line-height:1;padding:2px 4px;border-radius:5px;
+        opacity:.75;user-select:none;-webkit-user-select:none}
+.drag-h:hover{opacity:1;background:rgba(0,0,0,.08)}
+.reordering,.reordering *{cursor:grabbing!important;user-select:none;-webkit-user-select:none}
+.sheet.dragging{outline:3px dashed var(--accent);outline-offset:2px;opacity:.85;
+                box-shadow:0 12px 32px -10px rgba(0,0,0,.45);position:relative;z-index:5}
+.order-reset{margin-inline-start:8px;vertical-align:middle}
+@media print{ .drag-h,.order-reset{display:none!important} }

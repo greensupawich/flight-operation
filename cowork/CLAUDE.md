@@ -32,7 +32,7 @@ js/*.js           16 module (supabase, auth, ui, missions, mission-sheet,
                   reports, crew, queue, queue-rank, availability, status,
                   admin, combobox, media, archive, local-auth[เลิกใช้])
 css/style.css     สไตล์กลาง · css/sheet.css การ์ดภารกิจ
-db/*.sql          schema, policies, triggers + migration_01..28 + import_* + seed_*
+db/*.sql          schema, policies, triggers + migration_01..29 + import_* + seed_*
 static-server.cjs dev server (static)
 architecture.html เอกสารสถาปัตยกรรม (self-contained)
 ```
