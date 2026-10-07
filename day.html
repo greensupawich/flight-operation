@@ -86,7 +86,7 @@
   import { loadRoster, loadUnavailableOn, setUnavailable, clearUnavailable } from "./js/availability.js";
   import { renderTopbar } from "./js/ui.js";
   import { loadMissionsByDate, esc } from "./js/missions.js";
-  import { sheetHTML, wireSheetDelete } from "./js/mission-sheet.js";
+  import { sheetHTML, sortByTakeoff, wireSheetDelete } from "./js/mission-sheet.js";
 
   const profile = await requireAuth();
   if (profile) {
@@ -192,7 +192,8 @@
     async function refresh() {
       const box = document.getElementById("sheets");
       box.innerHTML = `<div class="empty">กำลังโหลด…</div>`;
-      const list = await loadMissionsByDate(date);
+      // เรียงตาม T/O เหมือนหน้าหลัก · T/O ไม่ใช่เวลา (STBY) อยู่ท้าย
+      const list = sortByTakeoff(await loadMissionsByDate(date));
       document.getElementById("sub").textContent =
         list.length ? `${list.length} ภารกิจ` : "ยังไม่มีภารกิจในวันนี้";
       box.innerHTML = list.length ? list.map(m => sheetHTML(m, { planner })).join("")
