@@ -64,6 +64,9 @@ architecture.html เอกสารสถาปัตยกรรม (self-cont
 ### กลไกอัตโนมัติ (triggers) — อย่าคิดคำนวณเองในแอป
 - บันทึก `post_flight_reports` → กระจาย **ชม.บิน** ไป `crew_hours` + `aircraft.total_hours`,
   อัปเดต **currency** `crew_members.last_500/600_date` (trigger `bump_crew_currency`), และ `discrepancies`
+- **หน้าทะเบียน (crew.html) แสดงวันบินล่าสุด 500/600 = ค่าที่ใหม่กว่า** ระหว่างค่าที่เก็บไว้ กับ
+  ภารกิจจัดบินจริง (`loadLastFlown()` ใน js/crew.js: วันที่ ≤ วันนี้, ไม่ยกเลิก, ไม่ใช่ STBY, ตำแหน่งนักบิน)
+  → อัปเดตเองตามจัดบิน ไม่ต้องรอรายงานหลังบิน · นักบินต้องจับคู่กับทะเบียน (crew_member_id) จึงจะนับ
 - แก้ `aircraft.status` → บันทึกประวัติลง `aircraft_status_history` (snapshot รายวัน)
 - ตำแหน่งนับ ชม.บิน = **AC/IP/P/CP** (AC นับเมื่อผูกทะเบียน · ไม่อยู่ในทะเบียนได้) · N ไม่นับ — กฎนี้อยู่ใน recompute_all_hours, archive_purge_month, js/crew.js, js/archive.js
 - `recompute_all_hours()` = **ยอดยกมา** (`crew_hours_carry`, `aircraft.hours_carry`) + รายงานที่ยังอยู่ (migration_25)

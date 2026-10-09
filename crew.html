@@ -107,7 +107,7 @@
 <script type="module">
   import { requireAuth, canPlan } from "./js/auth.js";
   import { renderTopbar } from "./js/ui.js";
-  import { loadCrew, addCrew, updateCrew, deleteCrew, loadMonthlyStats } from "./js/crew.js";
+  import { loadCrew, addCrew, updateCrew, deleteCrew, loadMonthlyStats, loadLastFlown } from "./js/crew.js";
   import { QUALS, qualStyle } from "./js/missions.js";
 
   const profile = await requireAuth();
@@ -154,7 +154,14 @@
     async function refresh() {
       const [yy, mm] = (monthInp.value || monthInp.defaultValue).split("-").map(Number);
       document.getElementById("monthLabel").textContent = `(${TH_MONTH[mm - 1]} ${yy + 543})`;
-      const [list, stats] = await Promise.all([loadCrew(), loadMonthlyStats(yy, mm - 1)]);
+      const tISO = `${todayMid.getFullYear()}-${String(todayMid.getMonth()+1).padStart(2,"0")}-${String(todayMid.getDate()).padStart(2,"0")}`;
+      const [list, stats, flown] = await Promise.all([loadCrew(), loadMonthlyStats(yy, mm - 1), loadLastFlown(tISO)]);
+      // วันบินล่าสุด = ค่าที่ใหม่กว่า ระหว่าง ค่าที่บันทึกไว้ (seed/แก้มือ) กับ ภารกิจจัดบินจริง
+      const latest = (a, b) => (!a ? b || null : !b ? a : (String(a).slice(0,10) > b ? String(a).slice(0,10) : b));
+      list.forEach((c) => {
+        c.last_500_date = latest(c.last_500_date, flown[c.id]?.["500"]);
+        c.last_600_date = latest(c.last_600_date, flown[c.id]?.["600"]);
+      });
       const tb = document.getElementById("rows");
       if (!list.length) {
         tb.innerHTML = `<tr><td colspan="9" class="empty">ยังไม่มีรายชื่อนักบิน${planner ? " · เพิ่มด้านบนได้เลย" : ""}</td></tr>`;

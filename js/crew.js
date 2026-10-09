@@ -105,3 +105,36 @@ export async function setAliases(crewId, list, current) {
   }
   return null;
 }
+
+// =====================================================================
+//  วันบินล่าสุดแยกแบบเครื่อง 500 / 600 — คิดจาก "ภารกิจจัดบิน" (ไม่ต้องรอรายงานหลังบิน)
+//   • นับภารกิจที่วันที่ ≤ วันนี้ · ไม่ถูกยกเลิก · ไม่ใช่ STBY · ตำแหน่งนักบิน (AC/IP/P/CP/N)
+//   • แบบเครื่องจาก aircraft.type ("…500" / "…600")
+//  คืน { crew_member_id: { "500": "YYYY-MM-DD", "600": "YYYY-MM-DD" } }
+// =====================================================================
+export async function loadLastFlown(todayISO) {
+  const out = {};
+  const PAGE = 1000;
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await supabase
+      .from("mission_crew")
+      .select("crew_member_id, position, missions!inner(mission_date, status, kind, aircraft(type))")
+      .not("crew_member_id", "is", null)
+      .lte("missions.mission_date", todayISO)
+      .range(from, from + PAGE - 1);
+    if (error) { console.error(error); break; }
+    (data || []).forEach((r) => {
+      const m = r.missions;
+      if (!m || m.status === "cancelled" || m.kind === "stby") return;
+      if (!PILOT_POSITIONS.includes(String(r.position || "").trim().toUpperCase())) return;
+      const t = String(m.aircraft?.type || "");
+      const tp = /500/.test(t) ? "500" : /600/.test(t) ? "600" : null;
+      if (!tp) return;
+      const d = String(m.mission_date).slice(0, 10);
+      const rec = out[r.crew_member_id] || (out[r.crew_member_id] = {});
+      if (!rec[tp] || d > rec[tp]) rec[tp] = d;
+    });
+    if (!data || data.length < PAGE) break;
+  }
+  return out;
+}
