@@ -94,7 +94,12 @@
   .qcol h4{margin:0 0 6px;font-size:13px;font-weight:700}
   .qlist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:3px;max-height:230px;overflow:auto}
   .qlist li{display:flex;align-items:center;gap:8px;font-size:12.5px;padding:3px 6px;border-radius:6px}
-  .qlist li:first-child{background:var(--primary-soft)}
+  .qlist li.next{background:var(--primary-soft)}
+  .qlist li.off{background:var(--crit-soft)}
+  .qlist li.off .nm{color:var(--crit)}
+  .qlist li.off .qno{border-color:var(--crit);color:var(--crit)}
+  .qlist .offtag{font-size:10.5px;font-weight:700;color:#fff;background:var(--crit);border-radius:5px;padding:1px 6px;
+                 white-space:nowrap;max-width:45%;overflow:hidden;text-overflow:ellipsis}
   .qlist .nm{font-weight:600;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;border-radius:4px;padding:0 5px}
   .qlist .meta{font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--muted);white-space:nowrap}
   .qskip{font-size:11.5px;color:var(--faint);margin-top:6px;line-height:1.5}
@@ -330,7 +335,7 @@
             const liveItems = cellItems(p.id, d).items.filter(it => !it.cancelled);
             if (!liveItems.length && r && r.rank) {                 // ว่าง หรือมีแต่ภารกิจที่ยกเลิก
               inner = `<span class="qno">${r.rank}</span>` + inner;
-              t = `คิวที่ ${r.rank} (${r.group === "CP" ? "CP" : "IP/P"}) · บินจริง ${r.flights} เที่ยว (ไม่นับวันหยุด) · บินล่าสุด ${r.last ? thaiShort(r.last) : "ไม่มีข้อมูล"}` + (t ? "\n" + t : "");
+              t = `คิวที่ ${r.rank} (${r.group === "CP" ? "CP" : "IP/P"})${r.off ? " · ไม่ว่าง" : ""} · บินจริง ${r.flights} เที่ยว (ไม่นับวันหยุด) · บินล่าสุด ${r.last ? thaiShort(r.last) : "ไม่มีข้อมูล"}` + (t ? "\n" + t : "");
             }
           }
           html += `<td class="${cls}" data-date="${d}"${t ? ` title="${esc(t)}"` : ""}>${inner}</td>`;
@@ -375,14 +380,18 @@
       const col = (group, title) => {
         const rows = [...ranks.values()].filter(r => r.group === group);
         const ranked = rows.filter(r => r.rank).sort((a, b) => a.rank - b.rank);
-        const skipped = rows.filter(r => r.reason === "ไม่ว่าง");   // แสดงเฉพาะคนที่ไม่ว่าง
-        return `<div class="qcol"><h4>${title} <span class="muted" style="font-weight:400">(${ranked.length} คน)</span></h4>
+        // คนไม่ว่างยังอยู่ในลำดับคิว แต่เป็นแถวสีแดง + หมายเหตุ · ไฮไลต์ "คิวถัดไป" ที่คนแรกที่ว่าง
+        const nextId = ranked.find(r => !r.off)?.id;
+        const offN = ranked.filter(r => r.off).length;
+        return `<div class="qcol"><h4>${title} <span class="muted" style="font-weight:400">(${ranked.length} คน${offN ? ` · ไม่ว่าง ${offN}` : ""})</span></h4>
           <ol class="qlist">${ranked.map(r => {
             const c = byId.get(r.id);
-            return `<li><span class="qno">${r.rank}</span><span class="nm" style="${qualStyle(c.position)}">${esc(c.full_name)}</span>
+            const note = r.off ? (maps.offMap.get(`${r.id}|${target}`) || "") : "";
+            return `<li class="${r.off ? "off" : r.id === nextId ? "next" : ""}"${r.off ? ` title="ไม่ว่าง${note ? ": " + esc(note) : ""}"` : ""}>
+              <span class="qno">${r.rank}</span><span class="nm" style="${r.off ? "" : qualStyle(c.position)}">${esc(c.full_name)}</span>
+              ${r.off ? `<span class="offtag">ไม่ว่าง${note ? " · " + esc(note) : ""}</span>` : ""}
               <span class="meta">บิน ${r.flights} · ล่าสุด ${r.last ? thaiShort(r.last) : "—"}</span></li>`;
-          }).join("") || `<li class="muted">ไม่มีผู้ที่นับคิวได้</li>`}</ol>
-          ${skipped.length ? `<div class="qskip">ไม่ว่าง: ${skipped.map(r => esc(byId.get(r.id).full_name)).join(", ")}</div>` : ""}</div>`;
+          }).join("") || `<li class="muted">ไม่มีผู้ที่นับคิวได้</li>`}</ol></div>`;
       };
       box.innerHTML = `<h3>คิวบิน · ${thaiLong(target)}</h3>
         <p class="rule">บินจริงน้อยสุดก่อน (ไม่นับ ST และเที่ยวที่บินในวันหยุด ในเดือนนี้) → บินล่าสุดนานกว่าก่อน → ชื่ออยู่บนก่อน · ติ๊กหน้าชื่อเพื่อนับคิว</p>

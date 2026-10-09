@@ -5,7 +5,8 @@
 //  ลำดับ: 1) บินจริงน้อยสุด (ไม่นับ ST / ไม่นับเที่ยวที่บินในวันหยุด) ในเดือนนั้น
 //         2) บินจริงครั้งล่าสุดนานกว่า (ไม่เคยบิน = นานสุด)
 //         3) ชื่ออยู่บนกว่า (ลำดับในทะเบียน)
-//  ไม่ได้คิว: ไม่ได้ติ๊ก / ไม่ว่างในวันนั้น / มีรายการในวันนั้นแล้ว / ไม่มีคุณวุฒิ
+//  ไม่ได้คิว: ไม่ได้ติ๊ก / มีรายการในวันนั้นแล้ว / ไม่มีคุณวุฒิ
+//  ไม่ว่างในวันนั้น: ยังได้ลำดับตามปกติ (off = true) ให้หน้าเว็บแสดงเป็นสีแดง/หมายเหตุ
 // =====================================================================
 const pad = (n) => String(n).padStart(2, "0");
 export const fmtDate = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -33,7 +34,7 @@ export const queueGroup = (position) =>
  * @param itemsFor    (crewId, date) => [{st:boolean}]   สิ่งที่อยู่ในช่อง
  * @param isUnavailable (crewId, date) => boolean
  * @param historyStart  วันแรกที่ใช้ค้นหา "บินล่าสุด"
- * @returns Map(crewId -> { group, rank|null, flights, last|null, reason|null })
+ * @returns Map(crewId -> { group, rank|null, flights, last|null, reason|null, off })
  */
 export function rankQueue({ crew, monthDates, target, isOff, itemsFor, isUnavailable, historyStart }) {
   const result = new Map();
@@ -54,10 +55,10 @@ export function rankQueue({ crew, monthDates, target, isOff, itemsFor, isUnavail
 
     let reason = null;
     if (p.in_queue === false) reason = "ไม่ได้ติ๊กนับคิว";
-    else if (isUnavailable(p.id, target)) reason = "ไม่ว่าง";
     else if (itemsFor(p.id, target).length) reason = "มีรายการในวันนั้นแล้ว";
+    const off = !reason && isUnavailable(p.id, target);   // ไม่ว่าง → ยังนับลำดับ แต่ติดธงไว้
 
-    const row = { id: p.id, idx, group, flights, last, reason, rank: null };
+    const row = { id: p.id, idx, group, flights, last, reason, off, rank: null };
     groups[group].push(row);
     result.set(p.id, row);
   });
