@@ -44,6 +44,10 @@
   table.mt tr.ktop td,table.mt tr.ktop th{border-top:2px solid var(--line-strong)}
   table.mt td.tot,table.mt th.tot{font-weight:700;background:var(--surface-2);position:sticky;inset-inline-end:0}
   table.mt td.z{color:var(--faint)}
+  #disc tr.disc-link{cursor:pointer}
+  #disc tr.disc-link:hover td{background:var(--primary-soft)}
+  #disc tr.disc-link a{color:inherit;text-decoration:none}
+  #disc tr.disc-link:hover a{color:var(--primary);text-decoration:underline}
   table.mt tr.sum td{font-weight:700;background:var(--surface-2)}
   table.mt tr.sum td.k{background:var(--surface-2)}
   .pager{display:flex;align-items:center;justify-content:center;gap:12px;margin:10px 0}
@@ -296,10 +300,16 @@
     const slice=list.slice((discPage-1)*PAGE,(discPage-1)*PAGE+PAGE);
     document.getElementById("disc").innerHTML = slice.length
       ? slice.map(x=>{ const t=x.aircraft?.tail_number||"-"; const c=col(t);
-          return `<tr>
+          // ผูกภารกิจ → คลิกทั้งแถวไปหน้ารายงานหลังบินของไฟลท์นั้น
+          const href=x.mission_id ? `report.html?mission=${x.mission_id}` : "";
+          return `<tr${href?` class="disc-link" data-href="${href}" title="เปิดรายงานหลังบินของไฟลท์นี้"`:""}>
             <td class="mono" style="border-inline-start:5px solid ${c};background:color-mix(in srgb, ${c} 20%, var(--surface));font-weight:700">${esc(t)}</td>
-            <td>${esc(x.description)}</td><td>${esc(x.status)}</td><td>${esc(discDate(x))}</td></tr>`;}).join("")
+            <td>${href?`<a href="${href}">${esc(x.description)}</a>`:esc(x.description)}</td><td>${esc(x.status)}</td><td>${esc(discDate(x))}</td></tr>`;}).join("")
       : `<tr><td colspan="4" class="empty">ไม่มีข้อขัดข้อง</td></tr>`;
+    document.querySelectorAll("#disc tr.disc-link").forEach(tr=>tr.addEventListener("click",(e)=>{
+      if(e.target.closest("a")) return;            // คลิกลิงก์เอง → ให้ลิงก์ทำงานปกติ (เปิดแท็บใหม่ได้)
+      location.href=tr.dataset.href;
+    }));
     const pager=document.getElementById("discPager");
     if(list.length<=PAGE){ pager.innerHTML=list.length?`<span class="pinfo">${list.length} รายการ</span>`:""; }
     else{
