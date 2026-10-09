@@ -275,9 +275,10 @@
   const tails=[...new Set((d||[]).map(x=>x.aircraft?.tail_number||"-"))].sort();
   const HUES=[210,8,145,40,275,175,320,95];
   const col=(t)=>`hsl(${HUES[Math.max(0,tails.indexOf(t))%HUES.length]} 70% 45%)`;
+  // เรียงตามวันที่ภารกิจ (ใหม่ → เก่า) · วันเดียวกันเรียงตามทะเบียนเครื่อง
   const discRows=(d||[]).slice().sort((a,b)=>
-    (a.aircraft?.tail_number||"").localeCompare(b.aircraft?.tail_number||"")
-    || discDate(b).localeCompare(discDate(a)));
+    discDate(b).localeCompare(discDate(a))
+    || (a.aircraft?.tail_number||"").localeCompare(b.aircraft?.tail_number||""));
 
   // ---- ตัวเลือกเครื่อง (dropdown) ----
   const sel=document.getElementById("discAc");
