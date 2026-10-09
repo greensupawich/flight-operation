@@ -94,7 +94,7 @@
         <select id="discAc" style="width:auto"><option value="">ทั้งหมด</option></select></div>
     </div>
     <div class="tablewrap">
-      <table><thead><tr><th>ทะเบียน</th><th>รายละเอียด</th><th>สถานะ</th><th>วันที่</th></tr></thead>
+      <table><thead><tr><th>ทะเบียน</th><th>รายละเอียด</th><th>สถานะ</th><th>วันที่ภารกิจ</th></tr></thead>
       <tbody id="disc"><tr><td colspan="4" class="empty">กำลังโหลด…</td></tr></tbody></table>
     </div>
     <div class="pager" id="discPager"></div>
@@ -268,14 +268,16 @@
     : `<tr><td colspan="3" class="empty">ยังไม่มีข้อมูล</td></tr>`;
 
   const { data: d } = await supabase.from("discrepancies")
-    .select("*, aircraft(tail_number)").order("reported_date",{ascending:false});
+    .select("*, aircraft(tail_number), missions(mission_date)").order("reported_date",{ascending:false});
+  // วันที่ของข้อขัดข้อง = วันของภารกิจ (ถ้าไม่ผูกภารกิจ ใช้วันที่รายงานแทน)
+  const discDate=(x)=>String(x.missions?.mission_date||x.reported_date||"").slice(0,10);
   // สีประจำเครื่อง (แยกด้วย hue ต่างกัน · ใช้ได้ทั้งธีมสว่าง/มืด ด้วย color-mix)
   const tails=[...new Set((d||[]).map(x=>x.aircraft?.tail_number||"-"))].sort();
   const HUES=[210,8,145,40,275,175,320,95];
   const col=(t)=>`hsl(${HUES[Math.max(0,tails.indexOf(t))%HUES.length]} 70% 45%)`;
   const discRows=(d||[]).slice().sort((a,b)=>
     (a.aircraft?.tail_number||"").localeCompare(b.aircraft?.tail_number||"")
-    || String(b.reported_date).localeCompare(String(a.reported_date)));
+    || discDate(b).localeCompare(discDate(a)));
 
   // ---- ตัวเลือกเครื่อง (dropdown) ----
   const sel=document.getElementById("discAc");
@@ -295,7 +297,7 @@
       ? slice.map(x=>{ const t=x.aircraft?.tail_number||"-"; const c=col(t);
           return `<tr>
             <td class="mono" style="border-inline-start:5px solid ${c};background:color-mix(in srgb, ${c} 20%, var(--surface));font-weight:700">${esc(t)}</td>
-            <td>${esc(x.description)}</td><td>${esc(x.status)}</td><td>${esc(x.reported_date)}</td></tr>`;}).join("")
+            <td>${esc(x.description)}</td><td>${esc(x.status)}</td><td>${esc(discDate(x))}</td></tr>`;}).join("")
       : `<tr><td colspan="4" class="empty">ไม่มีข้อขัดข้อง</td></tr>`;
     const pager=document.getElementById("discPager");
     if(list.length<=PAGE){ pager.innerHTML=list.length?`<span class="pinfo">${list.length} รายการ</span>`:""; }
